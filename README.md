@@ -1,2 +1,2 @@
 # hone
-A editor to hone your thought as your facets
+An editor to hone your thoughts as your facets.
