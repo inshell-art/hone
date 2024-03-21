@@ -1,0 +1,8 @@
+.editorContainer {
+  margin-top: 0; /* Ensure it starts at the top */
+  width: 700px; /* Or any specific width */
+  margin-left: auto;
+  min-height: 100vh; /* Full height */
+  border: none;
+  text-align: left;
+}
