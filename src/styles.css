@@ -1,0 +1,74 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;600;700&display=swap");
+
+:root {
+  --light-white: #f0f0f0;
+  --light-black: #0f0f0f;
+  --dark-white: #c1c1c1;
+  --dark-black: #191919;
+  --ash: #777777;
+  --Scheele-green: #006100;
+
+  --tiny: 8px;
+  --small: 16px;
+  --medium: 24px;
+  --large: 40px;
+  --super-large: 60px;
+
+  --light: 300;
+  --middle: 400;
+  --heavy: 600;
+
+  --width: 780px;
+}
+
+body {
+  font-family: "Source Code Pro", monospace;
+  color: var (--light-black);
+  background-color: var(--light-white);
+  width: var(--width);
+  margin: 0 auto;
+  padding: 0 auto;
+}
+
+/* for HoneEditor */
+.editor-container {
+  position: relative;
+  top: var(--large);
+}
+
+.editor-container {
+  margin: 0px;
+  text-align: left;
+}
+
+.editor-placeholder {
+  color: var(--ash);
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+
+.editor-input {
+  position: relative;
+  outline: 0;
+  top: 0px;
+  left: 0px;
+}
+
+.editor-paragraph {
+  font-size: var(--small);
+  font-weight: var(--light);
+}
+
+.article-title {
+  font-weight: var(--heavy);
+  font-size: var(--large);
+  padding-bottom: var(--small);
+  padding-top: var(--large);
+}
+
+.facet-title {
+  color: var(--Scheele-green);
+  font-weight: var(--heavy);
+  padding-top: var(--large);
+}
