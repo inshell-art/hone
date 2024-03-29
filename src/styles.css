@@ -49,15 +49,15 @@ body {
 }
 
 .editor-input {
-  position: relative;
   outline: 0;
+  position: relative;
   top: 0px;
   left: 0px;
 }
 
 .editor-paragraph {
   font-size: var(--small);
-  font-weight: var(--light);
+  font-weight: var(--middle);
 }
 
 .article-title {
@@ -70,5 +70,6 @@ body {
 .facet-title {
   color: var(--Scheele-green);
   font-weight: var(--heavy);
+  font-size: var(--small);
   padding-top: var(--large);
 }
