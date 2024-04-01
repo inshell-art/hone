@@ -34,7 +34,7 @@ const StyleFacetTitlePlugin = () => {
 
           parent.replace(headingNode);
         }
-      }
+      },
     );
 
     return () => {
