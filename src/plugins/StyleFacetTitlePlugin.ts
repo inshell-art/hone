@@ -41,7 +41,7 @@ const StyleFacetTitlePlugin = () => {
 
           parent.replace(paragraphNode);
         }
-      }
+      },
     );
 
     return () => {
