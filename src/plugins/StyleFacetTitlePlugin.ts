@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { $getRoot, ElementNode, TextNode } from "lexical";
+import { $createParagraphNode, $getRoot, ElementNode, TextNode } from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $createHeadingNode } from "@lexical/rich-text";
 
@@ -10,21 +10,17 @@ const StyleFacetTitlePlugin = () => {
     const removeNodeTransform = editor.registerNodeTransform(
       TextNode,
       (textNode) => {
-        // Ensure the text node starts with '$'
-        if (!textNode.getTextContent().startsWith("$")) {
-          return;
-        }
-
         const root = $getRoot();
         const firstChild = root.getFirstChild();
         const parent = textNode.getParent();
 
-        // Ensure the parent of the text node is not the first child of the root
-        // and not already styled as a heading
+        if (parent === firstChild || !(parent instanceof ElementNode)) {
+          return;
+        }
+
         if (
-          parent !== firstChild &&
-          parent.getType() !== "heading" &&
-          parent instanceof ElementNode
+          textNode.getTextContent().startsWith("$") &&
+          parent.getType() !== "heading"
         ) {
           const headingNode = $createHeadingNode("h2");
 
@@ -33,8 +29,19 @@ const StyleFacetTitlePlugin = () => {
           });
 
           parent.replace(headingNode);
+        } else if (
+          !textNode.getTextContent().startsWith("$") &&
+          parent.getType() === "heading" // Exhaustive check
+        ) {
+          const paragraphNode = $createParagraphNode();
+
+          parent.getChildren().forEach((child) => {
+            paragraphNode.append(child);
+          });
+
+          parent.replace(paragraphNode);
         }
-      },
+      }
     );
 
     return () => {
