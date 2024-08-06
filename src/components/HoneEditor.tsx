@@ -8,9 +8,9 @@ import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import HoneTheme from "../themes/HoneTheme";
 import { HeadingNode } from "@lexical/rich-text";
 import { ParagraphNode, TextNode } from "lexical";
-import StyleArticleTitlePlugin from "../plugins/StyleArticleTitlePlugin";
 import TreeViewPlugin from "../plugins/TreeViewPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import StyleArticleTitlePlugin from "../plugins/StyleArticleTitlePlugin";
 import StyleFacetTitlePlugin from "../plugins/StyleFacetTitlePlugin";
 
 const HoneEditor = () => {
@@ -37,6 +37,7 @@ const HoneEditor = () => {
           placeholder={<Placeholder />}
           ErrorBoundary={LexicalErrorBoundary}
         />
+
         <StyleArticleTitlePlugin />
         <StyleFacetTitlePlugin />
         <AutoFocusPlugin />

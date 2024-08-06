@@ -1,0 +1,105 @@
+/* TreeViewStyles.css */
+
+/* Style for the entire TreeView component */
+.tree-view-output {
+  /* Style for the tree view container */
+  background-color: #f8f9fa; /* Light background color for better visibility */
+  border: 1px solid #dee2e6; /* Light border around the tree view */
+  border-radius: 8px; /* Rounded corners for a modern look */
+  padding: 16px; /* Space inside the container */
+  font-family: Arial, sans-serif; /* Font for the tree view */
+}
+
+/* Style for the tree type button */
+.tree-type-button {
+  background-color: #007bff; /* Primary color for the button */
+  color: white; /* Text color */
+  border: none; /* Remove default border */
+  border-radius: 4px; /* Rounded corners */
+  padding: 10px 20px; /* Space inside the button */
+  font-size: 14px; /* Font size */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease; /* Smooth color transition */
+}
+
+.tree-type-button:hover {
+  background-color: #0056b3; /* Darker color on hover */
+}
+
+.tree-type-button:active {
+  background-color: #004085; /* Even darker color on active state */
+}
+
+.tree-type-button:disabled {
+  background-color: #d6d6d6; /* Gray color for disabled state */
+  cursor: not-allowed; /* Not allowed cursor */
+  color: #6c757d; /* Text color for disabled state */
+}
+
+/* Style for the time travel panel */
+.debug-timetravel-panel {
+  background-color: #fff; /* White background for the panel */
+  border: 1px solid #dee2e6; /* Light border around the panel */
+  border-radius: 4px; /* Rounded corners */
+  padding: 12px; /* Space inside the panel */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for better visibility */
+}
+
+/* Style for the time travel button */
+.debug-timetravel-button {
+  background-color: #28a745; /* Green background for the button */
+  color: white; /* Text color */
+  border: none; /* Remove default border */
+  border-radius: 4px; /* Rounded corners */
+  padding: 8px 16px; /* Space inside the button */
+  font-size: 14px; /* Font size */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease; /* Smooth color transition */
+}
+
+.debug-timetravel-button:hover {
+  background-color: #218838; /* Darker green on hover */
+}
+
+.debug-timetravel-button:active {
+  background-color: #1e7e34; /* Even darker green on active state */
+}
+
+.debug-timetravel-button:disabled {
+  background-color: #d6d6d6; /* Gray color for disabled state */
+  cursor: not-allowed; /* Not allowed cursor */
+  color: #6c757d; /* Text color for disabled state */
+}
+
+/* Style for the time travel panel slider */
+.debug-timetravel-panel-slider {
+  background-color: #f1f1f1; /* Light background for the slider */
+  border-radius: 4px; /* Rounded corners */
+  height: 8px; /* Height of the slider */
+}
+
+/* Style for the time travel panel button */
+.debug-timetravel-panel-button {
+  background-color: #007bff; /* Primary color for the button */
+  color: white; /* Text color */
+  border: none; /* Remove default border */
+  border-radius: 4px; /* Rounded corners */
+  padding: 6px 12px; /* Space inside the button */
+  font-size: 12px; /* Font size */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease; /* Smooth color transition */
+}
+
+.debug-timetravel-panel-button:hover {
+  background-color: #0056b3; /* Darker color on hover */
+}
+
+.debug-timetravel-panel-button:active {
+  background-color: #004085; /* Even darker color on active state */
+}
+
+.debug-timetravel-panel-button:disabled {
+  background-color: #d6d6d6; /* Gray color for disabled state */
+  cursor: not-allowed; /* Not allowed cursor */
+  color: #6c757d; /* Text color for disabled state */
+}

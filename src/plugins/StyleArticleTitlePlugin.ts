@@ -12,22 +12,32 @@ const TransformFirstTextNodeParentPlugin = () => {
       (textNode) => {
         const root = $getRoot();
         const firstChild = root.getFirstChild();
+
+        if (firstChild === null) {
+          return;
+        }
+
         const parent = textNode.getParent();
 
         if (
-          parent === firstChild &&
-          parent.getType() !== "heading" &&
-          parent instanceof ElementNode
+          parent !== firstChild ||
+          parent.getType() === "heading" ||
+          !(parent instanceof ElementNode)
         ) {
-          const headingNode = $createHeadingNode("h1");
-
-          parent.getChildren().forEach((child) => {
-            headingNode.append(child);
-          });
-
-          parent.replace(headingNode);
+          return;
         }
-      },
+
+        const headingNode = $createHeadingNode("h1");
+
+        while (parent.getFirstChild()) {
+          const child = parent.getFirstChild();
+          if (child !== null) {
+            headingNode.append(child);
+          }
+        }
+
+        parent.replace(headingNode);
+      }
     );
 
     return () => {

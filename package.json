@@ -13,10 +13,10 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@lexical/plain-text": "^0.14.2",
-    "@lexical/react": "^0.14.2",
-    "@lexical/rich-text": "^0.14.2",
-    "lexical": "^0.14.2",
+    "@lexical/plain-text": "^0.14.5",
+    "@lexical/react": "^0.14.5",
+    "@lexical/rich-text": "^0.14.5",
+    "lexical": "^0.14.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
