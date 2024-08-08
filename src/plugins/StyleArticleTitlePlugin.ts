@@ -12,14 +12,10 @@ const TransformFirstTextNodeParentPlugin = () => {
       (textNode) => {
         const root = $getRoot();
         const firstChild = root.getFirstChild();
-
-        if (firstChild === null) {
-          return;
-        }
-
         const parent = textNode.getParent();
 
         if (
+          firstChild === null ||
           parent !== firstChild ||
           parent.getType() === "heading" ||
           !(parent instanceof ElementNode)

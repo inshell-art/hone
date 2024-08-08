@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { $createParagraphNode, $getRoot, ElementNode, TextNode } from "lexical";
+import { $getRoot, ElementNode, TextNode, $createParagraphNode } from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $createHeadingNode } from "@lexical/rich-text";
 
@@ -11,37 +11,60 @@ const StyleFacetTitlePlugin = () => {
       TextNode,
       (textNode) => {
         const root = $getRoot();
-        const firstChild = root.getFirstChild();
+        const firstChildOfRoot = root.getFirstChild();
         const parent = textNode.getParent();
 
-        if (parent === firstChild || !(parent instanceof ElementNode)) {
+        if (parent === firstChildOfRoot || !(parent instanceof ElementNode)) {
           return;
         }
 
+        const isFirstTextNode = (textNode: TextNode) => {
+          if (!(parent instanceof ElementNode)) {
+            return false;
+          }
+
+          let currentNode = parent.getFirstChild();
+
+          while (currentNode) {
+            if (currentNode instanceof TextNode) {
+              return currentNode === textNode;
+            }
+            currentNode = currentNode.getNextSibling();
+          }
+        };
+
         if (
+          isFirstTextNode(textNode) &&
           textNode.getTextContent().startsWith("$") &&
           parent.getType() !== "heading"
         ) {
           const headingNode = $createHeadingNode("h2");
 
-          parent.getChildren().forEach((child) => {
-            headingNode.append(child);
-          });
+          while (parent.getFirstChild()) {
+            const child = parent.getFirstChild();
+            if (child !== null) {
+              headingNode.append(child);
+            }
+          }
 
           parent.replace(headingNode);
         } else if (
+          isFirstTextNode(textNode) &&
           !textNode.getTextContent().startsWith("$") &&
           parent.getType() === "heading" // Exhaustive check
         ) {
           const paragraphNode = $createParagraphNode();
 
-          parent.getChildren().forEach((child) => {
-            paragraphNode.append(child);
-          });
+          while (parent.getFirstChild()) {
+            const child = parent.getFirstChild();
+            if (child !== null) {
+              paragraphNode.append(child);
+            }
+          }
 
           parent.replace(paragraphNode);
         }
-      },
+      }
     );
 
     return () => {
