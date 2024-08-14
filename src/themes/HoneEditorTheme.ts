@@ -1,4 +1,4 @@
-const HoneTheme = {
+const HoneEditorTheme = {
   paragraph: "editor-paragraph",
   heading: {
     h1: "article-title",
@@ -6,10 +6,8 @@ const HoneTheme = {
   },
 
   text: {
-    bold: "editor-text-bold",
-    italic: "editor-text-italic",
     // Other text styles...
   },
 };
 
-export default HoneTheme;
+export default HoneEditorTheme;

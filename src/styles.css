@@ -21,6 +21,12 @@
   --width: 780px;
 }
 
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
 body {
   font-family: "Source Code Pro", monospace;
   color: var (--light-black);
@@ -33,10 +39,7 @@ body {
 /* for HoneEditor */
 .editor-container {
   position: relative;
-  top: var(--large);
-}
-
-.editor-container {
+  top: var(--medium);
   margin: 0px;
   text-align: left;
 }
@@ -61,10 +64,9 @@ body {
 }
 
 .article-title {
-  font-weight: var(--heavy);
-  font-size: var(--large);
+  font-weight: var(--middle);
+  font-size: var(--medium);
   padding-bottom: var(--small);
-  padding-top: var(--small);
 }
 
 .facet-title {
@@ -72,4 +74,137 @@ body {
   font-weight: var(--heavy);
   font-size: var(--small);
   padding-top: var(--large);
+}
+
+/* For Home */
+.home-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+}
+
+.navbar-left {
+  display: flex;
+  gap: 20px; /* Space between links */
+  margin: 0;
+}
+
+.navbar-right {
+  display: flex;
+  gap: 20px;
+  margin: 0;
+}
+
+.nav-link-articles {
+  text-decoration: none;
+  font-weight: var(--middle);
+  color: var(--light-black);
+}
+
+.nav-link-facets {
+  text-decoration: none;
+  font-weight: var(--middle);
+  color: var(--Scheele-green);
+}
+
+.nav-link-articles.active,
+.nav-link-facets.active {
+  text-decoration: underline;
+}
+
+.nav-link-create {
+  text-decoration: none;
+  font-weight: var(--middle);
+  color: var(--light-black);
+}
+
+.nav-link-create.hover {
+  text-decoration: none;
+}
+
+.nav-link-create.active {
+  text-decoration: none;
+}
+
+.content-container {
+  flex: 1;
+  padding: 20px 0;
+}
+
+.footer {
+  margin-top: var(--large);
+  margin-bottom: var(--medium);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.footer-link {
+  text-decoration: none;
+  color: var(--ash);
+  font-weight: var(--light);
+  font-size: var(--small);
+}
+
+/* For Articles list */
+.articles-container {
+  padding: 0;
+  margin-top: var(--medium);
+}
+
+.articles-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.article-item {
+  padding: 0;
+  margin-bottom: var(--small);
+}
+
+.article-item:last-child {
+  border-bottom: none;
+}
+
+.article-link {
+  text-decoration: none;
+  color: var(--dark-black);
+  font-weight: var(--middle);
+  font-size: var(--medium);
+}
+
+.article-date {
+  color: var(--ash);
+  font-size: var(--small);
+}
+
+/* For Facets list */
+.facets-container {
+  padding: 0;
+  margin-top: var(--medium);
+}
+
+.facets-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.facet-item {
+  padding: 0;
+  margin-bottom: var(--small);
+}
+
+.facet-item:last-child {
+  border-bottom: none;
+}
+
+.facet-link {
+  text-decoration: none;
+  color: var(--Scheele-green);
+  font-weight: var(--heavy);
+  font-size: var(--small);
 }

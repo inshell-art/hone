@@ -1,10 +1,10 @@
-import HoneEditor from "./components/HoneEditor";
+import Home from "./components/Home";
 import "./styles.css";
 
 const App = () => {
   return (
     <div className="App">
-      <HoneEditor />
+      <Home />
     </div>
   );
 };

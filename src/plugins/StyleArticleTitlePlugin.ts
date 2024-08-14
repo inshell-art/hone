@@ -33,7 +33,7 @@ const TransformFirstTextNodeParentPlugin = () => {
         }
 
         parent.replace(headingNode);
-      }
+      },
     );
 
     return () => {
