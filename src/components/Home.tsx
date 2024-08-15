@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from "uuid";
 const EditorWithParams: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   if (id) {
-    return <Editor articleId={id} />;
+    return <Editor key={id} articleId={id} />;
   }
   return null;
 };

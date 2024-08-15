@@ -1,64 +1,55 @@
 import React, { useState, useEffect } from "react";
-import { Article, ArticleContent } from "../types/types";
+import { ArticleRecord } from "../types/types";
 
 const Articles: React.FC = () => {
-  const [articles, setArticles] = useState<Article[]>([]);
+  const [articles, setArticles] = useState<ArticleRecord>({});
 
   useEffect(() => {
     const storedArticles = localStorage.getItem("HoneEditorArticles");
     if (storedArticles) {
       try {
-        const parsedArticles: Record<string, ArticleContent> =
-          JSON.parse(storedArticles);
+        const parsedArticles: ArticleRecord = JSON.parse(storedArticles);
 
         if (parsedArticles && typeof parsedArticles === "object") {
-          const articlesArray = Object.entries(parsedArticles).map(
-            ([id, content]: [string, ArticleContent]) => {
-              const headingNode = content.root.children.find(
-                (node) => node.type === "heading" && node.tag === "h1"
-              );
-
-              const title =
-                headingNode?.children?.[0]?.text || "Untitled Article";
-
-              return {
-                id,
-                title,
-                content,
-              };
-            }
-          );
-
-          setArticles(articlesArray);
+          setArticles(parsedArticles);
         } else {
           console.error(
             "Parsed articles data is not an object:",
             parsedArticles
           );
-          setArticles([]);
+          setArticles({});
         }
       } catch (error) {
         console.error("Failed to parse articles from localStorage:", error);
-        setArticles([]);
+        setArticles({});
       }
     } else {
       console.log("No articles found in localStorage");
-      setArticles([]);
+      setArticles({});
     }
   }, []);
 
   return (
     <div className="articles-container">
       <ul className="articles-list">
-        {articles.length > 0 ? (
-          articles.map((article) => (
-            <li key={article.id} className="article-item">
-              <a href={`/editor/${article.id}`} className="article-link">
-                {article.title}
-              </a>
-              <div className="article-date">2024-01-01</div>
-            </li>
-          ))
+        {Object.keys(articles).length > 0 ? (
+          Object.entries(articles).map(([id, content]) => {
+            const headingNode = content.root.children.find(
+              (node) => "tag" in node && node.tag === "h1"
+            );
+
+            const title =
+              headingNode?.children?.[0]?.text || "Untitled Article";
+
+            return (
+              <li key={id} className="article-item">
+                <a href={`/editor/${id}`} className="article-link">
+                  {title}
+                </a>
+                <div className="article-date">2024-01-01</div>
+              </li>
+            );
+          })
         ) : (
           <li>No articles found</li>
         )}

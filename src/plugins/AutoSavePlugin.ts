@@ -45,10 +45,6 @@ const AutoSavePlugin: React.FC<EditorProps> = ({ articleId }) => {
           "HoneEditorArticles",
           JSON.stringify(savedArticles)
         );
-
-        console.log(
-          `Content of Hone Editor (article ID: ${articleId}) auto-saved to localStorage successfully.`
-        );
       } catch (error) {
         console.error("Failed to auto-save content to localStorage:", error);
       }

@@ -13,6 +13,7 @@ import StyleFacetTitlePlugin from "../plugins/StyleFacetTitlePlugin";
 import { EditorProps } from "../types/types";
 import AutoSavePlugin from "../plugins/AutoSavePlugin";
 import LoadArticlePlugin from "../plugins/LoadArticlePlugin";
+import HonePanelPlugin from "../plugins/HonePanelPlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const initialConfig = {
@@ -45,6 +46,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         <TreeViewPlugin />
         <LoadArticlePlugin articleId={articleId} />
         <AutoSavePlugin articleId={articleId} />
+        <HonePanelPlugin />
       </div>
     </LexicalComposer>
   );

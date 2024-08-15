@@ -8,7 +8,7 @@ type TextNode = {
   version: number;
 };
 
-type HeadingNode = {
+export type HeadingNode = {
   children: TextNode[];
   direction: string;
   format: string;
@@ -18,8 +18,17 @@ type HeadingNode = {
   tag: string;
 };
 
+export type ParagraphNode = {
+  children: TextNode[];
+  direction: string;
+  format: string;
+  indent: number;
+  type: string;
+  version: number;
+};
+
 type RootNode = {
-  children: HeadingNode[];
+  children: (HeadingNode | ParagraphNode)[];
   direction: string;
   format: string;
   indent: number;
@@ -31,12 +40,15 @@ export type ArticleContent = {
   root: RootNode;
 };
 
-export type Article = {
-  id: string;
-  title: string;
-  content: ArticleContent;
-};
-
 export type EditorProps = {
   articleId: string;
 };
+
+export type Facet = {
+  facetId: string;
+  title: string;
+  articleId: string;
+  content: (HeadingNode | ParagraphNode)[];
+};
+
+export type ArticleRecord = Record<string, ArticleContent>;
