@@ -59,9 +59,19 @@ const Home: React.FC = () => {
           </Routes>
         </div>
         <footer className="footer">
-          <a href="https://hone.example.com" className="footer-link">
-            Craft by Hone
-          </a>
+          <div className="footer-left">
+            <a href="#import" className="footer-link">
+              Import
+            </a>
+            <a href="#export" className="footer-link">
+              Export
+            </a>
+          </div>
+          <div className="footer-right">
+            <a href="https://hone.example.com" className="footer-link">
+              Craft by Inshell
+            </a>
+          </div>
         </footer>
       </div>
     </Router>

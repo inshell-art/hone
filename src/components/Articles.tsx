@@ -15,7 +15,7 @@ const Articles: React.FC = () => {
         } else {
           console.error(
             "Parsed articles data is not an object:",
-            parsedArticles
+            parsedArticles,
           );
           setArticles({});
         }
@@ -35,7 +35,7 @@ const Articles: React.FC = () => {
         {Object.keys(articles).length > 0 ? (
           Object.entries(articles).map(([id, content]) => {
             const headingNode = content.root.children.find(
-              (node) => "tag" in node && node.tag === "h1"
+              (node) => "tag" in node && node.tag === "h1",
             );
 
             const title =

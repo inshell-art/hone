@@ -7,6 +7,11 @@ const LoadArticlePlugin: React.FC<EditorProps> = ({ articleId }) => {
 
   useEffect(() => {
     const storedArticles = localStorage.getItem("HoneEditorArticles");
+
+    if (!storedArticles) {
+      return;
+    }
+
     if (storedArticles) {
       try {
         const parsedArticles = JSON.parse(storedArticles);
@@ -18,7 +23,8 @@ const LoadArticlePlugin: React.FC<EditorProps> = ({ articleId }) => {
             editor.setEditorState(editorState);
           });
         } else {
-          console.error("Article content is not properly serialized.");
+          console.log(`No content found for article ID: ${articleId}`);
+          return;
         }
       } catch (error) {
         console.error("Failed to parse the stored articles", error);

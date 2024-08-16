@@ -8,7 +8,7 @@
   --ash: #777777;
   --Scheele-green: #006100;
 
-  --tiny: 8px;
+  --tiny: 12px;
   --small: 16px;
   --medium: 24px;
   --large: 40px;
@@ -139,15 +139,29 @@ body {
 .footer {
   margin-top: var(--large);
   margin-bottom: var(--medium);
-  text-align: center;
   flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0px;
+  bottom: 0;
+  left: 0;
+}
+
+.footer-left {
+  display: flex;
+  gap: 20px; /* Adjust spacing between links as needed */
+}
+
+.footer-right {
+  text-align: right;
 }
 
 .footer-link {
   text-decoration: none;
   color: var(--ash);
   font-weight: var(--light);
-  font-size: var(--small);
+  font-size: var(--tiny);
 }
 
 /* For Articles list */
@@ -207,4 +221,54 @@ body {
   color: var(--Scheele-green);
   font-weight: var(--heavy);
   font-size: var(--small);
+}
+
+/* For hone panel */
+.hone-panel {
+  position: absolute;
+  background-color: var(--light-white);
+  border: 1px solid var(--Scheele-green);
+  box-shadow: 0 1px 2px var(--Scheele-green);
+  border-radius: 0px;
+  z-index: 1000;
+  padding: 10px;
+}
+
+.hone-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: var(--middle);
+  font-size: 16px;
+}
+
+.hone-panel-close-button {
+  background-color: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--light-black);
+}
+
+.hone-panel-close-button:hover {
+  color: var(--Scheele-green);
+}
+
+.hone-panel-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.hone-panel-item {
+  padding: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.hone-panel-item:hover {
+  background-color: var(--ash);
 }

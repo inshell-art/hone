@@ -15,20 +15,58 @@ const HonePanelPlugin = () => {
   const [editor] = useLexicalComposerContext();
   const [isPanelVisible, setPanelVisible] = useState(false);
   const [facets, setFacets] = useState<Facet[]>([]);
+  const [panelPosition, setPanelPosition] = useState({ top: 0, left: 0 });
+  const [panelWidth, setPanelWidth] = useState(0);
 
   const triggerHonePanel = useCallback(() => {
+    const selection = $getSelection();
     const facets = extractFacets();
-    facets.forEach((facet) => console.log(facet));
-
     setFacets(facets);
 
-    setPanelVisible(true); // Show the panel
-  }, []);
+    if ($isRangeSelection(selection)) {
+      const anchorNode = selection.anchor.getNode();
+      const anchorKey = anchorNode.getKey();
+      const element = editor.getElementByKey(anchorKey);
+
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const editorElement = document.querySelector(".editor-container");
+        const editorRect = editorElement?.getBoundingClientRect();
+
+        if (rect && editorRect) {
+          const topPosition = rect.top - editorRect.top;
+
+          setPanelPosition({
+            top: topPosition,
+            left: rect.left - editorRect.left,
+          });
+          setPanelWidth(editorRect.width);
+
+          // Scroll to the top of the editor to prevent the panel from being hidden
+          if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            const panelTopPosition = rect.top + window.scrollY - 50;
+            setTimeout(() => {
+              window.scrollTo({
+                top: panelTopPosition,
+                behavior: "smooth",
+              });
+            }, 100);
+          }
+
+          editor.setEditable(false);
+          setPanelVisible(true);
+        }
+      }
+    }
+  }, [editor]);
 
   const handleClosePanel = useCallback(() => {
+    // Unlock the editor
+    editor.setEditable(true);
     setPanelVisible(false);
-  }, []);
+  }, [editor]);
 
+  // Register the command to trigger the panel
   useEffect(() => {
     const isMacOS = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
 
@@ -61,9 +99,11 @@ const HonePanelPlugin = () => {
       COMMAND_PRIORITY_HIGH
     );
 
+    // Event listener for closing the panel with Escape key
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isPanelVisible) {
         handleClosePanel();
+        editor.focus(); // Return focus to the editor
       }
     };
 
@@ -78,16 +118,26 @@ const HonePanelPlugin = () => {
   return (
     <>
       {isPanelVisible && (
-        <div className="facet-panel">
-          <div className="facet-panel-header">
+        <div
+          className="hone-panel"
+          style={{
+            top: panelPosition.top,
+            left: panelPosition.left,
+            width: panelWidth,
+          }}
+        >
+          <div className="hone-panel-header">
             <span>Select a similar facet to insert:</span>
-            <button className="close-button" onClick={handleClosePanel}>
+            <button
+              className="hone-panel-close-button"
+              onClick={handleClosePanel}
+            >
               ×
             </button>
           </div>
-          <ul className="facet-panel-list">
+          <ul className="hone-panel-list">
             {facets.map((facet) => (
-              <li key={facet.facetId} className="facet-panel-item">
+              <li key={facet.facetId} className="hone-panel-item">
                 {facet.title}
               </li>
             ))}
