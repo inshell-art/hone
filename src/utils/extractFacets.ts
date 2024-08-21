@@ -13,9 +13,8 @@ export const extractFacets = (): Facet[] => {
         let currentFacet: Facet | null = null;
 
         children.forEach((node, index) => {
-          // Check if the node is a heading with tag "h2"
           if ("tag" in node && node.tag === "h2") {
-            // If there's an ongoing facet, finalize and push it to the facets array
+            const title = node.children[0].text as string;
             if (currentFacet) {
               facets.push(currentFacet);
             }
@@ -23,15 +22,16 @@ export const extractFacets = (): Facet[] => {
             // Start a new facet
             currentFacet = {
               facetId: `${articleId}-${index}`,
-              title: node.children[0]?.text || "Untitled Facet",
+              title,
               articleId,
               content: [],
             };
-          }
-
-          // If there's an ongoing facet, add the node to its content
-          if (currentFacet) {
-            currentFacet.content.push(node);
+          } else if (currentFacet) {
+            const nodeIndex = children.indexOf(node);
+            const titleIndex = children.indexOf(children[nodeIndex - 1]);
+            if (nodeIndex !== titleIndex + 1) {
+              currentFacet.content.push(node);
+            }
           }
         });
 
@@ -43,7 +43,7 @@ export const extractFacets = (): Facet[] => {
     } catch (error) {
       console.error(
         "Failed to parse the stored articles to extract facets",
-        error,
+        error
       );
     }
   }

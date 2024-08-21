@@ -82,10 +82,18 @@ body {
   flex-direction: column;
   min-height: 100vh;
 }
+
 .navbar {
+  position: fixed;
+  top: 0;
+  width: var(--width);
+  z-index: 1001;
+  background-color: var(--light-white);
+
   display: flex;
   justify-content: space-between;
-  margin: 20px 0;
+  margin: 0;
+  padding: 10px 0;
 }
 
 .navbar-left {
@@ -133,6 +141,7 @@ body {
 
 .content-container {
   flex: 1;
+  margin-top: var(--large);
   padding: 20px 0;
 }
 
@@ -228,10 +237,12 @@ body {
   position: absolute;
   background-color: var(--light-white);
   border: 1px solid var(--Scheele-green);
-  box-shadow: 0 1px 2px var(--Scheele-green);
+  box-shadow: 0 2px 4px var(--Scheele-green);
   border-radius: 0px;
   z-index: 1000;
-  padding: 10px;
+  padding: 0px;
+  overflow: auto;
+  max-height: 200px;
 }
 
 .hone-panel-header {
@@ -239,36 +250,35 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  padding: 10px;
   font-weight: var(--middle);
   font-size: 16px;
-}
-
-.hone-panel-close-button {
-  background-color: transparent;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--light-black);
-}
-
-.hone-panel-close-button:hover {
-  color: var(--Scheele-green);
 }
 
 .hone-panel-list {
   list-style-type: none;
   padding: 0;
   margin: 0;
-  max-height: 200px;
+  height: 100%;
   overflow-y: auto;
 }
 
 .hone-panel-item {
   padding: 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
-.hone-panel-item:hover {
-  background-color: var(--ash);
+.hone-panel-item.selected {
+  background-color: var(--Scheele-green);
+  color: white;
+}
+
+.editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0);
+  z-index: 999;
 }

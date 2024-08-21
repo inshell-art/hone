@@ -48,7 +48,7 @@ export type Facet = {
   facetId: string;
   title: string;
   articleId: string;
-  content: (HeadingNode | ParagraphNode)[];
+  content: ParagraphNode[];
 };
 
 export type ArticleRecord = Record<string, ArticleContent>;
