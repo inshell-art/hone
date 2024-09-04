@@ -63,7 +63,7 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
             parent.replace(paragraphNode);
           }
         }
-      }
+      },
     );
 
     return () => {

@@ -43,7 +43,7 @@ export const extractFacets = (): Facet[] => {
     } catch (error) {
       console.error(
         "Failed to parse the stored articles to extract facets",
-        error
+        error,
       );
     }
   }
