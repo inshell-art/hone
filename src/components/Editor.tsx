@@ -4,17 +4,17 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import CustomErrorBoundary from "../components/CustomErrorBoundary";
 import HoneEditorTheme from "../themes/HoneEditorTheme";
-import { HeadingNode } from "@lexical/rich-text";
 import { ParagraphNode, TextNode } from "lexical";
 import TreeViewPlugin from "../plugins/TreeViewPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-import StyleArticleTitlePlugin from "../plugins/StyleArticleTitlePlugin";
+import SetArticleTitlePlugin from "../plugins/SetArticleTitlePlugin";
 import { EditorProps } from "../types/types";
 import AutoSavePlugin from "../plugins/AutoSavePlugin";
 import LoadArticlePlugin from "../plugins/LoadArticlePlugin";
 import HonePanelPlugin from "../plugins/HonePanelPlugin";
 import SetFacetTitlePlugin from "../plugins/SetFacetTitlePlugin";
 import { FacetTitleNode } from "../models/FacetTitleNode";
+import { ArticleTitleNode } from "../models/ArticleTitleNode";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const initialConfig = {
@@ -23,7 +23,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
     onError(error: Error) {
       throw error;
     },
-    nodes: [TextNode, HeadingNode, ParagraphNode, FacetTitleNode],
+    nodes: [TextNode, ParagraphNode, ArticleTitleNode, FacetTitleNode],
   };
 
   const Placeholder = () => {
@@ -40,7 +40,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
           placeholder={<Placeholder />}
           ErrorBoundary={CustomErrorBoundary}
         />
-        <StyleArticleTitlePlugin />
+        <SetArticleTitlePlugin />
         <SetFacetTitlePlugin articleId={articleId} />
         <AutoFocusPlugin />
         <HistoryPlugin />
