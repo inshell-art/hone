@@ -17,14 +17,14 @@ export class ArticleTitleNode extends HeadingNode {
     return new ArticleTitleNode(node.__key);
   }
 
-  exportJSON(): SerializedHeadingNode {
+  exportJSON(): SerializedArticleTitleNode {
     return {
       ...super.exportJSON(),
       type: "article-title",
     };
   }
 
-  static importJSON(json: SerializedArticleTitleNode) {
-    return new ArticleTitleNode(json.type);
+  static importJSON() {
+    return new ArticleTitleNode();
   }
 }

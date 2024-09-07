@@ -16,16 +16,10 @@ const LoadArticlePlugin: React.FC<EditorProps> = ({ articleId }) => {
       try {
         const parsedArticles = JSON.parse(storedArticles);
         const articleContent = parsedArticles[articleId];
-        console.log(`Loaded content for article ID: ${articleId}`);
 
         if (articleContent) {
-          console.log(`Parsing editor state for article ID: ${articleId}`);
-          console.log(`Article content: ${articleContent}`);
           editor.update(() => {
-            console.log("before parseEditorState");
             const editorState = editor.parseEditorState(articleContent);
-            console.log("after parseEditorState");
-            console.log(`Setting editor state for article ID: ${articleId}`);
             editor.setEditorState(editorState);
           });
         } else {
