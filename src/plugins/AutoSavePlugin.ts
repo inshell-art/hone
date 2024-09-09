@@ -14,7 +14,7 @@ const AutoSavePlugin: React.FC<EditorProps> = ({ articleId }) => {
 
         // Type guard to check if the node is a SerializedElementNode
         const isElementNode = (
-          node: SerializedLexicalNode,
+          node: SerializedLexicalNode
         ): node is SerializedElementNode => {
           return "children" in node && Array.isArray(node.children);
         };
@@ -34,7 +34,7 @@ const AutoSavePlugin: React.FC<EditorProps> = ({ articleId }) => {
 
         // Retrieve the existing articles from localStorage
         const savedArticles = JSON.parse(
-          localStorage.getItem("HoneEditorArticles") || "{}",
+          localStorage.getItem("HoneEditorArticles") || "{}"
         );
 
         // Update the specific article's content
@@ -43,7 +43,7 @@ const AutoSavePlugin: React.FC<EditorProps> = ({ articleId }) => {
         // Save the updated articles back to localStorage
         localStorage.setItem(
           "HoneEditorArticles",
-          JSON.stringify(savedArticles),
+          JSON.stringify(savedArticles)
         );
       } catch (error) {
         console.error("Failed to auto-save content to localStorage:", error);
@@ -51,7 +51,6 @@ const AutoSavePlugin: React.FC<EditorProps> = ({ articleId }) => {
     }, 1000);
 
     const handleChange = () => {
-      console.log("Auto-saving content...");
       saveContent();
     };
 

@@ -19,7 +19,7 @@ export class FacetTitleNode extends HeadingNode {
     active: boolean = true,
     honedBy: Array<string> = [],
     honedAmount: number = 0,
-    key?: string,
+    key?: string
   ) {
     super(active ? "h2" : "h3", key);
     this.__uniqueId = uniqueId;
@@ -42,7 +42,7 @@ export class FacetTitleNode extends HeadingNode {
       node.__active,
       node.__honedBy,
       node.__honedAmount,
-      node.__key,
+      node.__key
     );
   }
 
@@ -67,7 +67,14 @@ export class FacetTitleNode extends HeadingNode {
 
   static importJSON(serializedNode: SerializedFacetTitleNode): FacetTitleNode {
     const { uniqueId, active, honedBy, honedAmount } = serializedNode;
-    return new FacetTitleNode(uniqueId, active, honedBy, honedAmount);
+    const newNode = new FacetTitleNode(uniqueId, active, honedBy, honedAmount);
+
+    Object.defineProperty(newNode, "__active", {
+      writable: true,
+      value: active,
+    });
+
+    return newNode;
   }
 
   // Methods to manipulate honedBy and calculate honedAmount
@@ -78,10 +85,6 @@ export class FacetTitleNode extends HeadingNode {
 
   getHonedAmount(): number {
     return this.__honedAmount;
-  }
-
-  setActive(active: boolean) {
-    this.__active = active;
   }
 
   isActive(): boolean {

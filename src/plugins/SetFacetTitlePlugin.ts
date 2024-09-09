@@ -25,45 +25,85 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
           return firstTextNode === textNode;
         };
 
+        if (!isFirstTextNode(textNode)) {
+          return;
+        }
+
         const generateFacetId = () => {
           setFacetIndex((prevIndex) => prevIndex + 1);
 
           return `${articleId}-facet-${facetIndex}`;
         };
 
-        if (
-          isFirstTextNode(textNode) &&
-          textNode.getTextContent().startsWith("$") &&
-          parent.getType() !== "facet-title"
-        ) {
-          const uniqueId = generateFacetId();
-          const facetTitleNode = new FacetTitleNode(uniqueId);
-
-          parent.getChildren().forEach((child) => {
-            facetTitleNode.append(child);
-          });
-
-          parent.replace(facetTitleNode);
-        } else if (
-          isFirstTextNode(textNode) &&
-          !textNode.getTextContent().startsWith("$") &&
-          parent.getType() === "facet-title" // Exhaustive check
-        ) {
-          // Deactivate the facet title node to remain the data about it
-          (parent as FacetTitleNode).setActive(false);
-
-          // Destroy the facet title node if it is empty
-          if (textNode.getTextContent().length === 0) {
-            const paragraphNode = $createParagraphNode();
+        editor.update(() => {
+          // Initialize a facet title node
+          if (
+            textNode.getTextContent().startsWith("$") &&
+            !(parent instanceof FacetTitleNode)
+          ) {
+            const uniqueId = generateFacetId();
+            const facetTitleNode = new FacetTitleNode(uniqueId);
 
             parent.getChildren().forEach((child) => {
-              paragraphNode.append(child);
+              facetTitleNode.append(child);
             });
 
-            parent.replace(paragraphNode);
+            parent.replace(facetTitleNode);
           }
-        }
-      },
+
+          // Update the facet title node
+          if (parent instanceof FacetTitleNode) {
+            // Destroy the facet title node if it is empty
+            if (textNode.getTextContent().length === 0) {
+              const paragraphNode = $createParagraphNode();
+
+              parent.getChildren().forEach((child) => {
+                paragraphNode.append(child);
+              });
+
+              parent.replace(paragraphNode);
+            }
+
+            // Deactivate the facet title node with $ prefix not present
+            if (
+              !textNode.getTextContent().startsWith("$") &&
+              (parent as FacetTitleNode).__active
+            ) {
+              const newFacetTitleNode = new FacetTitleNode(
+                parent.__uniqueId,
+                false,
+                parent.__honedBy,
+                parent.__honedAmount
+              );
+
+              parent.getChildren().forEach((child) => {
+                newFacetTitleNode.append(child);
+              });
+
+              parent.replace(newFacetTitleNode);
+            }
+
+            // Reactivate the facet title node
+            if (
+              textNode.getTextContent().startsWith("$") &&
+              !(parent as FacetTitleNode).__active
+            ) {
+              const newFacetTitleNode = new FacetTitleNode(
+                parent.__uniqueId,
+                true,
+                parent.__honedBy,
+                parent.__honedAmount
+              );
+
+              parent.getChildren().forEach((child) => {
+                newFacetTitleNode.append(child);
+              });
+
+              parent.replace(newFacetTitleNode);
+            }
+          }
+        });
+      }
     );
 
     return () => {

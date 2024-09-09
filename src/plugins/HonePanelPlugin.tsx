@@ -35,7 +35,7 @@ const HonePanelPlugin = () => {
       if (element) {
         const rect = element.getBoundingClientRect();
         const editorElement = document.querySelector(
-          ".editor-container",
+          ".editor-container"
         ) as HTMLElement;
 
         const editorRect = editorElement?.getBoundingClientRect();
@@ -121,7 +121,7 @@ const HonePanelPlugin = () => {
     }
   }, [selectedIndex, isPanelVisible]);
 
-  const insertFacetAtCursor = useCallback(
+  const insertFacet = useCallback(
     (facet: Facet) => {
       editor.update(() => {
         const selection = $getSelection();
@@ -137,7 +137,7 @@ const HonePanelPlugin = () => {
               anchorNode,
               anchorOffset,
               anchorNode,
-              anchorOffset,
+              anchorOffset
             );
           }
         }
@@ -145,7 +145,7 @@ const HonePanelPlugin = () => {
 
       handleClosePanel(); // Close the panel after insertion
     },
-    [editor, handleClosePanel],
+    [editor, handleClosePanel]
   );
 
   // Trigger the panel at the cursor position is at the beginning of the line and the node is empty
@@ -174,7 +174,7 @@ const HonePanelPlugin = () => {
         }
         return false;
       },
-      COMMAND_PRIORITY_HIGH,
+      COMMAND_PRIORITY_HIGH
     );
 
     return () => {
@@ -212,7 +212,7 @@ const HonePanelPlugin = () => {
         selectedIndex !== null
       ) {
         event.preventDefault(); // Prevent form submission
-        insertFacetAtCursor(facets[selectedIndex]);
+        insertFacet(facets[selectedIndex]);
       }
     };
 
@@ -225,7 +225,7 @@ const HonePanelPlugin = () => {
     isPanelVisible,
     facets,
     selectedIndex,
-    insertFacetAtCursor,
+    insertFacet,
     handleClosePanel,
     isPanelTriggered,
   ]);
@@ -273,7 +273,7 @@ const HonePanelPlugin = () => {
                     index === selectedIndex ? "selected" : ""
                   }`}
                   onMouseOver={() => handleMouseOver(index)}
-                  onClick={() => insertFacetAtCursor(facet)}
+                  onClick={() => insertFacet(facet)}
                 >
                   {facet.title}
                 </li>
