@@ -73,7 +73,7 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
                 parent.__uniqueId,
                 false,
                 parent.__honedBy,
-                parent.__honedAmount
+                parent.__honedAmount,
               );
 
               parent.getChildren().forEach((child) => {
@@ -92,7 +92,7 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
                 parent.__uniqueId,
                 true,
                 parent.__honedBy,
-                parent.__honedAmount
+                parent.__honedAmount,
               );
 
               parent.getChildren().forEach((child) => {
@@ -103,7 +103,7 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
             }
           }
         });
-      }
+      },
     );
 
     return () => {
