@@ -35,7 +35,7 @@ const HonePanelPlugin = () => {
       if (element) {
         const rect = element.getBoundingClientRect();
         const editorElement = document.querySelector(
-          ".editor-container",
+          ".editor-container"
         ) as HTMLElement;
 
         const editorRect = editorElement?.getBoundingClientRect();
@@ -128,6 +128,7 @@ const HonePanelPlugin = () => {
         if ($isRangeSelection(selection)) {
           // Insert the facet title as text
           selection.insertText(facet.title);
+          console.log(facet);
 
           // Collapse the selection to the end of the inserted text
           const anchorNode = selection.anchor.getNode();
@@ -137,7 +138,7 @@ const HonePanelPlugin = () => {
               anchorNode,
               anchorOffset,
               anchorNode,
-              anchorOffset,
+              anchorOffset
             );
           }
         }
@@ -145,7 +146,7 @@ const HonePanelPlugin = () => {
 
       handleClosePanel(); // Close the panel after insertion
     },
-    [editor, handleClosePanel],
+    [editor, handleClosePanel]
   );
 
   // Trigger the panel at the cursor position is at the beginning of the line and the node is empty
@@ -174,7 +175,7 @@ const HonePanelPlugin = () => {
         }
         return false;
       },
-      COMMAND_PRIORITY_HIGH,
+      COMMAND_PRIORITY_HIGH
     );
 
     return () => {

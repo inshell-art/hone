@@ -1,3 +1,5 @@
+import { ParagraphNode, TextNode } from "lexical";
+import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleRecord, Facet } from "../types/types";
 
 export const extractFacets = (): Facet[] => {
@@ -9,41 +11,44 @@ export const extractFacets = (): Facet[] => {
       const parsedArticles: ArticleRecord = JSON.parse(storedArticles);
 
       Object.entries(parsedArticles).forEach(([articleId, articleContent]) => {
-        const children = articleContent.root.children;
+        const childrenOfArticle = articleContent.root.children;
         let currentFacet: Facet | null = null;
 
-        children.forEach((node, index) => {
-          if ("tag" in node && node.tag === "h2") {
-            const title = node.children[0].text as string;
+        childrenOfArticle.forEach((node) => {
+          if (node instanceof FacetTitleNode) {
+            const title = node
+              .getChildren()
+              .filter((child) => child instanceof TextNode)
+              .map((child) => child.getTextContent())
+              .join(" ");
+
             if (currentFacet) {
               facets.push(currentFacet);
+              currentFacet = null;
             }
 
             // Start a new facet
             currentFacet = {
-              facetId: `${articleId}-${index}`,
+              facetId: node.getUniqueId(),
               title,
               articleId,
               content: [],
             };
-          } else if (currentFacet) {
-            const nodeIndex = children.indexOf(node);
-            const titleIndex = children.indexOf(children[nodeIndex - 1]);
-            if (nodeIndex !== titleIndex + 1) {
-              currentFacet.content.push(node);
-            }
+          } else if (node instanceof ParagraphNode && currentFacet) {
+            currentFacet.content.push(node);
           }
         });
 
         // Push the last facet if it exists
         if (currentFacet) {
           facets.push(currentFacet);
+          currentFacet = null;
         }
       });
     } catch (error) {
       console.error(
         "Failed to parse the stored articles to extract facets",
-        error,
+        error
       );
     }
   }

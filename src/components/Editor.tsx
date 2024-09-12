@@ -15,6 +15,8 @@ import HonePanelPlugin from "../plugins/HonePanelPlugin";
 import SetFacetTitlePlugin from "../plugins/SetFacetTitlePlugin";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleTitleNode } from "../models/ArticleTitleNode";
+import { HeadingNode } from "@lexical/rich-text";
+import LinebreakToParagraphPlugin from "../plugins/LinebreakToParagraphPlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const initialConfig = {
@@ -23,7 +25,13 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
     onError(error: Error) {
       throw error;
     },
-    nodes: [TextNode, ParagraphNode, ArticleTitleNode, FacetTitleNode],
+    nodes: [
+      TextNode,
+      ParagraphNode,
+      ArticleTitleNode,
+      FacetTitleNode,
+      HeadingNode,
+    ],
   };
 
   const Placeholder = () => {
@@ -48,6 +56,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         <AutoSavePlugin articleId={articleId} />
         <HonePanelPlugin />
         <TreeViewPlugin />
+        <LinebreakToParagraphPlugin />
       </div>
     </LexicalComposer>
   );

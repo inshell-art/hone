@@ -19,7 +19,7 @@ export class FacetTitleNode extends HeadingNode {
     active: boolean = true,
     honedBy: Array<string> = [],
     honedAmount: number = 0,
-    key?: string,
+    key?: string
   ) {
     super(active ? "h2" : "h3", key);
     this.__uniqueId = uniqueId;
@@ -42,7 +42,7 @@ export class FacetTitleNode extends HeadingNode {
       node.__active,
       node.__honedBy,
       node.__honedAmount,
-      node.__key,
+      node.__key
     );
   }
 
@@ -75,6 +75,10 @@ export class FacetTitleNode extends HeadingNode {
     });
 
     return newNode;
+  }
+
+  getUniqueId(): string {
+    return this.__uniqueId;
   }
 
   // Methods to manipulate honedBy and calculate honedAmount
