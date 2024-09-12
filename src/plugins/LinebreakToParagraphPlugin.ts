@@ -35,7 +35,7 @@ const AvoidLinebreakInFacetTitle = () => {
         }
         return false;
       },
-      COMMAND_PRIORITY_HIGH
+      COMMAND_PRIORITY_HIGH,
     );
 
     return () => {
