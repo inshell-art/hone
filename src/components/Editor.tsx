@@ -16,7 +16,7 @@ import SetFacetTitlePlugin from "../plugins/SetFacetTitlePlugin";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleTitleNode } from "../models/ArticleTitleNode";
 import { HeadingNode } from "@lexical/rich-text";
-import LinebreakToParagraphPlugin from "../plugins/LinebreakToParagraphPlugin";
+import DisableLineBreakInFacetTitlePlugin from "../plugins/DisableLineBreakInFacetTitlePlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const initialConfig = {
@@ -56,7 +56,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         <AutoSavePlugin articleId={articleId} />
         <HonePanelPlugin />
         <TreeViewPlugin />
-        <LinebreakToParagraphPlugin />
+        <DisableLineBreakInFacetTitlePlugin />
       </div>
     </LexicalComposer>
   );
