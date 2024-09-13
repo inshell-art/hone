@@ -32,7 +32,7 @@ const DisableLineBreakInFacetTitlePlugin = () => {
 
         return false; // Allow line breaks in other nodes
       },
-      COMMAND_PRIORITY_HIGH
+      COMMAND_PRIORITY_HIGH,
     );
 
     return () => {
