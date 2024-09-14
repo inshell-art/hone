@@ -5,7 +5,7 @@ import {
   $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
-  $isTextNode,
+  TextNode,
 } from "lexical";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
@@ -25,7 +25,6 @@ const HonePanelPlugin = () => {
     const selection = $getSelection();
     const facets = extractFacets();
     setFacets(facets);
-    console.log(facets);
 
     if ($isRangeSelection(selection)) {
       const anchorNode = selection.anchor.getNode();
@@ -114,7 +113,7 @@ const HonePanelPlugin = () => {
         selectedIndex
       ] as HTMLElement;
 
-      selectedItem.scrollIntoView({
+      selectedItem?.scrollIntoView({
         behavior: "smooth",
         block: "nearest",
       });
@@ -127,24 +126,26 @@ const HonePanelPlugin = () => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
           // Insert the facet title as text
-          selection.insertText(facet.title);
-          console.log(facet);
+          selection.insertText(`---- ${facet.title}\n`);
 
-          // Collapse the selection to the end of the inserted text
+          // Insert the content as text
+          facet.content.map((content) => {
+            selection.insertText(`---- ${content}\n`);
+          });
+
           const anchorNode = selection.anchor.getNode();
-          if ($isTextNode(anchorNode)) {
-            const anchorOffset = selection.anchor.offset + facet.title.length;
-            selection.setTextNodeRange(
-              anchorNode,
-              anchorOffset,
-              anchorNode,
-              anchorOffset,
-            );
-          }
+          const offset = anchorNode.getTextContentSize();
+          selection.setTextNodeRange(
+            anchorNode as TextNode,
+            offset,
+            anchorNode as TextNode,
+            offset,
+          );
         }
       });
 
       handleClosePanel(); // Close the panel after insertion
+      editor.focus();
     },
     [editor, handleClosePanel],
   );

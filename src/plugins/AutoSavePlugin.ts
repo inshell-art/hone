@@ -11,6 +11,8 @@ const AutoSavePlugin: React.FC<EditorProps> = ({ articleId }) => {
     const saveContent = debounce(async () => {
       try {
         const content = editor.getEditorState().toJSON();
+        console.log("Auto-saving content to localStorage:", content);
+        console.log("editor state:", editor.getEditorState());
 
         // Type guard to check if the node is a SerializedElementNode
         const isElementNode = (

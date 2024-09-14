@@ -1,6 +1,6 @@
-import { ParagraphNode, TextNode } from "lexical";
-import { FacetTitleNode } from "../models/FacetTitleNode";
-import { ArticleRecord, Facet } from "../types/types";
+import { SerializedEditorState } from "lexical";
+import { Facet } from "../types/types";
+import { collectTextFromDescendants } from "./utils";
 
 export const extractFacets = (): Facet[] => {
   const facets: Facet[] = [];
@@ -8,19 +8,23 @@ export const extractFacets = (): Facet[] => {
   const storedArticles = localStorage.getItem("HoneEditorArticles");
   if (storedArticles) {
     try {
-      const parsedArticles: ArticleRecord = JSON.parse(storedArticles);
+      const parsedArticles = JSON.parse(storedArticles);
 
       Object.entries(parsedArticles).forEach(([articleId, articleContent]) => {
-        const childrenOfArticle = articleContent.root.children;
+        const childrenOfArticle = (articleContent as SerializedEditorState).root
+          .children;
         let currentFacet: Facet | null = null;
 
         childrenOfArticle.forEach((node) => {
-          if (node instanceof FacetTitleNode) {
-            const title = node
-              .getChildren()
-              .filter((child) => child instanceof TextNode)
-              .map((child) => child.getTextContent())
-              .join(" ");
+          let facetId = "";
+
+          if ("uniqueId" in node) {
+            facetId = node.uniqueId as string;
+          }
+
+          if (node.type === "facet-title") {
+            const collectedTitle: string[] = [];
+            collectTextFromDescendants(node, collectedTitle);
 
             if (currentFacet) {
               facets.push(currentFacet);
@@ -29,13 +33,20 @@ export const extractFacets = (): Facet[] => {
 
             // Start a new facet
             currentFacet = {
-              facetId: node.getUniqueId(),
-              title,
+              facetId,
+              title: collectedTitle.join(" "),
               articleId,
               content: [],
             };
-          } else if (node instanceof ParagraphNode && currentFacet) {
-            currentFacet.content.push(node);
+          } else {
+            if (currentFacet) {
+              const collectedContent: string[] = [];
+              collectTextFromDescendants(node, collectedContent);
+
+              if (collectedContent.length > 0) {
+                currentFacet.content.push(...(collectedContent as string[]));
+              }
+            }
           }
         });
 
@@ -52,6 +63,6 @@ export const extractFacets = (): Facet[] => {
       );
     }
   }
-
+  console.log("facets", facets);
   return facets;
 };
