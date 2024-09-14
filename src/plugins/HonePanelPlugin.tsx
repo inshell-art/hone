@@ -5,10 +5,15 @@ import {
   $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
-  TextNode,
+  $getRoot,
+  ElementNode,
+  $createParagraphNode,
+  $createTextNode,
 } from "lexical";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
+import { INSERT_SYMBOL } from "../utils/utils";
+import { FacetTitleNode } from "../models/FacetTitleNode";
 
 const HonePanelPlugin = () => {
   const [editor] = useLexicalComposerContext();
@@ -97,7 +102,6 @@ const HonePanelPlugin = () => {
   const handleClosePanel = useCallback(() => {
     setPanelVisible(false);
     editor.setEditable(true);
-    editor.focus();
 
     const scrollbarSpacer = document.getElementById("scrollbar-spacer");
     if (scrollbarSpacer) {
@@ -125,27 +129,59 @@ const HonePanelPlugin = () => {
       editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
-          // Insert the facet title as text
-          selection.insertText(`---- ${facet.title}\n`);
+          // Helper function to find the nearest facet title node
+          const findNearestFacetTitleNode = (): FacetTitleNode | null => {
+            const root = $getRoot();
+            const children = root.getChildren();
 
-          // Insert the content as text
-          facet.content.map((content) => {
-            selection.insertText(`---- ${content}\n`);
+            const currentNode = selection.anchor.getNode();
+            const currentNodeIndex = children.indexOf(currentNode);
+
+            for (let i = currentNodeIndex - 1; i >= 0; i--) {
+              const childNode = children[i];
+              if (childNode.getType() === "facet-title") {
+                return childNode as FacetTitleNode;
+              }
+            }
+            return null;
+          };
+
+          const nodesToInsert: ElementNode[] = [];
+
+          const titleParagraph = $createParagraphNode();
+          const titleTextNode = $createTextNode(
+            `${INSERT_SYMBOL} ${facet.title}`,
+          );
+          titleParagraph.append(titleTextNode);
+          nodesToInsert.push(titleParagraph);
+
+          facet.content.forEach((content) => {
+            const contentParagraph = $createParagraphNode();
+            const contentTextNode = $createTextNode(
+              `${INSERT_SYMBOL} ${content}`,
+            );
+            contentParagraph.append(contentTextNode);
+            nodesToInsert.push(contentParagraph);
           });
 
           const anchorNode = selection.anchor.getNode();
-          const offset = anchorNode.getTextContentSize();
-          selection.setTextNodeRange(
-            anchorNode as TextNode,
-            offset,
-            anchorNode as TextNode,
-            offset,
-          );
+          const insertionNode = anchorNode.getTopLevelElementOrThrow();
+          let referenceNode = insertionNode;
+
+          nodesToInsert.forEach((node) => {
+            referenceNode.insertAfter(node);
+            referenceNode = node;
+          });
+
+          // add hone record to the facet title node
+          const facetTitleNode = findNearestFacetTitleNode();
+          console.log("facetTitleNode", facetTitleNode);
+
+          facetTitleNode?.addHonedBy(facet.facetId);
         }
       });
 
       handleClosePanel(); // Close the panel after insertion
-      editor.focus();
     },
     [editor, handleClosePanel],
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { $getRoot, ElementNode, TextNode, $createParagraphNode } from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { FacetTitleNode } from "../models/FacetTitleNode";
@@ -6,7 +6,6 @@ import { EditorProps } from "../types/types";
 
 const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
   const [editor] = useLexicalComposerContext();
-  const [facetIndex, setFacetIndex] = useState(0);
 
   useEffect(() => {
     const removeNodeTransform = editor.registerNodeTransform(
@@ -30,9 +29,9 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
         }
 
         const generateFacetId = () => {
-          setFacetIndex((prevIndex) => prevIndex + 1);
+          const timestamp = new Date().getTime();
 
-          return `${articleId}-facet-${facetIndex}`;
+          return `${articleId}-facet-${timestamp}`;
         };
 
         editor.update(() => {
@@ -43,6 +42,7 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
           ) {
             const uniqueId = generateFacetId();
             const facetTitleNode = new FacetTitleNode(uniqueId);
+            console.log("facetTitleNode:", facetTitleNode);
 
             parent.getChildren().forEach((child) => {
               facetTitleNode.append(child);
@@ -73,7 +73,6 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
                 parent.__uniqueId,
                 false,
                 parent.__honedBy,
-                parent.__honedAmount,
               );
 
               parent.getChildren().forEach((child) => {
@@ -92,7 +91,6 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
                 parent.__uniqueId,
                 true,
                 parent.__honedBy,
-                parent.__honedAmount,
               );
 
               parent.getChildren().forEach((child) => {
@@ -109,7 +107,7 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
     return () => {
       removeNodeTransform();
     };
-  }, [editor, articleId, facetIndex]);
+  }, [editor, articleId]);
 
   return null;
 };

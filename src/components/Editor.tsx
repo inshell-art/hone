@@ -1,7 +1,6 @@
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
-import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import CustomErrorBoundary from "../components/CustomErrorBoundary";
 import HoneEditorTheme from "../themes/HoneEditorTheme";
 import { ParagraphNode, TextNode } from "lexical";
@@ -17,6 +16,8 @@ import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleTitleNode } from "../models/ArticleTitleNode";
 import { HeadingNode } from "@lexical/rich-text";
 import DisableLineBreakInFacetTitlePlugin from "../plugins/DisableLineBreakInFacetTitlePlugin";
+import HandlePastePlugin from "../plugins/HandlePastePlugin";
+import DisableTextFormatPlugin from "../plugins/DisableTextFormatPlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const initialConfig = {
@@ -50,13 +51,14 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         />
         <SetArticleTitlePlugin />
         <SetFacetTitlePlugin articleId={articleId} />
-        <AutoFocusPlugin />
         <HistoryPlugin />
         <LoadArticlePlugin articleId={articleId} />
         <AutoSavePlugin articleId={articleId} />
         <HonePanelPlugin />
         <TreeViewPlugin />
         <DisableLineBreakInFacetTitlePlugin />
+        <HandlePastePlugin />
+        <DisableTextFormatPlugin />
       </div>
     </LexicalComposer>
   );

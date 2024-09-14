@@ -4,6 +4,8 @@ import {
   SerializedTextNode,
 } from "lexical";
 
+export const INSERT_SYMBOL = ">>>>>>>";
+
 export const collectTextFromDescendants = (
   node: SerializedElementNode | SerializedLexicalNode | SerializedTextNode,
   collectedTexts: string[],
