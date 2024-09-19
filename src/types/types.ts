@@ -1,49 +1,19 @@
-type TextNode = {
-  detail: number;
-  format: number;
-  mode: string;
-  style: string;
-  text: string;
-  type: string;
-  version: number;
-};
+import { SerializedEditorState } from "lexical";
 
-export type HeadingNode = {
-  children: TextNode[];
-  direction: string;
-  format: string;
-  indent: number;
-  type: string;
-  version: number;
-  tag: string;
-};
-
-export type ParagraphNode = {
-  children: TextNode[];
-  direction: string;
-  format: string;
-  indent: number;
-  type: string;
-  version: number;
-};
-
-type RootNode = {
-  children: (HeadingNode | ParagraphNode)[];
-  direction: string;
-  format: string;
-  indent: number;
-  type: string;
-  version: number;
-};
-
-export type ArticleContent = {
-  root: RootNode;
-};
-
+// Connect editor to article
 export type EditorProps = {
   articleId: string;
 };
 
+export type AutoSavePluginProps = EditorProps & {
+  onMessageChange: (message: string | null, isTemporary?: boolean) => void;
+};
+
+export type LoadArticlePluginProps = EditorProps & {
+  onMessageChange: (message: string | null, isTemporary?: boolean) => void;
+};
+
+// Facet data shape, in hone panel and in facet list Facets
 export type Facet = {
   facetId: string;
   title: string;
@@ -51,4 +21,7 @@ export type Facet = {
   content: string[];
 };
 
-export type ArticleRecord = Record<string, ArticleContent>;
+// Type for the article data stored in localStorage
+export type ArticleData = {
+  [articleId: string]: { content: SerializedEditorState; updatedAt: number };
+};

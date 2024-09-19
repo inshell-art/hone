@@ -11,7 +11,7 @@ export const collectTextFromDescendants = (
   collectedTexts: string[],
 ): string[] => {
   if (node.type === "text") {
-    collectedTexts.push((node as SerializedTextNode).text);
+    collectedTexts.push((node as SerializedTextNode).text.trim());
   } else if ("children" in node && Array.isArray(node.children)) {
     node.children.forEach((child) => {
       collectTextFromDescendants(child, collectedTexts);

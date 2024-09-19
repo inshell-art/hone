@@ -37,6 +37,24 @@ body {
 }
 
 /* for HoneEditor */
+.editor-message {
+  height: var(--small);
+  line-height: var(--small);
+  text-align: center;
+  font-size: var(--tiny);
+  color: var(--ash);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.fade-in {
+  opacity: 1;
+}
+
+.fade-out {
+  opacity: 0;
+}
+
 .editor-container {
   position: relative;
   top: var(--medium);
@@ -172,6 +190,11 @@ body {
   color: var(--ash);
   font-weight: var(--light);
   font-size: var(--tiny);
+}
+
+.footer-icon {
+  width: var(--small);
+  height: var(--small);
 }
 
 /* For Articles list */

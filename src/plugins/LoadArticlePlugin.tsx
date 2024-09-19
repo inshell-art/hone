@@ -1,11 +1,15 @@
 import { useEffect } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { EditorProps } from "../types/types";
+import { LoadArticlePluginProps } from "../types/types";
 
-const LoadArticlePlugin: React.FC<EditorProps> = ({ articleId }) => {
+const LoadArticlePlugin: React.FC<LoadArticlePluginProps> = ({
+  articleId,
+  onMessageChange,
+}) => {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
+    onMessageChange("Loading content from localStorage...");
     const storedArticles = localStorage.getItem("HoneEditorArticles");
 
     if (!storedArticles) {
@@ -15,22 +19,26 @@ const LoadArticlePlugin: React.FC<EditorProps> = ({ articleId }) => {
     if (storedArticles) {
       try {
         const parsedArticles = JSON.parse(storedArticles);
-        const articleContent = parsedArticles[articleId];
+        const articleContent = parsedArticles[articleId].content;
 
         if (articleContent) {
           editor.update(() => {
             const editorState = editor.parseEditorState(articleContent);
             editor.setEditorState(editorState);
           });
+          onMessageChange("Loaded content from localStorage.", true);
         } else {
-          console.log(`No content found for article ID: ${articleId}`);
+          onMessageChange(
+            `No content found for article ID: ${articleId}`,
+            true,
+          );
           return;
         }
       } catch (error) {
-        console.error("Failed to parse the stored articles", error);
+        onMessageChange("Failed to load content from localStorage.", true);
       }
     }
-  }, [articleId, editor]);
+  }, [articleId, editor, onMessageChange]);
 
   return null;
 };

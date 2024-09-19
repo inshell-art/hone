@@ -1,5 +1,5 @@
 import { SerializedEditorState } from "lexical";
-import { Facet } from "../types/types";
+import { ArticleData, Facet } from "../types/types";
 import { collectTextFromDescendants } from "./utils";
 
 export const extractFacets = (): Facet[] => {
@@ -8,10 +8,10 @@ export const extractFacets = (): Facet[] => {
   const storedArticles = localStorage.getItem("HoneEditorArticles");
   if (storedArticles) {
     try {
-      const parsedArticles = JSON.parse(storedArticles);
+      const parsedArticles: ArticleData = JSON.parse(storedArticles);
 
-      Object.entries(parsedArticles).forEach(([articleId, articleContent]) => {
-        const childrenOfArticle = (articleContent as SerializedEditorState).root
+      Object.entries(parsedArticles).forEach(([id, { content }]) => {
+        const childrenOfArticle = (content as SerializedEditorState).root
           .children;
         let currentFacet: Facet | null = null;
 
@@ -35,7 +35,7 @@ export const extractFacets = (): Facet[] => {
             currentFacet = {
               facetId,
               title: collectedTitle.join(" "),
-              articleId,
+              articleId: id,
               content: [],
             };
           } else {

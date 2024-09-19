@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { ArticleRecord } from "../types/types";
+import { ArticleData } from "../types/types";
+import { SerializedArticleTitleNode } from "../models/ArticleTitleNode";
+import { SerializedTextNode } from "lexical";
 
 const Articles: React.FC = () => {
-  const [articles, setArticles] = useState<ArticleRecord>({});
+  const [articles, setArticles] = useState<ArticleData>({});
 
   useEffect(() => {
     const storedArticles = localStorage.getItem("HoneEditorArticles");
     if (storedArticles) {
       try {
-        const parsedArticles: ArticleRecord = JSON.parse(storedArticles);
+        const parsedArticles: ArticleData = JSON.parse(storedArticles);
 
-        if (parsedArticles && typeof parsedArticles === "object") {
+        if (parsedArticles) {
           setArticles(parsedArticles);
         } else {
-          console.error(
-            "Parsed articles data is not an object:",
-            parsedArticles,
-          );
           setArticles({});
         }
       } catch (error) {
@@ -29,27 +27,41 @@ const Articles: React.FC = () => {
     }
   }, []);
 
+  const articleItems = Object.entries(articles).map(
+    ([id, { content, updatedAt }]) => {
+      const articleTitleNode = content.root.children.find(
+        (node) => "type" in node && node.type === "article-title",
+      );
+
+      const textNode = (articleTitleNode as SerializedArticleTitleNode)
+        .children?.[0] as SerializedTextNode;
+
+      const title = textNode?.text || "Untitled Article";
+      const lastUpdated = new Date(updatedAt).toLocaleString();
+
+      return {
+        id,
+        title,
+        lastUpdated,
+      };
+    },
+  );
+
+  console.log("articleItems", articleItems);
+  console.log("articles", articles);
+
   return (
     <div className="articles-container">
       <ul className="articles-list">
-        {Object.keys(articles).length > 0 ? (
-          Object.entries(articles).map(([id, content]) => {
-            const headingNode = content.root.children.find(
-              (node) => "tag" in node && node.tag === "h1",
-            );
-
-            const title =
-              headingNode?.children?.[0]?.text || "Untitled Article";
-
-            return (
-              <li key={id} className="article-item">
-                <a href={`/editor/${id}`} className="article-link">
-                  {title}
-                </a>
-                <div className="article-date">2024-01-01</div>
-              </li>
-            );
-          })
+        {articleItems.length > 0 ? (
+          articleItems.map(({ id, title, lastUpdated }) => (
+            <li key={id} className="article-item">
+              <a href={`/editor/${id}`} className="article-link">
+                {title}
+              </a>
+              <div className="article-date">{lastUpdated}</div>
+            </li>
+          ))
         ) : (
           <li>No articles found</li>
         )}

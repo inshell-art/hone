@@ -4,6 +4,7 @@ import { Route, Routes, NavLink, Navigate } from "react-router-dom";
 import Articles from "./Articles";
 import Facets from "./Facets";
 import { v4 as uuidv4 } from "uuid";
+import HoneIcon from "../../public/hone.svg";
 
 const Home: React.FC = () => {
   return (
@@ -51,7 +52,8 @@ const Home: React.FC = () => {
         </div>
         <div className="footer-right">
           <a href="https://hone.example.com" className="footer-link">
-            Craft by Inshell
+            <img src={HoneIcon} alt="Hone Icon" className="footer-icon" />
+            Hone is crafted by Inshell
           </a>
         </div>
       </footer>

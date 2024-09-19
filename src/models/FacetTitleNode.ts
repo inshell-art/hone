@@ -16,7 +16,6 @@ export class FacetTitleNode extends HeadingNode {
     uniqueId: string,
     active: boolean = true,
     honedBy: Array<string> = [],
-
     key?: string,
   ) {
     super(active ? "h2" : "h3", key);
@@ -39,7 +38,6 @@ export class FacetTitleNode extends HeadingNode {
       node.__uniqueId,
       node.__active,
       node.__honedBy,
-
       node.__key,
     );
   }

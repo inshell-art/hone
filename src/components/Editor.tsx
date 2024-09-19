@@ -18,8 +18,25 @@ import { HeadingNode } from "@lexical/rich-text";
 import DisableLineBreakInFacetTitlePlugin from "../plugins/DisableLineBreakInFacetTitlePlugin";
 import HandlePastePlugin from "../plugins/HandlePastePlugin";
 import DisableTextFormatPlugin from "../plugins/DisableTextFormatPlugin";
+import MessageDisplay from "./MessageDisplay";
+import { useCallback, useState } from "react";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
+  const [message, setMessage] = useState<string | null>(null);
+  const [isTemporary, setIsTemporary] = useState<boolean>(false);
+
+  const handleMessageChange = useCallback(
+    (message: string | null, isTemporary?: boolean) => {
+      setMessage(message);
+      setIsTemporary(isTemporary || false);
+    },
+    [],
+  );
+
+  const clearMessage = () => {
+    setMessage(null);
+  };
+
   const initialConfig = {
     namespace: "HoneEditor",
     theme: HoneEditorTheme,
@@ -43,6 +60,11 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
+      <MessageDisplay
+        message={message}
+        isTemporary={isTemporary}
+        clearMessage={clearMessage}
+      />
       <div className="editor-container">
         <RichTextPlugin
           contentEditable={<ContentEditable className="editor-input" />}
@@ -52,8 +74,14 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         <SetArticleTitlePlugin />
         <SetFacetTitlePlugin articleId={articleId} />
         <HistoryPlugin />
-        <LoadArticlePlugin articleId={articleId} />
-        <AutoSavePlugin articleId={articleId} />
+        <LoadArticlePlugin
+          articleId={articleId}
+          onMessageChange={handleMessageChange}
+        />
+        <AutoSavePlugin
+          articleId={articleId}
+          onMessageChange={handleMessageChange}
+        />
         <HonePanelPlugin />
         <TreeViewPlugin />
         <DisableLineBreakInFacetTitlePlugin />

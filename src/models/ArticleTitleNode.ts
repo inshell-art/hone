@@ -1,6 +1,6 @@
 import { HeadingNode, SerializedHeadingNode } from "@lexical/rich-text";
 
-interface SerializedArticleTitleNode extends SerializedHeadingNode {
+export interface SerializedArticleTitleNode extends SerializedHeadingNode {
   type: "article-title";
 }
 
