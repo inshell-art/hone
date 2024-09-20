@@ -19,6 +19,7 @@ export type Facet = {
   title: string;
   articleId: string;
   content: string[];
+  honedBy?: string[];
 };
 
 // Type for the article data stored in localStorage

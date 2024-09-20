@@ -16,15 +16,18 @@ export const extractFacets = (): Facet[] => {
         let currentFacet: Facet | null = null;
 
         childrenOfArticle.forEach((node) => {
-          let facetId = "";
-
-          if ("uniqueId" in node) {
-            facetId = node.uniqueId as string;
-          }
-
-          if (node.type === "facet-title") {
+          if (
+            node.type === "facet-title" &&
+            "active" in node &&
+            node.active === true &&
+            "uniqueId" in node &&
+            "honedBy" in node
+          ) {
             const collectedTitle: string[] = [];
             collectTextFromDescendants(node, collectedTitle);
+
+            const facetId = node.uniqueId as string;
+            const honedBy = node.honedBy as string[];
 
             if (currentFacet) {
               facets.push(currentFacet);
@@ -37,6 +40,7 @@ export const extractFacets = (): Facet[] => {
               title: collectedTitle.join(" "),
               articleId: id,
               content: [],
+              honedBy,
             };
           } else {
             if (currentFacet) {
@@ -63,6 +67,6 @@ export const extractFacets = (): Facet[] => {
       );
     }
   }
-  console.log("facets", facets);
+
   return facets;
 };

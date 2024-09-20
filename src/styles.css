@@ -14,8 +14,8 @@
   --large: 40px;
   --super-large: 60px;
 
-  --light: 300;
-  --middle: 400;
+  --thin: 300;
+  --regular: 400;
   --heavy: 600;
 
   --width: 780px;
@@ -79,11 +79,11 @@ body {
 
 .editor-paragraph {
   font-size: var(--small);
-  font-weight: var(--middle);
+  font-weight: var(--regular);
 }
 
 .article-title {
-  font-weight: var(--middle);
+  font-weight: var(--regular);
   font-size: var(--medium);
   padding-bottom: var(--small);
 }
@@ -129,13 +129,13 @@ body {
 
 .nav-link-articles {
   text-decoration: none;
-  font-weight: var(--middle);
+  font-weight: var(--regular);
   color: var(--light-black);
 }
 
 .nav-link-facets {
   text-decoration: none;
-  font-weight: var(--middle);
+  font-weight: var(--regular);
   color: var(--Scheele-green);
 }
 
@@ -146,7 +146,7 @@ body {
 
 .nav-link-create {
   text-decoration: none;
-  font-weight: var(--middle);
+  font-weight: var(--regular);
   color: var(--light-black);
 }
 
@@ -188,7 +188,7 @@ body {
 .footer-link {
   text-decoration: none;
   color: var(--ash);
-  font-weight: var(--light);
+  font-weight: var(--thin);
   font-size: var(--tiny);
 }
 
@@ -220,7 +220,7 @@ body {
 .article-link {
   text-decoration: none;
   color: var(--dark-black);
-  font-weight: var(--middle);
+  font-weight: var(--regular);
   font-size: var(--medium);
 }
 
@@ -256,6 +256,23 @@ body {
   font-size: var(--small);
 }
 
+.honed-by-list {
+  list-style-type: none;
+  padding-left: var(--small);
+}
+
+.honed-by-item {
+  color: var(--ash);
+  font-size: var(--tiny);
+}
+
+.honed-by-link {
+  text-decoration: none;
+  color: var(--Scheele-green);
+  font-size: var(--small);
+  font-weight: var(--thin);
+}
+
 /* For hone panel */
 .hone-panel {
   position: absolute;
@@ -275,7 +292,7 @@ body {
   align-items: center;
   margin-bottom: 10px;
   padding: 10px;
-  font-weight: var(--middle);
+  font-weight: var(--regular);
   font-size: 16px;
 }
 

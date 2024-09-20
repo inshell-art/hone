@@ -139,7 +139,7 @@ const HonePanelPlugin = () => {
 
             for (let i = currentNodeIndex - 1; i >= 0; i--) {
               const childNode = children[i];
-              if (childNode.getType() === "facet-title") {
+              if (childNode instanceof FacetTitleNode && childNode.isActive()) {
                 return childNode as FacetTitleNode;
               }
             }
