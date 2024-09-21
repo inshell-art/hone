@@ -44,7 +44,7 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
 
         // Update the specific article's content
         onMessageChange("Saving content to localStorage...");
-        const dateTimeNow = new Date().toISOString();
+        const dateTimeNow = Date.now();
         savedArticles[articleId] = { content, updatedAt: dateTimeNow };
 
         // Save the updated articles back to localStorage

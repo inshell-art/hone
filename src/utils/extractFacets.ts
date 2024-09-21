@@ -21,13 +21,15 @@ export const extractFacets = (): Facet[] => {
             "active" in node &&
             node.active === true &&
             "uniqueId" in node &&
-            "honedBy" in node
+            "honedBy" in node &&
+            "honedAmount" in node
           ) {
             const collectedTitle: string[] = [];
             collectTextFromDescendants(node, collectedTitle);
 
             const facetId = node.uniqueId as string;
             const honedBy = node.honedBy as string[];
+            const honedAmount = node.honedAmount as number;
 
             if (currentFacet) {
               facets.push(currentFacet);
@@ -40,6 +42,7 @@ export const extractFacets = (): Facet[] => {
               title: collectedTitle.join(" "),
               articleId: id,
               content: [],
+              honedAmount,
               honedBy,
             };
           } else {

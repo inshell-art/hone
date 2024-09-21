@@ -5,23 +5,27 @@ interface SerializedFacetTitleNode extends SerializedHeadingNode {
   uniqueId: string;
   active: boolean;
   honedBy: Array<string>;
+  honedAmount: number;
 }
 
 export class FacetTitleNode extends HeadingNode {
   __uniqueId: string;
   __active: boolean;
   __honedBy: Array<string>;
+  __honedAmount: number;
 
   constructor(
     uniqueId: string,
     active: boolean = true,
     honedBy: Array<string> = [],
+    honedAmount: number = 0,
     key?: string,
   ) {
     super(active ? "h2" : "h3", key);
     this.__uniqueId = uniqueId;
     this.__active = active;
     this.__honedBy = honedBy;
+    this.__honedAmount = honedAmount;
 
     // A active facet title looks as h2,
     // a non-active facet title looks as h3 which looks as paragraph
@@ -38,6 +42,7 @@ export class FacetTitleNode extends HeadingNode {
       node.__uniqueId,
       node.__active,
       node.__honedBy,
+      node.__honedAmount,
       node.__key,
     );
   }
@@ -57,17 +62,13 @@ export class FacetTitleNode extends HeadingNode {
       uniqueId: this.__uniqueId,
       active: this.__active,
       honedBy: this.__honedBy,
+      honedAmount: this.__honedAmount,
     };
   }
 
   static importJSON(serializedNode: SerializedFacetTitleNode): FacetTitleNode {
-    const { uniqueId, active, honedBy } = serializedNode;
-    const newNode = new FacetTitleNode(uniqueId, active, honedBy);
-
-    Object.defineProperty(newNode, "__active", {
-      writable: true,
-      value: active,
-    });
+    const { uniqueId, active, honedBy, honedAmount } = serializedNode;
+    const newNode = new FacetTitleNode(uniqueId, active, honedBy, honedAmount);
 
     return newNode;
   }
@@ -76,13 +77,18 @@ export class FacetTitleNode extends HeadingNode {
     return this.__uniqueId;
   }
 
+  isActive(): boolean {
+    return this.__active;
+  }
+
   // Methods to manipulate honedBy and calculate honedAmount
   addHonedBy(facetTitleNodeId: string) {
     const writableNode = this.getWritable();
     writableNode.__honedBy.push(facetTitleNodeId);
   }
 
-  isActive(): boolean {
-    return this.__active;
+  addHonedAmount(amount: number) {
+    const writableNode = this.getWritable();
+    writableNode.__honedAmount += amount;
   }
 }

@@ -5,21 +5,25 @@ import {
   $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
-  $getRoot,
   ElementNode,
   $createParagraphNode,
   $createTextNode,
 } from "lexical";
 import { extractFacets } from "../utils/extractFacets";
-import { Facet } from "../types/types";
+import { Facet, FacetWithSimilarity } from "../types/types";
 import { INSERT_SYMBOL } from "../utils/utils";
-import { FacetTitleNode } from "../models/FacetTitleNode";
+import {
+  getJaccardSimilarity,
+  findNearestFacetTitleNode,
+} from "../utils/utils";
 
 const HonePanelPlugin = () => {
   const [editor] = useLexicalComposerContext();
   const [isPanelVisible, setPanelVisible] = useState(false);
   const [isPanelTriggered, setPanelTriggered] = useState(false);
-  const [facets, setFacets] = useState<Facet[]>([]);
+  const [facetsWithSimilarity, setFacetsWithSimilarity] = useState<
+    FacetWithSimilarity[]
+  >([]);
   const [panelPosition, setPanelPosition] = useState({ top: 0, left: 0 });
   const [panelWidth, setPanelWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -29,7 +33,31 @@ const HonePanelPlugin = () => {
   const triggerHonePanel = useCallback(() => {
     const selection = $getSelection();
     const facets = extractFacets();
-    setFacets(facets);
+
+    // Get the current facet node
+    const currentFacetNode = findNearestFacetTitleNode(selection);
+
+    const currentFacetId = currentFacetNode?.getUniqueId();
+    const currentFacet = facets.find(
+      (facet) => facet.facetId === currentFacetId,
+    );
+
+    const currentFacetText =
+      currentFacet?.title + " " + currentFacet?.content.join(" ") || "";
+
+    // Compute similarities with all facets
+    const facetsWithSimilarity: FacetWithSimilarity[] = facets
+      .filter((facet) => facet.facetId !== currentFacetId)
+      .map((facet) => {
+        const similarity = getJaccardSimilarity(
+          currentFacetText,
+          facet.title + " " + facet.content.join(" "),
+        );
+        return { ...facet, similarity };
+      })
+      .sort((a, b) => b.similarity - a.similarity);
+
+    setFacetsWithSimilarity(facetsWithSimilarity);
 
     if ($isRangeSelection(selection)) {
       const anchorNode = selection.anchor.getNode();
@@ -129,23 +157,6 @@ const HonePanelPlugin = () => {
       editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
-          // Helper function to find the nearest facet title node
-          const findNearestFacetTitleNode = (): FacetTitleNode | null => {
-            const root = $getRoot();
-            const children = root.getChildren();
-
-            const currentNode = selection.anchor.getNode();
-            const currentNodeIndex = children.indexOf(currentNode);
-
-            for (let i = currentNodeIndex - 1; i >= 0; i--) {
-              const childNode = children[i];
-              if (childNode instanceof FacetTitleNode && childNode.isActive()) {
-                return childNode as FacetTitleNode;
-              }
-            }
-            return null;
-          };
-
           const nodesToInsert: ElementNode[] = [];
 
           const titleParagraph = $createParagraphNode();
@@ -174,10 +185,12 @@ const HonePanelPlugin = () => {
           });
 
           // add hone record to the facet title node
-          const facetTitleNode = findNearestFacetTitleNode();
+          const facetTitleNode = findNearestFacetTitleNode(selection);
           console.log("facetTitleNode", facetTitleNode);
+          const facetHonedAmount = facet.honedAmount;
 
           facetTitleNode?.addHonedBy(facet.facetId);
+          facetTitleNode?.addHonedAmount((facetHonedAmount as number) + 1);
         }
       });
 
@@ -229,7 +242,10 @@ const HonePanelPlugin = () => {
         event.preventDefault(); // Prevent scrolling the page
         setDisableMouseOver(true);
         setSelectedIndex((prevIndex) => {
-          if (prevIndex === null || prevIndex === facets.length - 1) {
+          if (
+            prevIndex === null ||
+            prevIndex === facetsWithSimilarity.length - 1
+          ) {
             return 0; // Start from the top
           }
           return prevIndex + 1; // Move down
@@ -239,7 +255,7 @@ const HonePanelPlugin = () => {
         setDisableMouseOver(true);
         setSelectedIndex((prevIndex) => {
           if (prevIndex === null || prevIndex === 0) {
-            return facets.length - 1; // Move to the bottom
+            return facetsWithSimilarity.length - 1; // Move to the bottom
           }
           return prevIndex - 1; // Move up
         });
@@ -250,7 +266,7 @@ const HonePanelPlugin = () => {
         selectedIndex !== null
       ) {
         event.preventDefault(); // Prevent form submission
-        insertFacet(facets[selectedIndex]);
+        insertFacet(facetsWithSimilarity[selectedIndex]);
       }
     };
 
@@ -261,7 +277,7 @@ const HonePanelPlugin = () => {
     };
   }, [
     isPanelVisible,
-    facets,
+    facetsWithSimilarity,
     selectedIndex,
     insertFacet,
     handleClosePanel,
@@ -301,10 +317,10 @@ const HonePanelPlugin = () => {
             onMouseMove={handleMouseMove}
           >
             <div className="hone-panel-header">
-              <span>Select a facet to insert:</span>
+              <span>Insert a facet to hone (sorted by similarities):</span>
             </div>
             <ul className="hone-panel-list" ref={panelListRef}>
-              {facets.map((facet, index) => (
+              {facetsWithSimilarity.map((facet, index) => (
                 <li
                   key={facet.facetId}
                   className={`hone-panel-item ${
@@ -313,7 +329,7 @@ const HonePanelPlugin = () => {
                   onMouseOver={() => handleMouseOver(index)}
                   onClick={() => insertFacet(facet)}
                 >
-                  {facet.title}
+                  {facet.title} - {Math.round(facet.similarity * 100)}%
                 </li>
               ))}
             </ul>

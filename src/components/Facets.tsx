@@ -11,8 +11,10 @@ const Facets: React.FC = () => {
     setFacets(fetchedFacets);
   }, []);
 
-  const facetItems = facets.map((facet) => {
-    const honedByFacets =
+  const facetItems = facets
+    .map((facet) => {
+      const honedByMap = new Map();
+
       facet?.honedBy?.map((honedFacetId) => {
         const honedFacet = facets.find(
           (facet) => facet.facetId === honedFacetId,
@@ -20,20 +22,26 @@ const Facets: React.FC = () => {
         const articleId = honedFacet?.articleId;
         const title = honedFacet?.title;
 
-        return {
-          facetId: honedFacetId,
-          title,
-          articleId,
-        };
+        if (!honedByMap.has(honedFacetId)) {
+          honedByMap.set(honedFacetId, {
+            facetId: honedFacetId,
+            title,
+            articleId,
+          });
+        }
       }) || [];
 
-    return {
-      facetId: facet.facetId,
-      title: facet.title,
-      articleId: facet.articleId,
-      honedByFacets,
-    };
-  });
+      const uniqueHonedByFacets = Array.from(honedByMap.values());
+
+      return {
+        facetId: facet.facetId,
+        title: facet.title,
+        articleId: facet.articleId,
+        honedByAmount: facet.honedAmount || 0,
+        honedByFacets: uniqueHonedByFacets,
+      };
+    })
+    .sort((a, b) => b.honedByAmount - a.honedByAmount);
 
   return (
     <div className="facets-container">
@@ -42,7 +50,7 @@ const Facets: React.FC = () => {
           facetItems.map((facet) => (
             <li key={facet.facetId} className="facet-item">
               <Link to={`/editor/${facet.articleId}`} className="facet-link">
-                {facet.title}
+                {facet.title} ({facet.honedByAmount})
               </Link>
 
               {facet.honedByFacets.length > 0 && (

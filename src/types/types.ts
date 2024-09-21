@@ -19,7 +19,12 @@ export type Facet = {
   title: string;
   articleId: string;
   content: string[];
+  honedAmount?: number;
   honedBy?: string[];
+};
+
+export type FacetWithSimilarity = Facet & {
+  similarity: number;
 };
 
 // Type for the article data stored in localStorage

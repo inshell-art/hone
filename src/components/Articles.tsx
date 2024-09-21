@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ArticleData } from "../types/types";
 import { SerializedArticleTitleNode } from "../models/ArticleTitleNode";
 import { SerializedTextNode } from "lexical";
+import { formatTimestamp } from "../utils/utils";
 
 const Articles: React.FC = () => {
   const [articles, setArticles] = useState<ArticleData>({});
@@ -27,8 +28,8 @@ const Articles: React.FC = () => {
     }
   }, []);
 
-  const articleItems = Object.entries(articles).map(
-    ([id, { content, updatedAt }]) => {
+  const articleItems = Object.entries(articles)
+    .map(([id, { content, updatedAt }]) => {
       const articleTitleNode = content.root.children.find(
         (node) => "type" in node && node.type === "article-title",
       );
@@ -37,15 +38,16 @@ const Articles: React.FC = () => {
         .children?.[0] as SerializedTextNode;
 
       const title = textNode?.text || "Untitled Article";
-      const lastUpdated = new Date(updatedAt).toLocaleString();
+      const dateTime = formatTimestamp(updatedAt);
 
       return {
         id,
         title,
-        lastUpdated,
+        updatedAt,
+        dateTime,
       };
-    },
-  );
+    })
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
   console.log("articleItems", articleItems);
   console.log("articles", articles);
@@ -54,12 +56,12 @@ const Articles: React.FC = () => {
     <div className="articles-container">
       <ul className="articles-list">
         {articleItems.length > 0 ? (
-          articleItems.map(({ id, title, lastUpdated }) => (
+          articleItems.map(({ id, title, dateTime }) => (
             <li key={id} className="article-item">
               <a href={`/editor/${id}`} className="article-link">
                 {title}
               </a>
-              <div className="article-date">{lastUpdated}</div>
+              <div className="article-date">{dateTime}</div>
             </li>
           ))
         ) : (
