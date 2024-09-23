@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
 import { Link } from "react-router-dom";
+import { getJaccardSimilarity } from "../utils/utils";
 
 const Facets: React.FC = () => {
   const [facets, setFacets] = useState<Facet[]>([]);
@@ -21,17 +22,30 @@ const Facets: React.FC = () => {
         );
         const articleId = honedFacet?.articleId;
         const title = honedFacet?.title;
+        const facetText = facet.title + " " + facet.content.join(" ");
+        const honedFacetText =
+          honedFacet?.title + " " + honedFacet?.content.join(" ") || "";
+
+        const similarity = getJaccardSimilarity(facetText, honedFacetText);
+        console.log(
+          `facetText: ${facetText}`,
+          `honedFacetText: ${honedFacetText}`,
+          `similarity: ${similarity}`,
+        );
 
         if (!honedByMap.has(honedFacetId)) {
           honedByMap.set(honedFacetId, {
             facetId: honedFacetId,
             title,
             articleId,
+            similarity,
           });
         }
       }) || [];
 
-      const uniqueHonedByFacets = Array.from(honedByMap.values());
+      const uniqueHonedByFacets = Array.from(honedByMap.values()).sort(
+        (a, b) => b.similarity - a.similarity,
+      );
 
       return {
         facetId: facet.facetId,
@@ -50,7 +64,7 @@ const Facets: React.FC = () => {
           facetItems.map((facet) => (
             <li key={facet.facetId} className="facet-item">
               <Link to={`/editor/${facet.articleId}`} className="facet-link">
-                {facet.title} ({facet.honedByAmount})
+                {facet.title}
               </Link>
 
               {facet.honedByFacets.length > 0 && (
@@ -61,7 +75,8 @@ const Facets: React.FC = () => {
                         to={`/editor/${honedByFacet.articleId}`}
                         className="honed-by-link"
                       >
-                        {honedByFacet.title}
+                        {honedByFacet.title} (
+                        {Math.round(honedByFacet.similarity * 100)}%)
                       </Link>
                     </li>
                   ))}

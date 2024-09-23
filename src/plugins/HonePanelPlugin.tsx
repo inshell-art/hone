@@ -53,6 +53,11 @@ const HonePanelPlugin = () => {
           currentFacetText,
           facet.title + " " + facet.content.join(" "),
         );
+        console.log(
+          `currentFacetText: ${currentFacetText}`,
+          `facet text to compare: ${facet.title} ${facet.content.join(" ")}`,
+          `similarity: ${similarity}`,
+        );
         return { ...facet, similarity };
       })
       .sort((a, b) => b.similarity - a.similarity);
@@ -317,7 +322,9 @@ const HonePanelPlugin = () => {
             onMouseMove={handleMouseMove}
           >
             <div className="hone-panel-header">
-              <span>Insert a facet to hone (sorted by similarities):</span>
+              <span>
+                Insert a facet to hone the current one (sorted by similarities):
+              </span>
             </div>
             <ul className="hone-panel-list" ref={panelListRef}>
               {facetsWithSimilarity.map((facet, index) => (
@@ -329,7 +336,7 @@ const HonePanelPlugin = () => {
                   onMouseOver={() => handleMouseOver(index)}
                   onClick={() => insertFacet(facet)}
                 >
-                  {facet.title} - {Math.round(facet.similarity * 100)}%
+                  {facet.title} ({Math.round(facet.similarity * 100)}%)
                 </li>
               ))}
             </ul>
