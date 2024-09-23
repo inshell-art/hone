@@ -254,6 +254,7 @@ body {
   color: var(--Scheele-green);
   font-weight: var(--heavy);
   font-size: var(--small);
+  cursor: pointer;
 }
 
 .honed-by-list {

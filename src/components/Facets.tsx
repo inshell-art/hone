@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getJaccardSimilarity } from "../utils/utils";
 
 const Facets: React.FC = () => {
   const [facets, setFacets] = useState<Facet[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchedFacets = extractFacets();
@@ -63,9 +64,17 @@ const Facets: React.FC = () => {
         {facetItems?.length > 0 ? (
           facetItems.map((facet) => (
             <li key={facet.facetId} className="facet-item">
-              <Link to={`/editor/${facet.articleId}`} className="facet-link">
+              <a
+                className="facet-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(
+                    `/editor/${facet.articleId}?facetId=${facet.facetId}`,
+                  );
+                }}
+              >
                 {facet.title}
-              </Link>
+              </a>
 
               {facet.honedByFacets.length > 0 && (
                 <ul className="honed-by-list">

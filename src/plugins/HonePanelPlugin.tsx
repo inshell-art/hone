@@ -102,14 +102,11 @@ const HonePanelPlugin = () => {
         const rect = panelElement.getBoundingClientRect();
 
         if (rect.top < 0 || rect.bottom > window.innerHeight) {
-          requestAnimationFrame(() => {
-            const panelTopPosition = rect.top + window.scrollY - 50;
-            setTimeout(() => {
-              window.scrollTo({
-                top: panelTopPosition,
-                behavior: "smooth",
-              });
-            }, 100);
+          setTimeout(() => {
+            panelElement.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
           });
         }
 

@@ -19,11 +19,31 @@ import DisableLineBreakInFacetTitlePlugin from "../plugins/DisableLineBreakInFac
 import HandlePastePlugin from "../plugins/HandlePastePlugin";
 import DisableTextFormatPlugin from "../plugins/DisableTextFormatPlugin";
 import MessageDisplay from "./MessageDisplay";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [isTemporary, setIsTemporary] = useState<boolean>(false);
+  const location = useLocation();
+  const queryParam = new URLSearchParams(location.search);
+  const facetId = queryParam.get("facetId");
+
+  useEffect(() => {
+    if (facetId) {
+      scrollToFacet(facetId);
+    }
+  }, [facetId]);
+
+  const scrollToFacet = (facetId: string) => {
+    const facetTitleNode = document.querySelector(
+      `[data-facet-title-id="${facetId}"]`,
+    );
+
+    if (facetTitleNode) {
+      facetTitleNode.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   const handleMessageChange = useCallback(
     (message: string | null, isTemporary?: boolean) => {
