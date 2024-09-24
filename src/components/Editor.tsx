@@ -29,6 +29,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const queryParam = new URLSearchParams(location.search);
   const facetId = queryParam.get("facetId");
 
+  // Scroll to the facet title when the facetId query param is present
   useEffect(() => {
     if (facetId) {
       scrollToFacet(facetId);
@@ -45,6 +46,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
     }
   };
 
+  // Handle messages from child components
   const handleMessageChange = useCallback(
     (message: string | null, isTemporary?: boolean) => {
       setMessage(message);

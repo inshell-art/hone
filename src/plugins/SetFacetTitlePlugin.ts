@@ -1,5 +1,14 @@
 import { useEffect } from "react";
-import { $getRoot, ElementNode, TextNode, $createParagraphNode } from "lexical";
+import {
+  $getRoot,
+  ElementNode,
+  TextNode,
+  $createParagraphNode,
+  INSERT_PARAGRAPH_COMMAND,
+  COMMAND_PRIORITY_LOW,
+  $getSelection,
+  $isRangeSelection,
+} from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { EditorProps } from "../types/types";
@@ -104,8 +113,38 @@ const SetFacetTitlePlugin: React.FC<EditorProps> = ({ articleId }) => {
       },
     );
 
+    const removeInsertParagraphCommand = editor.registerCommand(
+      INSERT_PARAGRAPH_COMMAND,
+      () => {
+        const selection = $getSelection();
+        if (!selection) return false;
+
+        if ($isRangeSelection(selection)) {
+          const anchorNode = selection.anchor.getNode();
+          const parent = anchorNode.getParent();
+
+          if (parent instanceof FacetTitleNode) {
+            const anchorOffset = selection.anchor.offset;
+
+            if (anchorOffset === 0) {
+              editor.update(() => {
+                const paragraphNode = $createParagraphNode();
+                parent.insertBefore(paragraphNode);
+                parent.selectStart();
+              });
+
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      COMMAND_PRIORITY_LOW,
+    );
+
     return () => {
       removeNodeTransform();
+      removeInsertParagraphCommand();
     };
   }, [editor, articleId]);
 
