@@ -4,7 +4,6 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import CustomErrorBoundary from "../components/CustomErrorBoundary";
 import HoneEditorTheme from "../themes/HoneEditorTheme";
 import { ParagraphNode, TextNode } from "lexical";
-import TreeViewPlugin from "../plugins/TreeViewPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import SetArticleTitlePlugin from "../plugins/SetArticleTitlePlugin";
 import { EditorProps } from "../types/types";
@@ -17,10 +16,11 @@ import { ArticleTitleNode } from "../models/ArticleTitleNode";
 import { HeadingNode } from "@lexical/rich-text";
 import DisableLineBreakInFacetTitlePlugin from "../plugins/DisableLineBreakInFacetTitlePlugin";
 import HandlePastePlugin from "../plugins/HandlePastePlugin";
-import DisableTextFormatPlugin from "../plugins/DisableTextFormatPlugin";
 import MessageDisplay from "./MessageDisplay";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import TreeViewPlugin from "../plugins/TreeViewPlugin";
+import DisableTextFormatPlugin from "../plugins/DisableTextFormatPlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const [message, setMessage] = useState<string | null>(null);
@@ -104,8 +104,8 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
           articleId={articleId}
           onMessageChange={handleMessageChange}
         />
-        <HonePanelPlugin />
         <TreeViewPlugin />
+        <HonePanelPlugin />
         <DisableLineBreakInFacetTitlePlugin />
         <HandlePastePlugin />
         <DisableTextFormatPlugin />

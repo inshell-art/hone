@@ -6,7 +6,9 @@
   --dark-white: #c1c1c1;
   --dark-black: #191919;
   --ash: #777777;
+  --grey: #e4e4e4;
   --Scheele-green: #006100;
+  --Scheele-green-rgb: 0, 97, 0;
 
   --tiny: 12px;
   --small: 16px;
@@ -89,10 +91,21 @@ body {
 }
 
 .facet-title {
-  color: var(--Scheele-green);
   font-weight: var(--heavy);
-  font-size: var(--small);
+  font-size: var(--regular);
+  color: var(--Scheele-green);
+  padding-bottom: var(--small);
   padding-top: var(--large);
+}
+
+strong {
+  font-weight: var(--heavy);
+}
+
+.hone-bold {
+  font-weight: var(--heavy);
+  color: var(--Scheele-green);
+  font-size: var(--large);
 }
 
 /* For Home */
@@ -254,7 +267,6 @@ body {
   color: var(--Scheele-green);
   font-weight: var(--heavy);
   font-size: var(--small);
-  cursor: pointer;
 }
 
 .honed-by-list {

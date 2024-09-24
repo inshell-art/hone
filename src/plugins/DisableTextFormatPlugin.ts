@@ -12,7 +12,11 @@ const DisableTextFormatPlugin = () => {
   useEffect(() => {
     const removeCommandListener = editor.registerCommand<TextFormatType>(
       FORMAT_TEXT_COMMAND,
-      (): boolean => {
+      (TextFormatType) => {
+        if (TextFormatType === "bold") {
+          return false;
+        }
+
         return true;
       },
       COMMAND_PRIORITY_HIGH,
