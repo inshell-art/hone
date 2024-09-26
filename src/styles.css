@@ -82,6 +82,7 @@ body {
 .editor-paragraph {
   font-size: var(--small);
   font-weight: var(--regular);
+  line-height: 1.5;
 }
 
 .article-title {
@@ -94,18 +95,8 @@ body {
   font-weight: var(--heavy);
   font-size: var(--regular);
   color: var(--Scheele-green);
-  padding-bottom: var(--small);
-  padding-top: var(--large);
-}
-
-strong {
-  font-weight: var(--heavy);
-}
-
-.hone-bold {
-  font-weight: var(--heavy);
-  color: var(--Scheele-green);
-  font-size: var(--large);
+  padding-bottom: 0;
+  padding-top: var(--super-large);
 }
 
 /* For Home */

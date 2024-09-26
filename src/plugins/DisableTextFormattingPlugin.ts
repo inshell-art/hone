@@ -6,17 +6,13 @@ import {
 } from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 
-const DisableTextFormatPlugin = () => {
+const DisableTextFormattingPlugin = () => {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
     const removeCommandListener = editor.registerCommand<TextFormatType>(
       FORMAT_TEXT_COMMAND,
-      (TextFormatType) => {
-        if (TextFormatType === "bold") {
-          return false;
-        }
-
+      () => {
         return true;
       },
       COMMAND_PRIORITY_HIGH,
@@ -30,4 +26,4 @@ const DisableTextFormatPlugin = () => {
   return null;
 };
 
-export default DisableTextFormatPlugin;
+export default DisableTextFormattingPlugin;
