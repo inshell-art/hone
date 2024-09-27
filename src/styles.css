@@ -38,6 +38,24 @@ body {
   padding: 0 auto;
 }
 
+a {
+  color: var(--light-black);
+  text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: var(--dark-white);
+    background-color: var(--dark-black);
+  }
+  a {
+    color: var(--dark-white);
+  }
+  .hone-panel {
+    background-color: var(--dark-black) !important;
+  }
+}
+
 /* for HoneEditor */
 .editor-message {
   height: var(--small);
@@ -111,7 +129,6 @@ body {
   top: 0;
   width: var(--width);
   z-index: 1001;
-  background-color: var(--light-white);
 
   display: flex;
   justify-content: space-between;
@@ -134,7 +151,6 @@ body {
 .nav-link-articles {
   text-decoration: none;
   font-weight: var(--regular);
-  color: var(--light-black);
 }
 
 .nav-link-facets {
@@ -151,7 +167,6 @@ body {
 .nav-link-create {
   text-decoration: none;
   font-weight: var(--regular);
-  color: var(--light-black);
 }
 
 .nav-link-create.hover {
@@ -218,7 +233,6 @@ body {
 
 .article-link {
   text-decoration: none;
-  color: var(--dark-black);
   font-weight: var(--regular);
   font-size: var(--medium);
 }
@@ -275,9 +289,9 @@ body {
 /* For hone panel */
 .hone-panel {
   position: absolute;
-  background-color: var(--light-white);
   border: 1px solid var(--Scheele-green);
   box-shadow: 0 2px 4px var(--Scheele-green);
+  background-color: var(--light-white);
   border-radius: 0px;
   z-index: 1000;
   padding: 0px;

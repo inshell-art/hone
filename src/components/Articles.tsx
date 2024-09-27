@@ -37,7 +37,8 @@ const Articles: React.FC = () => {
       const textNode = (articleTitleNode as SerializedArticleTitleNode)
         .children?.[0] as SerializedTextNode;
 
-      const title = textNode?.text || "Untitled Article";
+      const title =
+        textNode.text.trim().length > 0 ? textNode.text : "Untitled Article";
       const dateTime = formatTimestamp(updatedAt);
 
       return {
