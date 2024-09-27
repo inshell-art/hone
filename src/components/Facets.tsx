@@ -10,6 +10,7 @@ const Facets: React.FC = () => {
 
   useEffect(() => {
     const fetchedFacets = extractFacets();
+    console.log("fetchedFacets:", fetchedFacets);
     setFacets(fetchedFacets);
   }, []);
 

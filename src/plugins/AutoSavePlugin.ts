@@ -3,12 +3,14 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { debounce } from "lodash";
 import { AutoSavePluginProps } from "../types/types";
 import { collectTextFromDescendants } from "../utils/utils";
+import { useNavigate } from "react-router-dom";
 
 const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
   articleId,
   onMessageChange,
 }) => {
   const [editor] = useLexicalComposerContext();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const saveContent = debounce(async () => {
@@ -33,13 +35,32 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
 
         // If there is no text and the article is in localStorage, delete the article
         if (hasNoText && savedArticles[articleId]) {
-          delete savedArticles[articleId];
-          onMessageChange("Deleted article from localStorage.", true);
-          localStorage.setItem(
-            "HoneEditorArticles",
-            JSON.stringify(savedArticles),
+          const deleteConfirmed = window.confirm(
+            "Empty content means to delete the article. Confirm?",
           );
-          return;
+
+          if (!deleteConfirmed) {
+            const articleContent = savedArticles[articleId].content;
+            editor.update(() => {
+              const editorState = editor.parseEditorState(articleContent);
+              editor.setEditorState(editorState);
+            });
+
+            onMessageChange(
+              "Canceled deletion of article from localStorage.",
+              true,
+            );
+            return;
+          } else {
+            delete savedArticles[articleId];
+            onMessageChange("Deleted article from localStorage.", true);
+            localStorage.setItem(
+              "HoneEditorArticles",
+              JSON.stringify(savedArticles),
+            );
+            navigate("/");
+            return;
+          }
         }
 
         // Update the specific article's content
@@ -70,7 +91,7 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
     return () => {
       unregister();
     };
-  }, [editor, articleId, onMessageChange]);
+  }, [editor, articleId, onMessageChange, navigate]);
 
   return null;
 };
