@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
 import { useNavigate } from "react-router-dom";
-import { getJaccardSimilarity } from "../utils/utils";
+import { listFacetsWithSimilarity } from "../utils/utils";
 
 const Facets: React.FC = () => {
   const [facets, setFacets] = useState<Facet[]>([]);
@@ -15,37 +15,20 @@ const Facets: React.FC = () => {
 
   const facetItems = facets
     .map((facet) => {
-      const honedByMap = new Map();
-
-      facet?.honedBy?.map((honedFacetId) => {
-        const honedFacet = facets.find(
+      const uniqueFacets = new Set<Facet>();
+      facet?.honedBy?.forEach((honedFacetId) => {
+        const matchedFacet = facets.find(
           (facet) => facet.facetId === honedFacetId,
         );
-        const articleId = honedFacet?.articleId;
-        const title = honedFacet?.title;
-        const facetText = facet.title + " " + facet.content.join(" ");
-        const honedFacetText =
-          honedFacet?.title + " " + honedFacet?.content.join(" ") || "";
-
-        const similarity = getJaccardSimilarity(facetText, honedFacetText);
-        console.log(
-          `facetText: ${facetText}`,
-          `honedFacetText: ${honedFacetText}`,
-          `similarity: ${similarity}`,
-        );
-
-        if (!honedByMap.has(honedFacetId)) {
-          honedByMap.set(honedFacetId, {
-            facetId: honedFacetId,
-            title,
-            articleId,
-            similarity,
-          });
+        if (matchedFacet) {
+          uniqueFacets.add(matchedFacet);
         }
-      }) || [];
+      });
+      const uniqueHonedByFacets = Array.from(uniqueFacets);
 
-      const uniqueHonedByFacets = Array.from(honedByMap.values()).sort(
-        (a, b) => b.similarity - a.similarity,
+      const uniqueHonedByFacetsWithSimilarity = listFacetsWithSimilarity(
+        facet,
+        uniqueHonedByFacets,
       );
 
       return {
@@ -53,7 +36,7 @@ const Facets: React.FC = () => {
         title: facet.title,
         articleId: facet.articleId,
         honedByAmount: facet.honedAmount || 0,
-        honedByFacets: uniqueHonedByFacets,
+        honedByFacets: uniqueHonedByFacetsWithSimilarity,
       };
     })
     .sort((a, b) => b.honedByAmount - a.honedByAmount);

@@ -82,7 +82,7 @@ body {
 .editor-paragraph {
   font-size: var(--small);
   font-weight: var(--regular);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .article-title {
@@ -194,11 +194,6 @@ body {
   color: var(--ash);
   font-weight: var(--thin);
   font-size: var(--tiny);
-}
-
-.footer-icon {
-  width: var(--small);
-  height: var(--small);
 }
 
 /* For Articles list */

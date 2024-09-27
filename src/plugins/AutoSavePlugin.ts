@@ -53,7 +53,7 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
           JSON.stringify(savedArticles),
         );
         onMessageChange(
-          "Auto-saved changes to localStorage every 1 second.",
+          "Auto-saved changes to localStorage in 1 second.",
           true,
         );
       } catch (error) {

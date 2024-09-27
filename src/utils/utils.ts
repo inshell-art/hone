@@ -7,6 +7,7 @@ import {
   BaseSelection,
 } from "lexical";
 import { FacetTitleNode } from "../models/FacetTitleNode";
+import { Facet } from "../types/types";
 
 export const INSERT_SYMBOL = ">>>>>>>";
 
@@ -51,6 +52,32 @@ export const getJaccardSimilarity = (text1: string, text2: string) => {
   const union = new Set([...words1, ...words2]); // All unique words across both texts
 
   return intersection.size / union.size; // Jaccard similarity = intersection / union
+};
+
+export const listFacetsWithSimilarity = (
+  currentFacet: Facet | undefined,
+  facets: Facet[],
+) => {
+  const emptyFacet: Facet = {
+    articleId: "",
+    content: [],
+    facetId: "",
+    title: "",
+  };
+
+  const facetToCompare = currentFacet || emptyFacet;
+
+  return facets
+    .map((facet) => {
+      return {
+        ...facet,
+        similarity: getJaccardSimilarity(
+          facetToCompare.title + "" + facetToCompare.content.join(" "),
+          facet.title + "" + facet.content.join(" "),
+        ),
+      };
+    })
+    .sort((a, b) => b.similarity - a.similarity);
 };
 
 // Utility function to find the nearest upper facet title node

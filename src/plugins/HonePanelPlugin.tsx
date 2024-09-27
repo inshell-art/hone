@@ -11,9 +11,9 @@ import {
 } from "lexical";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet, FacetWithSimilarity } from "../types/types";
-import { INSERT_SYMBOL } from "../utils/utils";
 import {
-  getJaccardSimilarity,
+  INSERT_SYMBOL,
+  listFacetsWithSimilarity,
   findNearestFacetTitleNode,
 } from "../utils/utils";
 
@@ -36,31 +36,18 @@ const HonePanelPlugin = () => {
 
     // Get the current facet node
     const currentFacetNode = findNearestFacetTitleNode(selection);
-
     const currentFacetId = currentFacetNode?.getUniqueId();
     const currentFacet = facets.find(
       (facet) => facet.facetId === currentFacetId,
     );
+    const facetsExceptCurrent = facets.filter(
+      (facet) => facet.facetId !== currentFacetId,
+    );
 
-    const currentFacetText =
-      currentFacet?.title + " " + currentFacet?.content.join(" ") || "";
-
-    // Compute similarities with all facets
-    const facetsWithSimilarity: FacetWithSimilarity[] = facets
-      .filter((facet) => facet.facetId !== currentFacetId)
-      .map((facet) => {
-        const similarity = getJaccardSimilarity(
-          currentFacetText,
-          facet.title + " " + facet.content.join(" "),
-        );
-        console.log(
-          `currentFacetText: ${currentFacetText}`,
-          `facet text to compare: ${facet.title} ${facet.content.join(" ")}`,
-          `similarity: ${similarity}`,
-        );
-        return { ...facet, similarity };
-      })
-      .sort((a, b) => b.similarity - a.similarity);
+    const facetsWithSimilarity = listFacetsWithSimilarity(
+      currentFacet,
+      facetsExceptCurrent,
+    );
 
     setFacetsWithSimilarity(facetsWithSimilarity);
 
