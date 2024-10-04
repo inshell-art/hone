@@ -13,16 +13,31 @@ const LoadArticlePlugin: React.FC<LoadArticlePluginProps> = ({
     const storedArticles = localStorage.getItem("HoneEditorArticles");
 
     if (!storedArticles) {
+      console.log("!storedArticles");
       return;
     }
 
     if (storedArticles) {
       try {
         const parsedArticles = JSON.parse(storedArticles);
+        const article = parsedArticles[articleId];
+
+        if (!article) {
+          console.log("no article!");
+          onMessageChange(
+            `No article found for article ID: ${articleId}`,
+            true,
+          );
+
+          return;
+        }
+
         const articleContent = parsedArticles[articleId].content;
+        console.log("articleContent:", articleContent);
 
         if (articleContent) {
           editor.update(() => {
+            console.log("editor.update");
             const editorState = editor.parseEditorState(articleContent);
             editor.setEditorState(editorState);
           });

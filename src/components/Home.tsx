@@ -1,4 +1,3 @@
-// Home
 import React from "react";
 import { Route, Routes, NavLink, Navigate } from "react-router-dom";
 import Articles from "./Articles";
@@ -50,7 +49,7 @@ const Home: React.FC = () => {
           </a>
         </div>
         <div className="footer-right">
-          <a href="https://hone.example.com" className="footer-link">
+          <a href="https://inshell.art" className="footer-link">
             Hone is crafted by Inshell
           </a>
         </div>

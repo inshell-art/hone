@@ -14,12 +14,13 @@ import SetFacetTitlePlugin from "../plugins/SetFacetTitlePlugin";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleTitleNode } from "../models/ArticleTitleNode";
 import { HeadingNode } from "@lexical/rich-text";
-import DisableLineBreakInFacetTitlePlugin from "../plugins/DisableLineBreakInFacetTitlePlugin";
 import MessageDisplay from "./MessageDisplay";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import DisableTextFormattingPlugin from "../plugins/DisableTextFormattingPlugin";
 import StripFormattingPastePlugin from "../plugins/StripFormattingPastePlugin";
+import TreeViewPlugin from "../plugins/TreeViewPlugin";
+import KeepTitlesInOneLinePlugin from "../plugins/KeepTitlesInOneLinePlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const [message, setMessage] = useState<string | null>(null);
@@ -103,11 +104,11 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
           articleId={articleId}
           onMessageChange={handleMessageChange}
         />
-
         <HonePanelPlugin />
-        <DisableLineBreakInFacetTitlePlugin />
+        <KeepTitlesInOneLinePlugin />
         <StripFormattingPastePlugin />
         <DisableTextFormattingPlugin />
+        <TreeViewPlugin />
       </div>
     </LexicalComposer>
   );

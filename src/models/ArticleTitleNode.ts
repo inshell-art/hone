@@ -6,7 +6,7 @@ export interface SerializedArticleTitleNode extends SerializedHeadingNode {
 
 export class ArticleTitleNode extends HeadingNode {
   constructor(key?: string) {
-    super("h1", key); // Coupling with h1 for article title
+    super("h1", key);
   }
 
   static getType() {

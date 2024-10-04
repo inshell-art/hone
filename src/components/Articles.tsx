@@ -50,9 +50,6 @@ const Articles: React.FC = () => {
     })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  console.log("articleItems", articleItems);
-  console.log("articles", articles);
-
   return (
     <div className="articles-container">
       <ul className="articles-list">

@@ -7,8 +7,9 @@ import {
 } from "lexical";
 import { useEffect } from "react";
 import { FacetTitleNode } from "../models/FacetTitleNode"; // Adjust to your custom node
+import { ArticleTitleNode } from "../models/ArticleTitleNode";
 
-const DisableLineBreakInFacetTitlePlugin = () => {
+const DisableLinebreakInTitlePlugin = () => {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -24,8 +25,11 @@ const DisableLineBreakInFacetTitlePlugin = () => {
           // Prevent line breaks if the node is a FacetTitleNode
           if (
             anchorNode instanceof FacetTitleNode ||
-            anchorNode.getParent() instanceof FacetTitleNode
+            anchorNode.getParent() instanceof FacetTitleNode ||
+            anchorNode instanceof ArticleTitleNode ||
+            anchorNode.getParent() instanceof ArticleTitleNode
           ) {
+            console.log(anchorNode);
             return true;
           }
         }
@@ -43,4 +47,4 @@ const DisableLineBreakInFacetTitlePlugin = () => {
   return null;
 };
 
-export default DisableLineBreakInFacetTitlePlugin;
+export default DisableLinebreakInTitlePlugin;
