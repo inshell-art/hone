@@ -67,6 +67,8 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
         onMessageChange("Saving content to localStorage...");
         const dateTimeNow = Date.now();
         savedArticles[articleId] = { content, updatedAt: dateTimeNow };
+        //! No version number for the first data shape, will be added for necessity if needed
+        //! Where handling the current version number as null, and the second version number as 1
 
         // Save the updated articles back to localStorage
         localStorage.setItem(

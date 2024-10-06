@@ -3,6 +3,7 @@ import { Route, Routes, NavLink, Navigate } from "react-router-dom";
 import Articles from "./Articles";
 import Facets from "./Facets";
 import { v4 as uuidv4 } from "uuid";
+import { exportSavedArticles, importSavedArticles } from "../utils/utils";
 
 const Home: React.FC = () => {
   return (
@@ -41,10 +42,37 @@ const Home: React.FC = () => {
       </div>
       <footer className="footer">
         <div className="footer-left">
-          <a href="#import" className="footer-link">
+          {/* Hidden file input that allows the user to select a file */}
+          <input
+            type="file"
+            id="fileInput"
+            accept="application/json"
+            style={{
+              display: "none",
+            }}
+            onChange={importSavedArticles}
+          />
+          {/* Link to trigger the file input */}
+          <a
+            href="#import"
+            className="footer-link"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("fileInput")?.click();
+            }}
+          >
             Import
           </a>
-          <a href="#export" className="footer-link">
+
+          <a
+            href="#export"
+            className="footer-link"
+            onClick={(e) => {
+              e.preventDefault();
+              console.log("Exporting articles...");
+              exportSavedArticles();
+            }}
+          >
             Export
           </a>
         </div>

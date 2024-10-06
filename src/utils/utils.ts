@@ -99,3 +99,82 @@ export const findNearestFacetTitleNode = (selection: BaseSelection | null) => {
 
   return null;
 };
+
+export const exportSavedArticles = () => {
+  const savedArticlesJSON = localStorage.getItem("HoneEditorArticles");
+  if (!savedArticlesJSON) {
+    console.log("No articles to export.");
+    alert("No articles to export.");
+    return;
+  }
+
+  const savedArticles = JSON.parse(savedArticlesJSON);
+  if (Object.keys(savedArticles).length === 0) {
+    console.log("No articles to export.");
+    alert("No articles to export.");
+    return;
+  }
+
+  const dataStr = JSON.stringify(savedArticles, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "My Hone.json";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+export const importSavedArticles = (
+  fileLoadEvent: React.ChangeEvent<HTMLInputElement>,
+) => {
+  if (fileLoadEvent.target.files === null) {
+    return;
+  }
+
+  const file = fileLoadEvent.target.files[0];
+
+  if (!file) {
+    console.log("No file selected for import.");
+    return;
+  }
+
+  const userConfirmed = window.confirm(
+    "Importing a file will overwrite your current data. Are you sure?",
+  );
+
+  if (!userConfirmed) {
+    return;
+  }
+
+  const reader = new FileReader(); // Create a FileReader to read the file
+
+  reader.onload = (fileReadEvent) => {
+    try {
+      if (
+        !fileReadEvent.target ||
+        typeof fileReadEvent.target.result !== "string"
+      ) {
+        throw new Error("Invalid file data");
+      }
+
+      const importedData = JSON.parse(fileReadEvent.target.result);
+
+      if (typeof importedData !== "object" || importedData === null) {
+        throw new Error("Invalid data format");
+      }
+
+      console.log("Imported Data:", importedData);
+
+      localStorage.setItem("HoneEditorArticles", JSON.stringify(importedData));
+      window.location.reload();
+    } catch (error) {
+      alert("Failed to import savedArticles.");
+      console.error("Failed to import savedArticles:", error);
+    }
+  };
+
+  reader.readAsText(file);
+};
