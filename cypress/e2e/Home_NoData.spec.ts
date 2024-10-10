@@ -75,13 +75,43 @@ describe("Home No Data E2E Tests", () => {
     });
   });
 
-  it("should navigate to #import section when Import link is clicked", () => {
-    cy.contains("Import").click();
-    cy.url().should("include", "#import");
+  it("should trigger the file input click when the import link is clicked", () => {
+    cy.get('input[type="file"]').then(($input) => {
+      const spy = cy.spy($input[0], "click");
+      cy.get('a[href="#import"]')
+        .click()
+        .then(() => {
+          expect(spy).to.be.calledOnce;
+        });
+    });
   });
 
-  it("should navigate to #export section when Export link is clicked", () => {
-    cy.contains("Export").click();
-    cy.url().should("include", "#export");
+  it("should import a JSON file, store data in localStorage, and display it", () => {
+    cy.get('input[type="file"]')
+      .should("exist")
+      .selectFile("./public/GettingStarted.json", { force: true }); // Share from initial data
+
+    cy.wait(100);
+
+    cy.window().then((win) => {
+      const savedData = JSON.parse(
+        win.localStorage.getItem("HoneEditorArticles") || "{}"
+      );
+      cy.log("Saved data:", savedData);
+
+      expect(Object.keys(savedData)).to.have.length(2);
+    });
+
+    cy.get(".articles-list").within(() => {
+      cy.get("li").should("have.length", 2);
+    });
+  });
+
+  it("should show no articles to export when export link is clicked", () => {
+    cy.get('a[href="#export"]').click();
+
+    cy.on("window:alert", (str) => {
+      expect(str).to.equal("No articles to export.");
+    });
   });
 });

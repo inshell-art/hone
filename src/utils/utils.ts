@@ -119,9 +119,11 @@ export const exportSavedArticles = () => {
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
+  const timestamp = formatTimestamp(Date.now());
+
   const link = document.createElement("a");
   link.href = url;
-  link.download = "My Hone.json";
+  link.download = `My Hone ${timestamp}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -130,11 +132,13 @@ export const exportSavedArticles = () => {
 export const importSavedArticles = (
   fileLoadEvent: React.ChangeEvent<HTMLInputElement>,
 ) => {
+  console.log("Importing articles...");
   if (fileLoadEvent.target.files === null) {
     return;
   }
 
   const file = fileLoadEvent.target.files[0];
+  console.log("File selected for import:", file.size, file.type, file.name);
 
   if (!file) {
     console.log("No file selected for import.");
@@ -145,9 +149,15 @@ export const importSavedArticles = (
     "Importing a file will overwrite your current data. Are you sure?",
   );
 
+  if (userConfirmed) {
+    console.log("user confirmed");
+  }
+
   if (!userConfirmed) {
     return;
   }
+
+  console.log("Importing file:", file);
 
   const reader = new FileReader(); // Create a FileReader to read the file
 
@@ -161,6 +171,7 @@ export const importSavedArticles = (
       }
 
       const importedData = JSON.parse(fileReadEvent.target.result);
+      console.log("Imported Data:", importedData);
 
       if (typeof importedData !== "object" || importedData === null) {
         throw new Error("Invalid data format");

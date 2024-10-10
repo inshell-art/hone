@@ -50,7 +50,10 @@ const Home: React.FC = () => {
             style={{
               display: "none",
             }}
-            onChange={importSavedArticles}
+            onChange={(e) => {
+              console.log("Importing articles...");
+              importSavedArticles(e);
+            }}
           />
           {/* Link to trigger the file input */}
           <a
@@ -59,6 +62,7 @@ const Home: React.FC = () => {
             onClick={(e) => {
               e.preventDefault();
               document.getElementById("fileInput")?.click();
+              console.log("Importing articles...");
             }}
           >
             Import

@@ -1,0 +1,1191 @@
+{
+  "e0a57202-51ac-454b-a66c-7686264b6007": {
+    "content": {
+      "root": {
+        "children": [
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Abstract of Hone",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "article-title",
+            "version": 1,
+            "tag": "h1"
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Hone is an editor designed to polish your ideas into principles.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ Problem of Ideas in Our Mind",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727426960480",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "We are human, generating ideas—instant, rapid, and seemingly emerging from nowhere. It’s not easy to discern where they come from, and we certainly don’t know where they will lead.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Consider time. Imagine we’ve written a book. This book is encapsulated within a specific moment; you can edit it before publication, but not afterward. Even when we create a \"digital book,\" which allows for ongoing edits, readers still engage with it at a particular time. For them, the book feels static during their reading, whether over a few hours or several months, freezing your ideas within that timeframe. In this sense, the book remains fixed, regardless of whether it’s traditional or digital.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "However, ideas grow, evolve, and sometimes vanish into thin air. Some may develop into principles that guide your life, while others fade away. The journey of transforming ideas into principles or disappear often goes unrecorded, leaving us without the tools to trace or understand this evolution. In essence, we lack a clear \"idea\" of how our ideas develop and evolve.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ The Problem Might Be in How We Perceive a Book",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727428352982",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "People often start to seek ideas from books to solve problems or find inspiration without clear comprehension about the ideas in the book, On the other hand, writers create books to express their fundamental principles—the core beliefs and values that shape them. These \"cores\" are like the foundations of a building, that is, the structure of a tangible object. They may not always be perfectly organized, but they are the source from which content flows.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The cores of our minds run deep. They are not easy to access, refine, or bring to the surface. Often, they exist in the subconscious, and because they are unpolished, they may not appear as striking or refined when finally expressed.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "As a result, we create various \"surfaces\" to present these cores instead of revealing the cores themselves. Each reader interacts with the content and may sense the presence of these deeper ideas, but the understanding is never exact. It becomes a chaotic exchange, with writers and readers left in the dark, guessing at each other's true meanings.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ Solution: Hone your Facets though Articles",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727413378263",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The answer becomes clear when we consider the key issues: the passage of time, the evolving \"cores\" in our minds, and the gap between these cores and the content we create.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The journey of an idea evolving into a principle isn’t confined to a single event, an article, or even a book. It occurs through various processes and stages, often intermittently.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Imagine mapping out the path an idea takes and the places where developments occur. The locations of these developments—such as events, articles, or books—are familiar to you, yet the path itself is much more abstract. Both the development path and the familiar spaces where ideas evolve coexist in this conceptual framework.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "In Hone, the foundational content structure is the Article. Here, you can tell stories, extend ideas, and highlight a specific idea with a title, representing a completed thought. We refer to this as a Facet, akin to a section heading. You can polish any Facet by inserting another Facet into it, a process we call \"Hone\".",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "All Facets are extracted into a list alongside the Articles, emphasizing their equal importance: we Hone Facets through Articles. Over time, this honing sharpens ideas, making them more accurate reflections of your true thoughts.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h3",
+            "uniqueId": "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727413342529",
+            "active": false,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ The Simplicity for Hone",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727414330585",
+            "active": true,
+            "honedBy": [
+              "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727413378263"
+            ],
+            "honedAmount": 1
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Throughout the historical evolution of writing and reading, many tools have been invented—not just physical ones like pencils or typewriters, but also symbolic tools such as notation sheets, bullet lists, and bidirectional linking. These \"soft\" tools help present, develop, and solidify our thoughts. They work because we adapt to the tools we use, which in turn influence our perception of the world and shape our thinking.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The formats we master become part of us. The mental frameworks provided by these tools integrate into our thought processes. Thus, selecting a tool is significant; it’s akin to choosing a part of ourselves, much like selecting an essential organ.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The challenge lies in tracing the evolution of ideas. This is where Facets come in. To reflect the development of a Facet, honing is recorded. The design is based on Occam's razor, stripping away unnecessary elements and starting with minimal components until a new one needs to be added.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The principle in Hone is consistent: simplicity to the extreme. It offers only two types of text blocks—facets and articles—with articles primarily consisting of facets. Each facet begins with a facet title, highlighted in Hone, which is the only formatting option available. There are no additional features like bold, italic, or underline.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Relationships in Hone are also straightforward: one facet can hone another, and that’s it. The idea is that forming and solidifying thoughts occurs through repeated reflection on similar ideas. Ideas are polished by other ideas until they become core principles of who we are.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "We need a tool to facilitate this process. That's why people invented writing tools, and that's why this tool is named Hone.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "type": "root",
+        "version": 1
+      }
+    },
+    "updatedAt": 1727431177965
+  },
+  "1bdf9688-43af-4243-80c5-a6d95ca8c9ee": {
+    "content": {
+      "root": {
+        "children": [
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "How to use Hone",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "article-title",
+            "version": 1,
+            "tag": "h1"
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ Two Formats in Hone: Facet and Article ",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727330037888",
+            "active": true,
+            "honedBy": [
+              "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727329366799",
+              "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727413378263",
+              "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727414330585",
+              "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727414330585",
+              "e0a57202-51ac-454b-a66c-7686264b6007-facet-1727414330585"
+            ],
+            "honedAmount": 3
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Facets begin with a facet title, which is a text block starting with the $ symbol, signifying its value. The text block is styled with a green highlight to visually represent the content that follows it, continuing until the next facet title.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Facets are separated by these facet titles, acting as boundaries for the content within them.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Articles, on the other hand, consist of multiple Facets. The section between the article title and the first facet title serves as a space for content like introductions.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The simplicity is deliberate-to keep the structure clear and focused, and the same as your mind to see the world.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ How to Hone a Facet ",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727418616321",
+            "active": true,
+            "honedBy": [
+              "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727331530628"
+            ],
+            "honedAmount": 1
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Honing a facet is easy and straightforward. Simply press Cmd + Enter (on Mac) or Ctrl + Enter (on Windows) at the beginning of any block line. A panel will pop up, displaying all your available facets. You can easily insert any of them into the current facet.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Each facet in the panel is followed by a percentage, which indicates the similarity between that facet and your current facet (where the cursor is). This helps you quickly decide which facet to insert based on relevance.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The similarity is calculated using the Jaccard Similarity method.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "The lines of the inserted facet will be marked with prefix symbol >>>>>>>.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ The Record of Honing Facets ",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727331530628",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "After you insert a facet, the \"honing\" operation is recorded permanently. In the Facets tab, where all the facets are listed, the hierarchy is presented as a one-level structure: the top facet and all the facets honed it.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "When facet A is inserted into facet B (i.e., facet A hones facet B), the honing count of facet A is inherited by facet B, plus an additional count for facet A itself. The facets in the Facets tab are sorted based on the number of times they have been honed.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "This means that the higher a facet appears in the Facets list, the more it has been honed historically, indicating a deeper level of development.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ Storage and Saving Mechanism ",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727332628084",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "All data in Hone is stored locally on your device, specifically in your browser's LocalStorage. There is no cloud storage involved, so you don't need to register an account, and all your data remains under your private control.",
+                "type": "text",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "type": "linebreak",
+                "version": 1
+              },
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "Saving is automatic, with any changes made in the editor being saved within one second.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ Deletion of an Article ",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727333130578",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "To delete an article, simply erase all its content, and the article will be automatically removed from storage.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "$ Crate an Article to Start Using Hone",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "facet-title",
+            "version": 1,
+            "tag": "h2",
+            "uniqueId": "1bdf9688-43af-4243-80c5-a6d95ca8c9ee-facet-1727333338594",
+            "active": true,
+            "honedBy": [],
+            "honedAmount": 0
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
+                "text": "To get started, click \"Create Article\" in the top-right corner of the home page. Write your article with facets by start a line with $, hone them, and polish your thoughts in depth.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          }
+        ],
+        "direction": "ltr",
+        "format": "",
+        "indent": 0,
+        "type": "root",
+        "version": 1
+      }
+    },
+    "updatedAt": 1728289663899
+  }
+}
