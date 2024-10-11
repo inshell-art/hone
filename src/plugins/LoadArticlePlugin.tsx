@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LoadArticlePluginProps } from "../types/types";
+import { HONE_DATA } from "../utils/utils";
 
 const LoadArticlePlugin: React.FC<LoadArticlePluginProps> = ({
   articleId,
@@ -10,7 +11,7 @@ const LoadArticlePlugin: React.FC<LoadArticlePluginProps> = ({
 
   useEffect(() => {
     onMessageChange("Loading content from localStorage...");
-    const storedArticles = localStorage.getItem("HoneEditorArticles");
+    const storedArticles = localStorage.getItem(HONE_DATA);
 
     if (!storedArticles) {
       console.log("!storedArticles");

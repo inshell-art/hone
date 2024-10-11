@@ -2,14 +2,17 @@ import React, { useEffect, useState } from "react";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
 import { useNavigate } from "react-router-dom";
-import { listFacetsWithSimilarity } from "../utils/utils";
+import { listFacetsWithSimilarity, HONE_DATA } from "../utils/utils";
 
 const Facets: React.FC = () => {
   const [facets, setFacets] = useState<Facet[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchedFacets = extractFacets();
+    const honeData = localStorage.getItem(HONE_DATA) || "{}";
+    console.log("honeData:", honeData);
+    const parsedHoneData = JSON.parse(honeData);
+    const fetchedFacets = extractFacets(parsedHoneData);
     console.log("fetchedFacets:", fetchedFacets);
     setFacets(fetchedFacets);
   }, []);

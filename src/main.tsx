@@ -1,25 +1,24 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
+import { INITIALIZED_DATA, HONE_DATA } from "./utils/utils.ts";
 
 const initializeApp = async () => {
-  const existingData = localStorage.getItem("HoneEditorArticles");
+  const existingData = localStorage.getItem(HONE_DATA);
 
   if (!existingData) {
     try {
-      const response = await fetch("/GettingStarted.json");
+      const response = await fetch(INITIALIZED_DATA);
       if (!response.ok) {
-        throw new Error(
-          "Failed to fetch GettingStarted.json:" + response.status,
-        );
+        throw new Error("Failed to fetch" + INITIALIZED_DATA + response.status);
       }
 
       const data = await response.json();
-      localStorage.setItem("HoneEditorArticles", JSON.stringify(data));
-      console.log("Initialized app with GettingStarted.json");
+      localStorage.setItem(HONE_DATA, JSON.stringify(data));
+      console.log("Initialized app with " + INITIALIZED_DATA);
     } catch (error) {
       console.error(
-        "Failed to initialize the app with GettingStarted.json:",
+        "Failed to initialize the app with " + INITIALIZED_DATA,
         error,
       );
     }

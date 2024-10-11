@@ -27,7 +27,7 @@ export type FacetWithSimilarity = Facet & {
   similarity: number;
 };
 
-// Type for the article data stored in localStorage
-export type ArticleData = {
+// Type for the Hone data stored in localStorage
+export type HoneData = {
   [articleId: string]: { content: SerializedEditorState; updatedAt: number };
 };

@@ -15,6 +15,7 @@ import {
   INSERT_SYMBOL,
   listFacetsWithSimilarity,
   findNearestFacetTitleNode,
+  HONE_DATA,
 } from "../utils/utils";
 
 const HonePanelPlugin = () => {
@@ -32,7 +33,9 @@ const HonePanelPlugin = () => {
 
   const triggerHonePanel = useCallback(() => {
     const selection = $getSelection();
-    const facets = extractFacets();
+    const honeData = localStorage.getItem(HONE_DATA) || "{}";
+    const parsedHoneData = JSON.parse(honeData);
+    const facets = extractFacets(parsedHoneData);
 
     // Get the current facet node
     const currentFacetNode = findNearestFacetTitleNode(selection);

@@ -1,12 +1,20 @@
 /*
- * @description: E2E tests for the Home page when there is no data in localStorage
- * The state of NoData for Hone is the pre-initial state
+ * @description: E2E tests for the Home page when there is empty data in localStorage
+ * The state is the pre-initial state
  * So the state is used for functionalities ensuring merely.
  */
 
-describe("Home No Data E2E Tests", () => {
+import { HONE_DATA, INITIALIZED_DATA } from "../../src/utils/utils";
+
+describe("Home Empty Data E2E Tests", () => {
   beforeEach(() => {
     cy.clearLocalStorage();
+
+    const emptyData = {};
+    cy.window().then((win) => {
+      win.localStorage.setItem(HONE_DATA, JSON.stringify(emptyData));
+    });
+
     cy.visit("/");
   });
 
@@ -95,14 +103,12 @@ describe("Home No Data E2E Tests", () => {
   it("should import a JSON file, store data in localStorage, and display it", () => {
     cy.get('input[type="file"]')
       .should("exist")
-      .selectFile("./public/GettingStarted.json", { force: true }); // Share from initial data
+      .selectFile(`./public${INITIALIZED_DATA}`, { force: true }); // Share from initial data
 
     cy.wait(100);
 
     cy.window().then((win) => {
-      const savedData = JSON.parse(
-        win.localStorage.getItem("HoneEditorArticles") || "{}"
-      );
+      const savedData = JSON.parse(win.localStorage.getItem(HONE_DATA) || "{}");
       cy.log("Saved data:", savedData);
 
       expect(Object.keys(savedData)).to.have.length(2);

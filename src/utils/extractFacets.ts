@@ -1,16 +1,13 @@
 import { SerializedEditorState } from "lexical";
-import { ArticleData, Facet } from "../types/types";
+import { HoneData, Facet } from "../types/types";
 import { collectTextFromDescendants } from "./utils";
 
-export const extractFacets = (): Facet[] => {
+export const extractFacets = (parsedHoneData: HoneData): Facet[] => {
   const facets: Facet[] = [];
 
-  const storedArticles = localStorage.getItem("HoneEditorArticles");
-  if (storedArticles) {
+  if (parsedHoneData) {
     try {
-      const parsedArticles: ArticleData = JSON.parse(storedArticles);
-
-      Object.entries(parsedArticles).forEach(([id, { content }]) => {
+      Object.entries(parsedHoneData).forEach(([id, { content }]) => {
         const childrenOfArticle = (content as SerializedEditorState).root
           .children;
         let currentFacet: Facet | null = null;

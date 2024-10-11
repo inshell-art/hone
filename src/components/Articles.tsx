@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { ArticleData } from "../types/types";
+import { HoneData } from "../types/types";
 import { SerializedArticleTitleNode } from "../models/ArticleTitleNode";
 import { SerializedTextNode } from "lexical";
-import { formatTimestamp } from "../utils/utils";
+import { formatTimestamp, HONE_DATA } from "../utils/utils";
 
 const Articles: React.FC = () => {
-  const [articles, setArticles] = useState<ArticleData>({});
+  const [articles, setArticles] = useState<HoneData>({});
 
   useEffect(() => {
-    const storedArticles = localStorage.getItem("HoneEditorArticles");
+    const storedArticles = localStorage.getItem(HONE_DATA);
     if (storedArticles) {
       try {
-        const parsedArticles: ArticleData = JSON.parse(storedArticles);
+        const parsedArticles: HoneData = JSON.parse(storedArticles);
 
         if (parsedArticles) {
           setArticles(parsedArticles);
