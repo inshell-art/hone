@@ -1,3 +1,9 @@
+/*
+ * @description: E2E tests for the Home page when there is no data in localStorage
+ * The state of NoData for Hone is the pre-initial state
+ * So the state is used for functionalities ensuring merely.
+ */
+
 describe("Home No Data E2E Tests", () => {
   beforeEach(() => {
     cy.clearLocalStorage();
