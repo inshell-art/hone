@@ -126,4 +126,12 @@ describe("Home Empty Data E2E Tests", () => {
       expect(str).to.equal("No articles to export.");
     });
   });
+
+  it("should link to Inshell's website when the footer link is clicked", () => {
+    cy.get(".footer-right .footer-link").should(
+      "have.attr",
+      "href",
+      "https://inshell.art"
+    );
+  });
 });
