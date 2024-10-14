@@ -67,6 +67,8 @@ describe("Editor E2E Tests", () => {
   });
 
   it("should trigger hone panel and insert facet correctly", () => {
+    const cmdOrCtrl = Cypress.platform === "darwin" ? "{cmd}" : "{ctrl}";
+
     cy.get(".editor-input").type(ARTICLE_TITLE + "{enter}");
     cy.get(".editor-input").type("$ facet 1{enter}");
     cy.get(".editor-input").type("facet 1 content{enter}");
@@ -75,7 +77,7 @@ describe("Editor E2E Tests", () => {
 
     cy.wait(1000);
 
-    cy.get(".editor-input").type("{cmd}{enter}");
+    cy.get(".editor-input").type(`${cmdOrCtrl}{enter}`);
 
     cy.get(".hone-panel").should("be.visible");
 
