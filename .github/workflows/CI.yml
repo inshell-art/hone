@@ -4,42 +4,38 @@ name: CI Workflow
 on:
   push:
     branches:
-      - main # Change to your desired branch
+      - main
   pull_request:
     branches:
-      - main # Runs on PR to the main branch
+      - main
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18" # Adjust according to your project
+          node-version: "18"
 
-      # Step 3: Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Run Prettier to format the code
       - name: Run Prettier
         run: npm run prettier
 
-      # Step 5: Run linting
       - name: Run Lint
         run: npm run lint
 
-      # Step 6: Run TypeScript type-checking
       - name: Run TypeScript type-check
         run: npm run type-check
 
-      # Step 7: Run tests
+      - name: Run dev
+        run: npm run dev
+
       - name: Run Tests
         run: npm test
