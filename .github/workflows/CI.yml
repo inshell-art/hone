@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  build-and-test:
+  check-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -35,7 +35,10 @@ jobs:
         run: npm run type-check
 
       - name: Run dev
-        run: npm run dev
+        run: npm run dev &
+
+      - name: Wait for dev server to start
+        run: npx wait-on http://localhost:5173
 
       - name: Run Tests
         run: npm test
