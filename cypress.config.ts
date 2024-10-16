@@ -2,10 +2,20 @@ import { defineConfig } from "cypress";
 
 export default defineConfig({
   e2e: {
-    baseUrl: "http://localhost:5173",
+    baseUrl: process.env.BASE_URL,
     specPattern: "cypress/e2e/**/*.spec.ts",
   },
-
+  //config env to run:
+  // 1, pre-commit to check lint, prettier and type-check as "quality check"
+  // * the quality-check on local machine
+  // 2, pre-push, built and run e2e to confirm the app is working where is the emu env as "deployment workflow";
+  // * the deployment-workflow on emu locally
+  // 3, after push, run quality-check in github action
+  // * the quality-check on github action machine to avoid "it works on my machine" problem
+  // 4, if the step before works, run deployment-workflow against to firebase staging env
+  // * the deployment-workflow on github action machine and against to firebase staging env
+  // 5, if the step before works, run deployment-workflow against to firebase prod env
+  // * the deployment-workflow on github action machine and against to firebase prod env
   component: {
     devServer: {
       framework: "react",

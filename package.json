@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build",
-    "test": "cypress run",
+    "emu": "npm run build && firebase emulators:start --only hosting",
+    "test": "BASE_URL=http://localhost:5002 cypress run",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "prettier": "npx prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,md}'",
     "type-check": "npx tsc --noEmit",

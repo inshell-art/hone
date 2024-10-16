@@ -1,1 +1,3 @@
-npm run test 
+npm run emu &
+wait-on http://localhost:5002
+npm run test
