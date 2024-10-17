@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  quality-check:
+  Quality-check:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,11 +33,24 @@ jobs:
       - name: Run TypeScript type-check
         run: npm run type-check
 
-      - name: Run dev
-        run: npm run emu &
+      - name: Run emu
+        run: npm run emu > emu_output.log 2>&1 &
+
+      - name: Wait for emu to start to get BASE_URL
+        run: |
+          while true; do
+              HOSTING_URL=$(grep -oP "Local server: \K(http://[0-9.]+:[0-9]+)" emu_output.log)
+              echo "Hosting URL detected: $HOSTING_URL"
+              echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
+              break
+            fi
+            sleep 1
+          done
 
       - name: Wait for dev server to start
-        run: npx wait-on http://localhost:5173
+        run: npx wait-on ${{env.BASE_URL}}
 
       - name: Run Tests
         run: npm test
+        env:
+          BASE_URL: ${{env.BASE_URL}}
