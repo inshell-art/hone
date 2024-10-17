@@ -1,4 +1,18 @@
-BASE_URL=http://localhost:5002
-npm run emu &
-wait-on http://localhost:5002
+# Deployment workflow on firebase emulators locally
+
+npm run emu > emu_output.log 2>&1 &
+
+while true; do
+HOSTING_URL=$(grep -oP "Local server: \K(http://[0-9\.]+:[0-9]+)" emu_output.log)
+
+if [ -n "$HOSTING_URL" ]; then
+echo "Hosting URL detected: $HOSTING_URL"
+break
+fi
+
+sleep 1
+done
+
+wait-on $HOSTING_URL
+export BASE_URL=$HOSTING_URL
 npm run test

@@ -7,6 +7,7 @@
     "dev": "vite --host",
     "build": "tsc && vite build",
     "emu": "npm run build && firebase emulators:start --only hosting",
+    "deploy:staging": "firebase use staging && firebase deploy --only hosting",
     "test": "cypress run",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "prettier": "npx prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,md}'",
@@ -56,7 +57,7 @@
     "eslint-plugin-react-refresh": "^0.4.5",
     "husky": "^9.0.11",
     "lodash": "^4.17.21",
-    "prettier": "^3.2.5",
+    "prettier": "^3.3.3",
     "typescript": "^5.2.2",
     "vite": "^5.1.6"
   }

@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "hone-emu"
-  }
+    "emu": "hone-emu",
+    "staging": "hone-staging-0"
+  },
+  "targets": {},
+  "etags": {}
 }

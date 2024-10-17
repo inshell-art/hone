@@ -1,4 +1,4 @@
-name: CI Workflow
+name: Quality Check Workflow
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  check-and-test:
+  quality-check:
     runs-on: ubuntu-latest
 
     steps:
@@ -34,7 +34,7 @@ jobs:
         run: npm run type-check
 
       - name: Run dev
-        run: npm run dev &
+        run: npm run emu &
 
       - name: Wait for dev server to start
         run: npx wait-on http://localhost:5173

@@ -1,0 +1,48 @@
+name: Depolyment workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy-to-staging:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to staging and set BASE_URL
+        run: |
+          npm install -g firebase-tools
+          firebase use hone-staging-0
+          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
+          DEPLOY_OUTPUT=$(firebase deploy --only hosting --token "$FIREBASE_TOKEN")
+          echo "$DEPLOY_OUTPUT"
+          HOSTING_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP "https://[a-zA-Z0-9\-]+\.web\.app")
+          echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Wait for Firebase deployment to be ready
+        run: npx wait-on ${{env.BASE_URL}}
+
+      - name: Run Tests
+        run: npm test
+        env:
+          BASE_URL: ${{env.BASE_URL}}
