@@ -2,21 +2,30 @@
 
 npm run emu 2>&1 | tee emu_output.log &
 
-EMU_PID=$!
-
+# Extract hosting URL from the logs
 while true; do
-HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
+    HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
 
-if [ -n "$HOSTING_URL" ]; then
-echo "Hosting URL detected: $HOSTING_URL"
-break
-fi
+    if [ -n "$HOSTING_URL" ]; then
+        echo "Hosting URL detected: $HOSTING_URL"
+        break
+    fi
 
-sleep 1
+    sleep 1
 done
 
 wait-on $HOSTING_URL
+
+PORT=$(echo $HOSTING_URL | cut -d ':' -f 3)
+echo "Extracted port: $PORT"
+
 export BASE_URL=$HOSTING_URL
 npm run test
 
-kill $EMU_PID
+if [ -n "$PORT"]; then
+    PID=$(lsof -t -i:$PORT)
+    if [ -n "$PID" ]; then
+        kill $PID
+        echo "Killed process $PID was running on port $PORT"
+    fi
+fi
