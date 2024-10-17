@@ -2,6 +2,8 @@
 
 npm run emu 2>&1 | tee emu_output.log &
 
+EMU_PID=$!
+
 while true; do
 HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
 
@@ -16,3 +18,5 @@ done
 wait-on $HOSTING_URL
 export BASE_URL=$HOSTING_URL
 npm run test
+
+kill EMU_PID
