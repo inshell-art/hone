@@ -19,4 +19,4 @@ wait-on $HOSTING_URL
 export BASE_URL=$HOSTING_URL
 npm run test
 
-kill EMU_PID
+kill $EMU_PID
