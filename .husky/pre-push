@@ -3,7 +3,7 @@
 npm run emu > emu_output.log 2>&1 &
 
 while true; do
-HOSTING_URL=$(grep -oP "Local server: \K(http://[0-9\.]+:[0-9]+)" emu_output.log)
+HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
 
 if [ -n "$HOSTING_URL" ]; then
 echo "Hosting URL detected: $HOSTING_URL"
