@@ -22,6 +22,7 @@ echo "Extracted port: $PORT"
 export BASE_URL=$HOSTING_URL
 npm run test
 
+# Kill the process running on the port
 if [ -n "$PORT" ]; then
     PID=$(lsof -t -i:$PORT)
     if [ -n "$PID" ]; then
