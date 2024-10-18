@@ -22,8 +22,6 @@ jobs:
           node-version: "20"
 
       - name: Setup Firebase
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: npm install -g firebase-tools
 
       - name: Install dependencies
@@ -40,7 +38,7 @@ jobs:
 
       - name: Run emu and get BASE_URL
         run: |
-          npm run emu -- --token "$FIREBASE_TOKEN" 2>&1 | tee emu_output.log &
+          npm run emu -- --token "${{secrets.FIREBASE_TOKEN}}" 2>&1 | tee emu_output.log &
           # Get the URL of the hosting emulator
           while true; do
               # Use grep to find the URL and sed to extract it properly
