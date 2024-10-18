@@ -40,7 +40,7 @@ jobs:
         run: |
           while true; do
               # Use grep to find the URL and sed to extract it properly
-              HOSTING_URL=$(grep -o "Local server: http://[0-9.]+:[0-9]+" emu_output.log | sed 's/Local server: //')
+              HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
               if [ -n "$HOSTING_URL" ]; then
                   echo "Hosting URL detected: $HOSTING_URL"
                   echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
