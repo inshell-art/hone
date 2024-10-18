@@ -21,9 +21,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Setup Firebase
-        run: npm install -g firebase-tools
-
       - name: Install dependencies
         run: npm install
 
@@ -36,23 +33,17 @@ jobs:
       - name: Run TypeScript type-check
         run: npm run type-check
 
-      - name: Run emu and get BASE_URL
+      - name: Run emu and set BASE_URL
         env:
           FIREBASE_TOKEN: ${{secrets.FIREBASE_TOKEN}}
         run: |
-          npm run emu 2>&1 | tee emu_output.log &
-          # Get the URL of the hosting emulator
-          sleep 5
-          while true; do
-              # Use grep to find the URL and sed to extract it properly
-              HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
-              if [ -n "$HOSTING_URL" ]; then
-                  echo "Hosting URL detected: $HOSTING_URL"
-                  echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
-                  break
-              fi
-              sleep 1
-          done
+          npm install -g firebase-tools
+          firebase use hone-emu-0
+          firebase emulators:start --only hosting --token "$FIREBASE_TOKEN" &
+          DEPLOY_OUTPUT=$(firebase emulators:start --only hosting --token "$FIREBASE_TOKEN")
+          echo "$DEPLOY_OUTPUT"
+          HOSTING_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP "http://localhost:[0-9]+")
+          echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
 
       - name: Wait for dev server to start
         run: npx wait-on ${{env.BASE_URL}}
