@@ -37,8 +37,10 @@ jobs:
         run: npm run type-check
 
       - name: Run emu and get BASE_URL
+        env:
+          FIREBASE_TOKEN: ${{secrets.FIREBASE_TOKEN}}
         run: |
-          npm run emu -- --token "${{secrets.FIREBASE_TOKEN}}" 2>&1 | tee emu_output.log &
+          npm run emu 2>&1 | tee emu_output.log &
           # Get the URL of the hosting emulator
           while true; do
               # Use grep to find the URL and sed to extract it properly
