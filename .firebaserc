@@ -1,6 +1,6 @@
 {
   "projects": {
-    "emu": "hone-emu",
+    "emu": "hone-emu-0",
     "staging": "hone-staging-0"
   },
   "targets": {},
