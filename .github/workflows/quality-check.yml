@@ -39,13 +39,14 @@ jobs:
       - name: Wait for emu to start to get BASE_URL
         run: |
           while true; do
-              HOSTING_URL=$(grep -oE "Local server: \K(http://[0-9.]+:[0-9]+)" emu_output.log)
-            if [ -n "$HOSTING_URL" ]; then
-              echo "Hosting URL detected: $HOSTING_URL"
-              echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
-              break
-            fi
-            sleep 1
+              # Use grep to find the URL and sed to extract it properly
+              HOSTING_URL=$(grep -oE "Local server: http://[0-9.]+:[0-9]+" emu_output.log | sed 's/Local server: //')
+              if [ -n "$HOSTING_URL" ]; then
+                  echo "Hosting URL detected: $HOSTING_URL"
+                  echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
+                  break
+              fi
+              sleep 1
           done
 
       - name: Wait for dev server to start
