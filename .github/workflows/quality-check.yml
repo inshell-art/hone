@@ -34,7 +34,7 @@ jobs:
         run: npm run type-check
 
       - name: Run emu
-        run: npm run emu > emu_output.log 2>&1 &
+        run: npm run emu 2>&1 | tee emu_output.log &
 
       - name: Wait for emu to start to get BASE_URL
         run: |
