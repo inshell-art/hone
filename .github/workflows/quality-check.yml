@@ -21,6 +21,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Login to Firebase
+        run: firebase login:ci --token "${{ secrets.FIREBASE_TOKEN }}"
+
       - name: Install dependencies
         run: npm install
 
@@ -33,17 +39,10 @@ jobs:
       - name: Run TypeScript type-check
         run: npm run type-check
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Run build
-        run: npm run build
-
-      - name: Run emu
-        run: firebase emulators:start --only hosting 2>&1 | tee emu_output.log &
-
-      - name: Wait for emu to start to get BASE_URL
+      - name: Run emu and get BASE_URL
         run: |
+          npm run emu 2>&1 | tee emu_output.log &
+          # Get the URL of the hosting emulator
           while true; do
               # Use grep to find the URL and sed to extract it properly
               HOSTING_URL=$(grep -o "Local server: http://[0-9.]\+:[0-9]\+" emu_output.log | sed 's/Local server: //')
