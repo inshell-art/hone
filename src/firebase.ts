@@ -8,6 +8,8 @@ if (import.meta.env.MODE === "production") {
   const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   };
 
   const app = initializeApp(firebaseConfig);
