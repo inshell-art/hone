@@ -19,7 +19,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import DisableTextFormattingPlugin from "../plugins/DisableTextFormattingPlugin";
 import StripFormattingPastePlugin from "../plugins/StripFormattingPastePlugin";
-import TreeViewPlugin from "../plugins/TreeViewPlugin";
 import KeepTitlesInOneLinePlugin from "../plugins/KeepTitlesInOneLinePlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId }) => {
@@ -108,7 +107,6 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         <KeepTitlesInOneLinePlugin />
         <StripFormattingPastePlugin />
         <DisableTextFormattingPlugin />
-        <TreeViewPlugin />
       </div>
     </LexicalComposer>
   );

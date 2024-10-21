@@ -62,10 +62,17 @@ jobs:
           DEPLOY_OUTPUT=$(firebase deploy --only hosting --token "$FIREBASE_TOKEN")
           echo "$DEPLOY_OUTPUT"
           HOSTING_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP "https://[a-zA-Z0-9\-]+\.web\.app")
-          echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
+          if [ -n "$HOSTING_URL" ]; then
+            echo "BASE_URL=$HOSTING_URL" >> $GITHUB_ENV
+          else
+            echo "BASE_URL is empty. Deployment failed." >&2
+            exit 1
+          fi
 
       - name: Wait for Firebase deployment to be ready
-        run: npx wait-on ${{env.BASE_URL}}
+        run: npx wait-on $BASE_URL
+        env:
+          BASE_URL: ${{env.BASE_URL}}
 
       - name: Run Tests
         run: npm test

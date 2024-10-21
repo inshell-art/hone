@@ -26,3 +26,7 @@ dist-ssr
 # Cypress 
 cypress/screenshots
 cypress/downloads
+
+# Envs
+.env.*
+.env
