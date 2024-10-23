@@ -1,6 +1,10 @@
 # Deployment workflow on firebase emulators locally
+if [ "$CI" = "true" ]; then
+    echo "Skipping pre-push hook in CI environment"
+    exit 0
+fi
 
-npm run emu:local 2>&1 | tee emu_output.log &
+npm run emu 2>&1 | tee emu_output.log &
 
 # Extract hosting URL from the logs
 while true; do
