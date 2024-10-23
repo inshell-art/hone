@@ -134,7 +134,6 @@ jobs:
 
       - name: Run Tests
         run: npm test
-        continue-on-error: true
         env:
           BASE_URL: ${{env.BASE_URL}}
 
