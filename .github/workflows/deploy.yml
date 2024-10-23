@@ -143,7 +143,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -f succeeded-deployment
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git tag -f succeeded-deployment 
           git push origin succeeded-deployment --force
 
       - name: Disable staging deployment
