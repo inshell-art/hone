@@ -30,3 +30,6 @@ cypress/downloads
 # Envs
 .env.*
 .env
+
+# Firebase
+.firebase/hosting.ZGlzdA.cache

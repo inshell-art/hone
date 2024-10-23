@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc && vite build",
-    "emu": "npm run build && firebase use emu && firebase emulators:start --only hosting",
+    "emu": "npx vite build --mode emu && firebase use emu && firebase emulators:start --only hosting",
     "deploy:staging": "firebase use staging && firebase deploy --only hosting",
     "test": "cypress run",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

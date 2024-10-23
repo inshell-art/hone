@@ -4,6 +4,8 @@ import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 // Analytics works only in production mode
 let analytics: Analytics | null = null;
 
+console.log(import.meta.env.MODE);
+
 if (import.meta.env.MODE === "production") {
   const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
@@ -11,6 +13,8 @@ if (import.meta.env.MODE === "production") {
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   };
+
+  console.log(firebaseConfig);
 
   const app = initializeApp(firebaseConfig);
 
@@ -22,5 +26,5 @@ if (import.meta.env.MODE === "production") {
     }
   });
 }
-
+console.log(analytics);
 export { analytics };
