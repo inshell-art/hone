@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "start": "vite preview",
     "emu": "npx vite build --mode emu && firebase use emu && firebase emulators:start --only hosting",
     "deploy:staging": "firebase use staging && firebase deploy --only hosting",
     "test": "cypress run",
