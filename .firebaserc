@@ -8,14 +8,14 @@
     "hone-prod": {
       "hosting": {
         "hone": [
-          "hone-prod-site"
+          "hone-prod"
         ]
       }
     },
     "facets-prod": {
       "hosting": {
         "facets": [
-          "facets-prod-site"
+          "facets-prod"
         ]
       }
     },
