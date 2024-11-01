@@ -145,10 +145,9 @@ jobs:
           git tag -f succeeded-deployment 
           git push origin succeeded-deployment --force
 
-      - name: Disable staging deployment
+      - name: Delete staging deployment
         run: |
-          firebase use hone-staging-0 --token $FIREBASE_TOKEN
-          firebase hosting:disable --site hone --force --token $FIREBASE_TOKEN
+          firebase hosting:sites:delete hone-staging-0 --project hone-staging --token "$FIREBASE_TOKEN"
 
   deploy-to-facets:
     runs-on: ubuntu-latest
