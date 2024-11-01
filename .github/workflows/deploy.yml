@@ -145,10 +145,6 @@ jobs:
           git tag -f succeeded-deployment 
           git push origin succeeded-deployment --force
 
-      - name: Delete staging deployment
-        run: |
-          firebase hosting:sites:delete hone-staging-0 --project hone-staging --token "$FIREBASE_TOKEN"
-
   deploy-to-facets:
     runs-on: ubuntu-latest
     needs: deploy-to-prod
