@@ -1,5 +1,5 @@
 import { v4 as uuid4 } from "uuid";
-import { HONE_DATA, INSERT_SYMBOL } from "../../src/utils/utils";
+import { INSERT_SYMBOL } from "../../src/utils/utils";
 
 describe("Editor E2E Tests", () => {
   let articleId = "";
@@ -48,7 +48,7 @@ describe("Editor E2E Tests", () => {
     cy.get(".editor-input").find("p").should("have.text", PARAGRAPH_TEXT);
 
     cy.window().then((win) => {
-      const savedArticles = win.localStorage.getItem(HONE_DATA);
+      const savedArticles = win.localStorage.getItem("honeData");
       expect(savedArticles).to.not.be.null;
       const parsedArticles = JSON.parse(savedArticles as string);
       expect(parsedArticles[articleId]).to.not.be.undefined;
@@ -59,7 +59,7 @@ describe("Editor E2E Tests", () => {
     cy.wait(1000);
 
     cy.window().then((win) => {
-      const savedArticles = win.localStorage.getItem(HONE_DATA);
+      const savedArticles = win.localStorage.getItem("honeData");
       expect(savedArticles).to.not.be.null;
       const parsedArticles = JSON.parse(savedArticles as string);
       expect(parsedArticles[articleId]).to.be.undefined;
@@ -93,7 +93,7 @@ describe("Editor E2E Tests", () => {
   it("should load specified article and verify content", () => {
     cy.visit("/");
     cy.window().then((win) => {
-      const savedArticles = win.localStorage.getItem(HONE_DATA);
+      const savedArticles = win.localStorage.getItem("honeData");
 
       expect(savedArticles).to.not.be.null;
 

@@ -4,7 +4,7 @@
  * So the state is used for functionalities ensuring merely.
  */
 
-import { HONE_DATA, INITIALIZED_DATA } from "../../src/utils/utils";
+import { INITIALIZED_DATA } from "../../src/utils/utils";
 
 describe("Home Empty Data E2E Tests", () => {
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe("Home Empty Data E2E Tests", () => {
 
     const emptyData = {};
     cy.window().then((win) => {
-      win.localStorage.setItem(HONE_DATA, JSON.stringify(emptyData));
+      win.localStorage.setItem("honeData", JSON.stringify(emptyData));
     });
 
     cy.visit("/");
@@ -77,12 +77,10 @@ describe("Home Empty Data E2E Tests", () => {
   });
 
   it("should display footer links correctly", () => {
-    cy.get(".footer-left").within(() => {
-      cy.contains("Import").should("be.visible");
-      cy.contains("Export").should("be.visible");
-    });
+    cy.get(".footer-data").contains("Import").should("be.visible");
+    cy.get(".footer-data").contains("Export").should("be.visible");
 
-    cy.get(".footer-right").within(() => {
+    cy.get(".footer-author").within(() => {
       cy.contains("Hone is crafted by Inshell")
         .should("be.visible")
         .and("have.attr", "href", "https://inshell.art");
@@ -108,7 +106,9 @@ describe("Home Empty Data E2E Tests", () => {
     cy.wait(100);
 
     cy.window().then((win) => {
-      const savedData = JSON.parse(win.localStorage.getItem(HONE_DATA) || "{}");
+      const savedData = JSON.parse(
+        win.localStorage.getItem("honeData") || "{}"
+      );
       cy.log("Saved data:", savedData);
 
       expect(Object.keys(savedData)).to.have.length(2);
@@ -125,13 +125,5 @@ describe("Home Empty Data E2E Tests", () => {
     cy.on("window:alert", (str) => {
       expect(str).to.equal("No articles to export.");
     });
-  });
-
-  it("should link to Inshell's website when the footer link is clicked", () => {
-    cy.get(".footer-right .footer-link").should(
-      "have.attr",
-      "href",
-      "https://inshell.art"
-    );
   });
 });

@@ -1,26 +1,55 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
-import { INITIALIZED_DATA, HONE_DATA } from "./utils/utils.ts";
+import { INITIALIZED_DATA } from "./utils/utils.ts";
 
+// Initialize for hone editor and facets page by isFacets
+// If you are here for hone only, just simply set the environment variable VITE_IS_FACETS to false
 const initializeApp = async () => {
-  const existingData = localStorage.getItem(HONE_DATA);
+  const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
 
-  if (!existingData) {
-    try {
-      const response = await fetch(INITIALIZED_DATA);
-      if (!response.ok) {
-        throw new Error("Failed to fetch" + INITIALIZED_DATA + response.status);
+  // For the editor, initialize with the data from the local storage
+  if (isEditable) {
+    const existingData = localStorage.getItem("honeData");
+
+    if (existingData) {
+      return;
+    } else {
+      try {
+        const response = await fetch(INITIALIZED_DATA);
+        if (!response.ok) {
+          throw new Error(
+            "Failed to fetch" + INITIALIZED_DATA + response.status,
+          );
+        }
+
+        const data = await response.json();
+        localStorage.setItem("honeData", JSON.stringify(data));
+        console.log("Initialized app with " + INITIALIZED_DATA);
+      } catch (error) {
+        console.error(
+          "Failed to initialize the app with " + INITIALIZED_DATA,
+          error,
+        );
       }
+    }
+  }
 
-      const data = await response.json();
-      localStorage.setItem(HONE_DATA, JSON.stringify(data));
-      console.log("Initialized app with " + INITIALIZED_DATA);
-    } catch (error) {
-      console.error(
-        "Failed to initialize the app with " + INITIALIZED_DATA,
-        error,
-      );
+  // For the facets page, initialize with the data from the environment variable
+  if (!isEditable) {
+    const facetsDataUrl = import.meta.env.VITE_FACETS_DATA_URL;
+    if (facetsDataUrl) {
+      try {
+        const response = await fetch(facetsDataUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch facets data");
+        }
+        const data = await response.json();
+        localStorage.setItem("facetsData", JSON.stringify(data));
+        console.log("Initialized app with the fetched facets data");
+      } catch (error) {
+        console.error("Failed to initialize the facets data", error);
+      }
     }
   }
 };

@@ -14,8 +14,10 @@ import { analytics } from "./firebase";
 
 const EditorWithParams: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
+
   if (id) {
-    return <Editor key={id} articleId={id} />;
+    return <Editor key={id} articleId={id} isEditable={isEditable} />;
   }
   return null;
 };

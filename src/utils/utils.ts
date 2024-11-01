@@ -11,7 +11,6 @@ import { Facet } from "../types/types";
 
 export const INSERT_SYMBOL = ">>>>>>>";
 export const INITIALIZED_DATA = "/GettingStarted.json";
-export const HONE_DATA = "HoneData";
 
 export const collectTextFromDescendants = (
   node: SerializedElementNode | SerializedLexicalNode | SerializedTextNode,
@@ -103,7 +102,7 @@ export const findNearestFacetTitleNode = (selection: BaseSelection | null) => {
 };
 
 export const exportSavedArticles = () => {
-  const savedArticlesJSON = localStorage.getItem(HONE_DATA);
+  const savedArticlesJSON = localStorage.getItem("honeData");
   if (!savedArticlesJSON) {
     console.log("No articles to export.");
     alert("No articles to export.");
@@ -181,7 +180,7 @@ export const importSavedArticles = (
 
       console.log("Imported Data:", importedData);
 
-      localStorage.setItem(HONE_DATA, JSON.stringify(importedData));
+      localStorage.setItem("honeData", JSON.stringify(importedData));
       window.location.reload();
     } catch (error) {
       alert("Failed to import savedArticles.");

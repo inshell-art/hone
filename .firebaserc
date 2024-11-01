@@ -1,8 +1,43 @@
 {
   "projects": {
     "emu": "hone-emu-0",
-    "staging": "hone-staging-0"
+    "staging": "hone-staging-0",
+    "facets": "facets-prod"
   },
-  "targets": {},
-  "etags": {}
+  "targets": {
+    "hone-prod": {
+      "hosting": {
+        "hone": [
+          "hone-prod-site"
+        ]
+      }
+    },
+    "facets-prod": {
+      "hosting": {
+        "facets": [
+          "facets-prod-site"
+        ]
+      }
+    },
+    "hone-emu-0": {
+      "hosting": {
+        "hone": [
+          "hone-emu-0"
+        ],
+        "facets": [
+          "facets-emu-0"
+        ]
+      }
+    },
+    "hone-staging-0": {
+      "hosting": {
+        "hone": [
+          "hone-staging-0"
+        ],
+        "facets": [
+          "facets-staging-0"
+        ]
+      }
+    }
+  }
 }

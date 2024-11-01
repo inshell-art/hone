@@ -1029,6 +1029,26 @@
                 "format": 0,
                 "mode": "normal",
                 "style": "",
+                "text": "And you can import and export the raw data from LocalStorage.",
+                "type": "text",
+                "version": 1
+              }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "paragraph",
+            "version": 1,
+            "textFormat": 0,
+            "textStyle": ""
+          },
+          {
+            "children": [
+              {
+                "detail": 0,
+                "format": 0,
+                "mode": "normal",
+                "style": "",
                 "text": "$ Deletion of an Article ",
                 "type": "text",
                 "version": 1
@@ -1186,6 +1206,6 @@
         "version": 1
       }
     },
-    "updatedAt": 1728289663899
+    "updatedAt": 1729999186770
   }
 }

@@ -2,20 +2,23 @@ import React, { useEffect, useState } from "react";
 import { extractFacets } from "../utils/extractFacets";
 import { Facet } from "../types/types";
 import { useNavigate } from "react-router-dom";
-import { listFacetsWithSimilarity, HONE_DATA } from "../utils/utils";
+import { listFacetsWithSimilarity } from "../utils/utils";
 
 const Facets: React.FC = () => {
   const [facets, setFacets] = useState<Facet[]>([]);
   const navigate = useNavigate();
+  const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
 
   useEffect(() => {
-    const honeData = localStorage.getItem(HONE_DATA) || "{}";
-    console.log("honeData:", honeData);
-    const parsedHoneData = JSON.parse(honeData);
-    const fetchedFacets = extractFacets(parsedHoneData);
+    const data = isEditable
+      ? localStorage.getItem("honeData") || "{}"
+      : localStorage.getItem("facetsData") || "{}";
+
+    const parsedData = JSON.parse(data);
+    const fetchedFacets = extractFacets(parsedData);
     console.log("fetchedFacets:", fetchedFacets);
     setFacets(fetchedFacets);
-  }, []);
+  }, [isEditable]);
 
   const facetItems = facets
     .map((facet) => {

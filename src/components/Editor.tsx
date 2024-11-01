@@ -21,7 +21,7 @@ import DisableTextFormattingPlugin from "../plugins/DisableTextFormattingPlugin"
 import StripFormattingPastePlugin from "../plugins/StripFormattingPastePlugin";
 import KeepTitlesInOneLinePlugin from "../plugins/KeepTitlesInOneLinePlugin";
 
-const Editor: React.FC<EditorProps> = ({ articleId }) => {
+const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [isTemporary, setIsTemporary] = useState<boolean>(false);
   const location = useLocation();
@@ -61,6 +61,7 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
   const initialConfig = {
     namespace: "HoneEditor",
     theme: HoneEditorTheme,
+    editable: isEditable,
     onError(error: Error) {
       throw error;
     },
@@ -75,17 +76,23 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
 
   const Placeholder = () => {
     return (
-      <div className="editor-placeholder">Type your article title here...</div>
+      <div className="editor-placeholder">
+        {isEditable
+          ? "Type your article title here..."
+          : "No article found at the link"}
+      </div>
     );
   };
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <MessageDisplay
-        message={message}
-        isTemporary={isTemporary}
-        clearMessage={clearMessage}
-      />
+      {isEditable && (
+        <MessageDisplay
+          message={message}
+          isTemporary={isTemporary}
+          clearMessage={clearMessage}
+        />
+      )}
       <div className="editor-container">
         <RichTextPlugin
           contentEditable={<ContentEditable className="editor-input" />}
@@ -94,19 +101,23 @@ const Editor: React.FC<EditorProps> = ({ articleId }) => {
         />
         <SetArticleTitlePlugin />
         <SetFacetTitlePlugin articleId={articleId} />
-        <HistoryPlugin />
         <LoadArticlePlugin
           articleId={articleId}
           onMessageChange={handleMessageChange}
         />
-        <AutoSavePlugin
-          articleId={articleId}
-          onMessageChange={handleMessageChange}
-        />
-        <HonePanelPlugin />
-        <KeepTitlesInOneLinePlugin />
-        <StripFormattingPastePlugin />
-        <DisableTextFormattingPlugin />
+        {isEditable && (
+          <>
+            <HistoryPlugin />
+            <AutoSavePlugin
+              articleId={articleId}
+              onMessageChange={handleMessageChange}
+            />
+            <HonePanelPlugin />
+            <KeepTitlesInOneLinePlugin />
+            <StripFormattingPastePlugin />
+            <DisableTextFormattingPlugin />
+          </>
+        )}
       </div>
     </LexicalComposer>
   );

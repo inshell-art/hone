@@ -195,20 +195,21 @@ a {
   left: 0;
 }
 
-.footer-left {
-  display: flex;
-  gap: 20px; /* Adjust spacing between links as needed */
-}
-
-.footer-right {
-  text-align: right;
-}
-
-.footer-link {
+.footer a {
   text-decoration: none;
   color: var(--ash);
   font-weight: var(--thin);
   font-size: var(--tiny);
+}
+
+.footer-data {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-author {
+  /*Used for cypress testing mostly*/
+  display: flex;
 }
 
 /* For Articles list */

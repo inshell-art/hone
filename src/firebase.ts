@@ -1,12 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
-// Analytics works only in production mode
+// Analytics works only in production mode and facets mode
 let analytics: Analytics | null = null;
 
 console.log(import.meta.env.MODE);
 
-if (import.meta.env.MODE === "production") {
+if (
+  import.meta.env.MODE === "production" ||
+  import.meta.env.MODE === "facets"
+) {
   const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,

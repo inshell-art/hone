@@ -1,4 +1,4 @@
-name: QC, e2e test in staging, and depoly to prod
+name: QC, e2e test in staging, and depoly to prod & facets
 
 on:
   push:
@@ -64,8 +64,8 @@ jobs:
         run: |
           npm install -g firebase-tools
           firebase use hone-staging-0
-          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
-          DEPLOY_OUTPUT=$(firebase deploy --only hosting --token "$FIREBASE_TOKEN")
+          firebase deploy --only hosting:hone --token "$FIREBASE_TOKEN"
+          DEPLOY_OUTPUT=$(firebase deploy --only hosting:hone --token "$FIREBASE_TOKEN")
           echo "$DEPLOY_OUTPUT"
           HOSTING_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP "https://[a-zA-Z0-9\-]+\.web\.app")
           if [ -n "$HOSTING_URL" ]; then
@@ -116,8 +116,8 @@ jobs:
       - name: Deploy to production and set BASE_URL
         run: |
           firebase use hone-prod
-          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
-          DEPLOY_OUTPUT=$(firebase deploy --only hosting --token "$FIREBASE_TOKEN")
+          firebase deploy --only hosting:hone --token "$FIREBASE_TOKEN"
+          DEPLOY_OUTPUT=$(firebase deploy --only hosting:hone --token "$FIREBASE_TOKEN")
           echo "$DEPLOY_OUTPUT"
           HOSTING_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP "https://[a-zA-Z0-9\-]+\.web\.app")
           if [ -n "$HOSTING_URL" ]; then
@@ -148,4 +148,39 @@ jobs:
       - name: Disable staging deployment
         run: |
           firebase use hone-staging-0 --token $FIREBASE_TOKEN
-          firebase hosting:disable --force --token $FIREBASE_TOKEN
+          firebase hosting:disable --site hone --force --token $FIREBASE_TOKEN
+
+  deploy-to-facets:
+    runs-on: ubuntu-latest
+    needs: deploy-to-prod
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      VITE_IS_FACETS: true
+      VITE_FACETS_DATA_URL: ${{ secrets.VITE_FACETS_DATA_URL }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID_FACETS }}
+      VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID_FACETS }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID_FACETS }}
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY_FACETS }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npx vite build --mode facets
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to facets and set BASE_URL
+        run: |
+          firebase use facets-prod
+          firebase deploy --only hosting:facets --token "$FIREBASE_TOKEN"

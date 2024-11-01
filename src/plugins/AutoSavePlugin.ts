@@ -4,7 +4,6 @@ import { debounce } from "lodash";
 import { AutoSavePluginProps } from "../types/types";
 import { collectTextFromDescendants } from "../utils/utils";
 import { useNavigate } from "react-router-dom";
-import { HONE_DATA } from "../utils/utils";
 
 const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
   articleId,
@@ -25,7 +24,7 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
 
         // Retrieve the existing articles from localStorage
         const savedArticles = JSON.parse(
-          localStorage.getItem(HONE_DATA) || "{}",
+          localStorage.getItem("honeData") || "{}",
         );
 
         // If there is no text and the article is not in localStorage, skip the save
@@ -55,7 +54,7 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
           } else {
             delete savedArticles[articleId];
             onMessageChange("Deleted article from localStorage.", true);
-            localStorage.setItem(HONE_DATA, JSON.stringify(savedArticles));
+            localStorage.setItem("honeData", JSON.stringify(savedArticles));
             navigate("/");
             return;
           }
@@ -69,7 +68,7 @@ const AutoSavePlugin: React.FC<AutoSavePluginProps> = ({
         //! Where handling the current version number as null, and the second version number as 1
 
         // Save the updated articles back to localStorage
-        localStorage.setItem(HONE_DATA, JSON.stringify(savedArticles));
+        localStorage.setItem("honeData", JSON.stringify(savedArticles));
         onMessageChange(
           "Auto-saved changes to localStorage in 1 second.",
           true,

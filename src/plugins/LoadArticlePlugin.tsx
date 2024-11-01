@@ -1,17 +1,19 @@
 import { useEffect } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LoadArticlePluginProps } from "../types/types";
-import { HONE_DATA } from "../utils/utils";
 
 const LoadArticlePlugin: React.FC<LoadArticlePluginProps> = ({
   articleId,
   onMessageChange,
 }) => {
   const [editor] = useLexicalComposerContext();
+  const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
 
   useEffect(() => {
     onMessageChange("Loading content from localStorage...");
-    const storedArticles = localStorage.getItem(HONE_DATA);
+    const storedArticles = isEditable
+      ? localStorage.getItem("honeData")
+      : localStorage.getItem("facetsData");
 
     if (!storedArticles) {
       console.log("!storedArticles");
@@ -54,7 +56,7 @@ const LoadArticlePlugin: React.FC<LoadArticlePluginProps> = ({
         onMessageChange("Failed to load content from localStorage.", true);
       }
     }
-  }, [articleId, editor, onMessageChange]);
+  }, [articleId, editor, onMessageChange, isEditable]);
 
   return null;
 };

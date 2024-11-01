@@ -3,6 +3,7 @@ import { SerializedEditorState } from "lexical";
 // Connect editor to article
 export type EditorProps = {
   articleId: string;
+  isEditable?: boolean;
 };
 
 export type AutoSavePluginProps = EditorProps & {

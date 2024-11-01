@@ -2,13 +2,16 @@ import React, { useState, useEffect } from "react";
 import { HoneData } from "../types/types";
 import { SerializedArticleTitleNode } from "../models/ArticleTitleNode";
 import { SerializedTextNode } from "lexical";
-import { formatTimestamp, HONE_DATA } from "../utils/utils";
+import { formatTimestamp } from "../utils/utils";
 
 const Articles: React.FC = () => {
   const [articles, setArticles] = useState<HoneData>({});
+  const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
 
   useEffect(() => {
-    const storedArticles = localStorage.getItem(HONE_DATA);
+    const storedArticles = isEditable
+      ? localStorage.getItem("honeData")
+      : localStorage.getItem("facetsData");
     if (storedArticles) {
       try {
         const parsedArticles: HoneData = JSON.parse(storedArticles);
@@ -26,7 +29,7 @@ const Articles: React.FC = () => {
       console.log("No articles found in localStorage");
       setArticles({});
     }
-  }, []);
+  }, [isEditable]);
 
   const articleItems = Object.entries(articles)
     .map(([id, { content, updatedAt }]) => {

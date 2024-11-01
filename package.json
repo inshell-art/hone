@@ -13,7 +13,10 @@
     "prettier": "npx prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,md}'",
     "type-check": "npx tsc --noEmit",
     "preview": "vite preview",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:publish": "vite --mode publish --host",
+    "emu:publish": "npx vite build --mode publish && firebase use emu && firebase emulators:start --only hosting",
+    "publish": "npx vite build --mode publish && firebase use emu && firebase emulators:start --only hosting"
   },
   "dependencies": {
     "@lexical/clipboard": "^0.17.1",
