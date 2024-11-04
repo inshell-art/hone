@@ -9,5 +9,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
+
+      if (!isEditable) {
+        document.title = "Inshell's Facets";
+        const favicon = document.querySelector("link[rel=icon]");
+
+        console.log("favicon:", favicon);
+
+        if (favicon) {
+          console.log("changing favicon");
+          favicon.href = "/facets.svg";
+        }
+      }
+    </script>
   </body>
 </html>
