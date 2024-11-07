@@ -8,8 +8,12 @@ import { INITIALIZED_DATA } from "./utils/utils.ts";
 const initializeApp = async () => {
   const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
 
-  // For the editor, initialize with the data from the local storage
+  // For the editor, decorate styles and initialize with the data from the local storage
   if (isEditable) {
+    const root = document.documentElement;
+    root.style.setProperty("--light-white", "#EFEFE4");
+    root.style.setProperty("--dark-white", "#EFEFE4");
+
     const existingData = localStorage.getItem("honeData");
 
     if (existingData) {
