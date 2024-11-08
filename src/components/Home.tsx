@@ -31,7 +31,7 @@ const Home: React.FC = () => {
         </div>
         <div className="navbar-right">
           {isEditable ? (
-            <NavLink to={`/editor/${uuidv4()}`} className="nav-link-create">
+            <NavLink to={`/article/${uuidv4()}`} className="nav-link-create">
               Create Article
             </NavLink>
           ) : null}

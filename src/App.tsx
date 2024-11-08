@@ -39,7 +39,7 @@ const App: React.FC = () => {
     <Router>
       <RouteTracker />
       <Routes>
-        <Route path="/editor/:id" element={<EditorWithParams />} />
+        <Route path="/article/:id" element={<EditorWithParams />} />
         <Route path="/*" element={<Home />} />
       </Routes>
     </Router>

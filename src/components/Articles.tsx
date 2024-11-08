@@ -59,7 +59,7 @@ const Articles: React.FC = () => {
         {articleItems.length > 0 ? (
           articleItems.map(({ id, title, dateTime }) => (
             <li key={id} className="article-item">
-              <a href={`/editor/${id}`} className="article-link">
+              <a href={`/article/${id}`} className="article-link">
                 {title}
               </a>
               <div className="article-date">{dateTime}</div>
