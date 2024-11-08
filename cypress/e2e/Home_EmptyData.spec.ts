@@ -59,10 +59,10 @@ describe("Home Empty Data E2E Tests", () => {
     cy.contains("Facets").should("not.have.class", "active");
   });
 
-  it("should navigate to Editor page when Create Article link is clicked", () => {
+  it("should navigate to article page when Create Article link is clicked", () => {
     cy.contains("Create Article").click();
 
-    cy.url().should("match", /\/editor\/[a-f0-9-]{36}$/);
+    cy.url().should("match", /\/article\/[a-f0-9-]{36}$/);
     cy.get(".editor-container").should("be.visible");
     cy.get(".editor-placeholder").should(
       "contain.text",
