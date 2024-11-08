@@ -12,7 +12,7 @@ describe("Editor E2E Tests", () => {
   });
 
   beforeEach(() => {
-    cy.visit(`/editor/${articleId}`);
+    cy.visit(`/article/${articleId}`);
   });
 
   it("should load the editor with empty data", () => {
@@ -103,7 +103,7 @@ describe("Editor E2E Tests", () => {
       const firstLineText =
         parsedArticles[articleId].content.root.children[0].children[0].text;
 
-      cy.visit(`/editor/${articleId}`);
+      cy.visit(`/article/${articleId}`);
 
       cy.wait(1000);
 

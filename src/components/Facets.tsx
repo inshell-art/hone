@@ -60,9 +60,9 @@ const Facets: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   navigate(
-                    `/editor/${facet.articleId}?facetId=${facet.facetId}`,
+                    `/article/${facet.articleId}?facetId=${facet.facetId}`,
                   );
-                  console.log("Navigating to", `/editor/${facet.articleId}`);
+                  console.log("Navigating to", `/article/${facet.articleId}`);
                 }}
               >
                 {facet.title}
@@ -78,7 +78,7 @@ const Facets: React.FC = () => {
                         onClick={(e) => {
                           e.preventDefault();
                           navigate(
-                            `/editor/${honedByFacet.articleId}?facetId=${honedByFacet.facetId}`,
+                            `/article/${honedByFacet.articleId}?facetId=${honedByFacet.facetId}`,
                           );
                         }}
                       >
