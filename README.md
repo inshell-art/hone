@@ -74,6 +74,14 @@ This project is licensed under the MIT License. See the `LICENSE` file for mor
 
 We welcome contributions! Feel free to open an issue or submit a pull request to improve Hone.
 
+## Inspired by:
+
+- [Vim](https://www.vim.org/): The modes switching.
+- [Notion](https://www.notion.so/): The block.
+- [Obsidian](https://obsidian.md/): The double bracket link.
+- [Day One](https://dayoneapp.com/): The journal daily to create scenarios to polish ideas.
+- [iA Writer](https://ia.net/writer): The focus mode.
+
 ## Contact
 
 For more information, suggestions, or contributions, please reach out via [GitHub Issues](https://github.com/inshell-art/hone/issues).
