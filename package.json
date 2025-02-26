@@ -44,7 +44,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.26.0",
     "uuid": "^10.0.0",
-    "wait-on": "^8.0.1"
+    "wait-on": "^8.0.1",
+    "vite": "^6.2.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.7",
@@ -62,7 +63,6 @@
     "husky": "^9.0.11",
     "lodash": "^4.17.21",
     "prettier": "^3.3.3",
-    "typescript": "^5.2.2",
-    "vite": "^6.2.0"
+    "typescript": "^5.2.2"
   }
 }
