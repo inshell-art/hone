@@ -31,7 +31,7 @@ body {
 
 body {
   font-family: "Source Code Pro", monospace;
-  color: var (--light-black);
+  color: var(--light-black);
   background-color: var(--light-white);
   width: var(--width);
   margin: 0 auto;
