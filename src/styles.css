@@ -169,7 +169,7 @@ a {
   font-weight: var(--regular);
 }
 
-.nav-link-create.hover {
+.nav-link-create:hover {
   text-decoration: none;
 }
 
