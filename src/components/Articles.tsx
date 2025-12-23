@@ -3,6 +3,7 @@ import { HoneData } from "../types/types";
 import { SerializedArticleTitleNode } from "../models/ArticleTitleNode";
 import { SerializedTextNode } from "lexical";
 import { formatTimestamp } from "../utils/utils";
+import { FACETS_DATA_KEY, HONE_DATA_KEY } from "../constants/storage";
 
 const Articles: React.FC = () => {
   const [articles, setArticles] = useState<HoneData>({});
@@ -10,8 +11,8 @@ const Articles: React.FC = () => {
 
   useEffect(() => {
     const storedArticles = isEditable
-      ? localStorage.getItem("honeData")
-      : localStorage.getItem("facetsData");
+      ? localStorage.getItem(HONE_DATA_KEY)
+      : localStorage.getItem(FACETS_DATA_KEY);
     if (storedArticles) {
       try {
         const parsedArticles: HoneData = JSON.parse(storedArticles);

@@ -4,7 +4,10 @@
  * So the state is used for functionalities ensuring merely.
  */
 
-import { INITIALIZED_DATA } from "../../src/utils/utils";
+import {
+  HONE_DATA_KEY,
+  INITIALIZED_DATA_PATH,
+} from "../../src/constants/storage";
 
 describe("Home Empty Data E2E Tests", () => {
   beforeEach(() => {
@@ -12,7 +15,7 @@ describe("Home Empty Data E2E Tests", () => {
 
     const emptyData = {};
     cy.window().then((win) => {
-      win.localStorage.setItem("honeData", JSON.stringify(emptyData));
+      win.localStorage.setItem(HONE_DATA_KEY, JSON.stringify(emptyData));
     });
 
     cy.visit("/");
@@ -41,7 +44,10 @@ describe("Home Empty Data E2E Tests", () => {
     cy.contains("Facets").click();
 
     cy.url().should("include", "/facets");
-    cy.get(".no-facets").should("contain.text", "No facets found");
+    cy.get(".no-facets").should(
+      "contain.text",
+      "No facets in the library yet."
+    );
     cy.contains("Facets").should("have.class", "active");
     cy.contains("Articles").should("not.have.class", "active");
   });
@@ -101,13 +107,13 @@ describe("Home Empty Data E2E Tests", () => {
   it("should import a JSON file, store data in localStorage, and display it", () => {
     cy.get('input[type="file"]')
       .should("exist")
-      .selectFile(`./public${INITIALIZED_DATA}`, { force: true }); // Share from initial data
+      .selectFile(`./public${INITIALIZED_DATA_PATH}`, { force: true }); // Share from initial data
 
     cy.wait(100);
 
     cy.window().then((win) => {
       const savedData = JSON.parse(
-        win.localStorage.getItem("honeData") || "{}"
+        win.localStorage.getItem(HONE_DATA_KEY) || "{}"
       );
       cy.log("Saved data:", savedData);
 

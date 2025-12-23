@@ -6,14 +6,13 @@
  */
 
 import { HoneData } from "../../src/types/types";
-import { extractFacets } from "../../src/utils/extractFacets";
-import { INITIALIZED_DATA } from "../../src/utils/utils";
+import { INITIALIZED_DATA_PATH } from "../../src/constants/storage";
 
 describe("Home Initialized E2E Tests", () => {
   let honeData: HoneData = {};
 
   before(() => {
-    cy.readFile(`./public/${INITIALIZED_DATA}`).then((data) => {
+    cy.readFile(`./public${INITIALIZED_DATA_PATH}`).then((data) => {
       honeData = data;
     });
   });
@@ -38,15 +37,11 @@ describe("Home Initialized E2E Tests", () => {
   it("should display facets list correctly", () => {
     cy.contains("Facets").click();
 
-    cy.log(`honeData: ${honeData}`);
-    const facets = extractFacets(honeData);
-    const facetsCount = facets.length;
-    cy.log(`facetsCount: ${facetsCount}`);
-
     cy.url().should("include", "/facets");
-    cy.get(".facets-list").within(() => {
-      cy.get(".facet-item").should("have.length", facetsCount);
-    });
+    cy.get(".no-facets").should(
+      "contain.text",
+      "No facets in the library yet."
+    );
   });
 
   it("should trigger download when Export link is clicked", () => {

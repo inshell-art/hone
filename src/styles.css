@@ -54,6 +54,9 @@ a {
   .hone-panel {
     background-color: var(--dark-black) !important;
   }
+  .command-palette {
+    background-color: var(--dark-black) !important;
+  }
 }
 
 /* for HoneEditor */
@@ -115,6 +118,28 @@ a {
   color: var(--Scheele-green);
   padding-bottom: 0;
   padding-top: var(--super-large);
+}
+
+.facet-status-indicator {
+  position: relative;
+}
+
+.facet-status-indicator::after {
+  content: attr(data-facet-status);
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: var(--Scheele-green);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: var(--tiny);
+  letter-spacing: 0.04em;
+}
+
+.facet-status-indicator[data-facet-status="Draft"]::after {
+  background: var(--grey);
+  color: var(--light-black);
 }
 
 /* For Home */
@@ -285,6 +310,123 @@ a {
   color: var(--Scheele-green);
   font-size: var(--small);
   font-weight: var(--thin);
+}
+
+.facet-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.facet-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ash);
+  font-size: var(--tiny);
+}
+
+.facet-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.honed-from-section {
+  margin-top: 6px;
+}
+
+.honed-from-label {
+  color: var(--ash);
+  font-size: var(--tiny);
+  margin-bottom: 4px;
+}
+
+.honed-from-list {
+  list-style-type: none;
+  padding-left: var(--small);
+  margin: 0;
+}
+
+.honed-from-item {
+  font-size: var(--small);
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.honed-from-meta {
+  color: var(--ash);
+  font-size: var(--tiny);
+}
+
+.honed-from-time {
+  margin-left: 4px;
+}
+
+.command-palette {
+  position: fixed;
+  width: 380px;
+  border: 1px solid var(--Scheele-green);
+  box-shadow: 0 4px 12px rgba(var(--Scheele-green-rgb), 0.25);
+  background-color: var(--light-white);
+  border-radius: 6px;
+  z-index: 1001;
+  padding: 8px;
+}
+
+.command-palette-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.command-palette-input input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--small);
+  color: inherit;
+}
+
+.command-prefix {
+  color: var(--Scheele-green);
+  font-weight: var(--heavy);
+}
+
+.command-palette-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.command-palette-item {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.command-palette-item.selected {
+  background-color: rgba(var(--Scheele-green-rgb), 0.15);
+}
+
+.command-title {
+  font-weight: var(--regular);
+}
+
+.command-subtitle {
+  font-size: var(--tiny);
+  color: var(--ash);
+}
+
+.command-palette-item.empty {
+  color: var(--ash);
+  cursor: default;
 }
 
 /* For hone panel */

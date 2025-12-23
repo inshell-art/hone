@@ -1,5 +1,5 @@
 import { v4 as uuid4 } from "uuid";
-import { INSERT_SYMBOL } from "../../src/utils/utils";
+import { FACET_LIBRARY_KEY, HONE_DATA_KEY } from "../../src/constants/storage";
 
 describe("Editor E2E Tests", () => {
   let articleId = "";
@@ -12,6 +12,7 @@ describe("Editor E2E Tests", () => {
   });
 
   beforeEach(() => {
+    cy.clearLocalStorage();
     cy.visit(`/article/${articleId}`);
   });
 
@@ -19,14 +20,14 @@ describe("Editor E2E Tests", () => {
     cy.get(".editor-container").should("be.visible");
     cy.get(".editor-placeholder").should(
       "contain.text",
-      "Type your article title here..."
+      "Type your article title here...",
     );
     cy.get(".editor-input").should("have.text", "");
     cy.contains("No article found").should("be.visible");
     cy.contains("Skipping auto-save").should("be.visible");
   });
 
-  it("should trigger auto save when article title, facet title and paragraph text are added, and delete the article stored after clear the editor  ", () => {
+  it("should auto save and delete the article after clearing the editor", () => {
     cy.get(".editor-input").type(ARTICLE_TITLE + "{enter}");
     cy.get(".editor-input").type(FACET_TITLE + "{enter}");
     cy.get(".editor-input").type(PARAGRAPH_TEXT);
@@ -34,7 +35,7 @@ describe("Editor E2E Tests", () => {
     cy.wait(1000);
 
     cy.contains("Auto-saved changes to localStorage in 1 second.").should(
-      "be.visible"
+      "be.visible",
     );
 
     cy.get(".editor-input")
@@ -48,7 +49,7 @@ describe("Editor E2E Tests", () => {
     cy.get(".editor-input").find("p").should("have.text", PARAGRAPH_TEXT);
 
     cy.window().then((win) => {
-      const savedArticles = win.localStorage.getItem("honeData");
+      const savedArticles = win.localStorage.getItem(HONE_DATA_KEY);
       expect(savedArticles).to.not.be.null;
       const parsedArticles = JSON.parse(savedArticles as string);
       expect(parsedArticles[articleId]).to.not.be.undefined;
@@ -59,61 +60,52 @@ describe("Editor E2E Tests", () => {
     cy.wait(1000);
 
     cy.window().then((win) => {
-      const savedArticles = win.localStorage.getItem("honeData");
+      const savedArticles = win.localStorage.getItem(HONE_DATA_KEY);
       expect(savedArticles).to.not.be.null;
       const parsedArticles = JSON.parse(savedArticles as string);
       expect(parsedArticles[articleId]).to.be.undefined;
     });
   });
 
-  it("should trigger hone panel and insert facet correctly", () => {
-    const cmdOrCtrl = Cypress.platform === "darwin" ? "{cmd}" : "{ctrl}";
-
+  it("opens slash commands to create and update a facet", () => {
     cy.get(".editor-input").type(ARTICLE_TITLE + "{enter}");
-    cy.get(".editor-input").type("$ facet 1{enter}");
-    cy.get(".editor-input").type("facet 1 content{enter}");
-    cy.get(".editor-input").type("$ facet 2{enter}");
-    cy.get(".editor-input").type("facet 2 content{enter}");
+    cy.get(".editor-input").type("/");
+
+    cy.get(".command-palette").should("be.visible");
+    cy.contains(".command-title", "/facet").click();
+
+    cy.get(".editor-input").type("Facet Alpha{enter}Facet alpha body");
+    cy.get(".editor-input").find("h2.facet-title").click();
+    cy.get(".editor-input").type("{home}/");
+
+    cy.contains(".command-title", "/update").click();
+
+    cy.window().then((win) => {
+      const libraryRaw = win.localStorage.getItem(FACET_LIBRARY_KEY);
+      expect(libraryRaw).to.not.be.null;
+      const library = JSON.parse(libraryRaw as string);
+      expect(Object.keys(library.facetsById || {})).to.have.length(1);
+    });
+  });
+
+  it("should persist and reload an article", () => {
+    cy.get(".editor-input").type(ARTICLE_TITLE + "{enter}");
+    cy.get(".editor-input").type(FACET_TITLE + "{enter}");
+    cy.get(".editor-input").type(PARAGRAPH_TEXT);
 
     cy.wait(1000);
 
-    cy.get(".editor-input").type(`${cmdOrCtrl}{enter}`);
+    cy.visit(`/article/${articleId}`);
 
-    cy.get(".hone-panel").should("be.visible");
-
-    cy.get(".hone-panel-item").contains("$ facet 1").click();
+    cy.wait(500);
 
     cy.get(".editor-input")
-      .find("p")
-      .should("contain.text", INSERT_SYMBOL)
-      .and("contain.text", "$ facet 1")
-      .and("contain.text", "facet 1 content");
-  });
-
-  it("should load specified article and verify content", () => {
-    cy.visit("/");
-    cy.window().then((win) => {
-      const savedArticles = win.localStorage.getItem("honeData");
-
-      expect(savedArticles).to.not.be.null;
-
-      const parsedArticles = JSON.parse(savedArticles as string);
-
-      const articleId = Object.keys(parsedArticles)[0];
-      const firstLineText =
-        parsedArticles[articleId].content.root.children[0].children[0].text;
-
-      cy.visit(`/article/${articleId}`);
-
-      cy.wait(1000);
-
-      cy.get(".editor-input")
-        .find("h1")
-        .invoke("text")
-        .then((text) => {
-          cy.log("Text of the first div:", text);
-          expect(text).to.equal(firstLineText);
-        });
-    });
+      .find("h1.article-title")
+      .invoke("text")
+      .should("eq", ARTICLE_TITLE);
+    cy.get(".editor-input")
+      .find("h2.facet-title")
+      .invoke("text")
+      .should("eq", FACET_TITLE);
   });
 });

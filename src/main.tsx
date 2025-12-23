@@ -1,7 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
-import { INITIALIZED_DATA } from "./utils/utils.ts";
+import {
+  INITIALIZED_DATA_PATH,
+  HONE_DATA_KEY,
+  FACETS_DATA_KEY,
+} from "./constants/storage.ts";
 
 // Initialize for hone editor and facets page by isFacets
 // If you are here for hone only, just simply set the environment variable VITE_IS_FACETS to false
@@ -14,25 +18,25 @@ const initializeApp = async () => {
     root.style.setProperty("--light-white", "#EFEFE4");
     root.style.setProperty("--dark-white", "#EFEFE4");
 
-    const existingData = localStorage.getItem("honeData");
+    const existingData = localStorage.getItem(HONE_DATA_KEY);
 
     if (existingData) {
       return;
     } else {
       try {
-        const response = await fetch(INITIALIZED_DATA);
+        const response = await fetch(INITIALIZED_DATA_PATH);
         if (!response.ok) {
           throw new Error(
-            "Failed to fetch" + INITIALIZED_DATA + response.status,
+            "Failed to fetch" + INITIALIZED_DATA_PATH + response.status,
           );
         }
 
         const data = await response.json();
-        localStorage.setItem("honeData", JSON.stringify(data));
-        console.log("Initialized app with " + INITIALIZED_DATA);
+        localStorage.setItem(HONE_DATA_KEY, JSON.stringify(data));
+        console.log("Initialized app with " + INITIALIZED_DATA_PATH);
       } catch (error) {
         console.error(
-          "Failed to initialize the app with " + INITIALIZED_DATA,
+          "Failed to initialize the app with " + INITIALIZED_DATA_PATH,
           error,
         );
       }
@@ -49,7 +53,7 @@ const initializeApp = async () => {
           throw new Error("Failed to fetch facets data");
         }
         const data = await response.json();
-        localStorage.setItem("facetsData", JSON.stringify(data));
+        localStorage.setItem(FACETS_DATA_KEY, JSON.stringify(data));
         console.log("Initialized app with the fetched facets data");
       } catch (error) {
         console.error("Failed to initialize the facets data", error);

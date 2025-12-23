@@ -9,7 +9,6 @@ import SetArticleTitlePlugin from "../plugins/SetArticleTitlePlugin";
 import { EditorProps } from "../types/types";
 import AutoSavePlugin from "../plugins/AutoSavePlugin";
 import LoadArticlePlugin from "../plugins/LoadArticlePlugin";
-import HonePanelPlugin from "../plugins/HonePanelPlugin";
 import SetFacetTitlePlugin from "../plugins/SetFacetTitlePlugin";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleTitleNode } from "../models/ArticleTitleNode";
@@ -20,6 +19,7 @@ import { useLocation } from "react-router-dom";
 import DisableTextFormattingPlugin from "../plugins/DisableTextFormattingPlugin";
 import StripFormattingPastePlugin from "../plugins/StripFormattingPastePlugin";
 import KeepTitlesInOneLinePlugin from "../plugins/KeepTitlesInOneLinePlugin";
+import SlashCommandPlugin from "../plugins/SlashCommandPlugin";
 
 const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
   const [message, setMessage] = useState<string | null>(null);
@@ -112,7 +112,10 @@ const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
               articleId={articleId}
               onMessageChange={handleMessageChange}
             />
-            <HonePanelPlugin />
+            <SlashCommandPlugin
+              articleId={articleId}
+              onMessageChange={handleMessageChange}
+            />
             <KeepTitlesInOneLinePlugin />
             <StripFormattingPastePlugin />
             <DisableTextFormattingPlugin />

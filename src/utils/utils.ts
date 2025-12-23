@@ -8,9 +8,9 @@ import {
 } from "lexical";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { Facet } from "../types/types";
+import { HONE_DATA_KEY } from "../constants/storage";
 
 export const INSERT_SYMBOL = ">>>>>>>";
-export const INITIALIZED_DATA = "/GettingStarted.json";
 
 export const collectTextFromDescendants = (
   node: SerializedElementNode | SerializedLexicalNode | SerializedTextNode,
@@ -86,11 +86,11 @@ export const findNearestFacetTitleNode = (selection: BaseSelection | null) => {
   if ($isRangeSelection(selection)) {
     const root = $getRoot();
     const children = root.getChildren();
+    const anchorNode = selection.anchor.getNode();
+    const anchorTopLevel = anchorNode.getTopLevelElementOrThrow();
+    const anchorIndex = children.indexOf(anchorTopLevel);
 
-    const currentNode = selection.anchor.getNode();
-    const currentNodeIndex = children.indexOf(currentNode);
-
-    for (let i = currentNodeIndex - 1; i >= 0; i--) {
+    for (let i = anchorIndex; i >= 0; i--) {
       const childNode = children[i];
       if (childNode instanceof FacetTitleNode && childNode.isActive()) {
         return childNode as FacetTitleNode;
@@ -102,7 +102,7 @@ export const findNearestFacetTitleNode = (selection: BaseSelection | null) => {
 };
 
 export const exportSavedArticles = () => {
-  const savedArticlesJSON = localStorage.getItem("honeData");
+  const savedArticlesJSON = localStorage.getItem(HONE_DATA_KEY);
   if (!savedArticlesJSON) {
     console.log("No articles to export.");
     alert("No articles to export.");
@@ -180,7 +180,7 @@ export const importSavedArticles = (
 
       console.log("Imported Data:", importedData);
 
-      localStorage.setItem("honeData", JSON.stringify(importedData));
+      localStorage.setItem(HONE_DATA_KEY, JSON.stringify(importedData));
       window.location.reload();
     } catch (error) {
       alert("Failed to import savedArticles.");

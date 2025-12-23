@@ -16,6 +16,7 @@ import {
   listFacetsWithSimilarity,
   findNearestFacetTitleNode,
 } from "../utils/utils";
+import { HONE_DATA_KEY } from "../constants/storage";
 
 const HonePanelPlugin = () => {
   const [editor] = useLexicalComposerContext();
@@ -32,7 +33,7 @@ const HonePanelPlugin = () => {
 
   const triggerHonePanel = useCallback(() => {
     const selection = $getSelection();
-    const honeData = localStorage.getItem("honeData") || "{}";
+    const honeData = localStorage.getItem(HONE_DATA_KEY) || "{}";
     const parsedHoneData = JSON.parse(honeData);
     const facets = extractFacets(parsedHoneData);
 

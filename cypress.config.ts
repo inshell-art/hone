@@ -1,8 +1,10 @@
 import { defineConfig } from "cypress";
 
+const baseUrl = process.env.BASE_URL || "http://localhost:5173";
+
 export default defineConfig({
   e2e: {
-    baseUrl: process.env.BASE_URL,
+    baseUrl,
     specPattern: "cypress/e2e/**/*.spec.ts",
   },
   //config env to run:

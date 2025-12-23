@@ -32,3 +32,24 @@ export type FacetWithSimilarity = Facet & {
 export type HoneData = {
   [articleId: string]: { content: SerializedEditorState; updatedAt: number };
 };
+
+export type FacetId = string;
+
+export type HoneEdge = {
+  fromFacetId: FacetId;
+  honedAt: number;
+};
+
+export type FacetLibraryItem = {
+  facetId: FacetId;
+  title: string;
+  bodyText: string;
+  updatedAt: number;
+  honedFrom: HoneEdge[];
+};
+
+export type FacetsLibraryState = {
+  version: 2;
+  updatedAt: number;
+  facetsById: Record<FacetId, FacetLibraryItem>;
+};

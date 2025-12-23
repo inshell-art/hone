@@ -1,98 +1,174 @@
-import React, { useEffect, useState } from "react";
-import { extractFacets } from "../utils/extractFacets";
-import { Facet } from "../types/types";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listFacetsWithSimilarity } from "../utils/utils";
+import { formatTimestamp, getJaccardSimilarity } from "../utils/utils";
+import { FacetLibraryItem, FacetsLibraryState, HoneEdge } from "../types/types";
+import { loadLibrary } from "../utils/facetLibrary";
+import { FACET_LIBRARY_KEY } from "../constants/storage";
+
+type HonedFromListItem = {
+  edge: HoneEdge;
+  source: FacetLibraryItem;
+  similarity: number;
+};
+
+type FacetListItem = {
+  facet: FacetLibraryItem;
+  honedFrom: HonedFromListItem[];
+};
+
+const combineText = (facet: FacetLibraryItem) =>
+  `${facet.title} ${facet.bodyText}`.trim();
+
+const getArticleIdFromFacetId = (facetId: string) => {
+  const marker = "-facet-";
+  if (facetId.includes(marker)) {
+    return facetId.split(marker)[0];
+  }
+  return null;
+};
 
 const Facets: React.FC = () => {
-  const [facets, setFacets] = useState<Facet[]>([]);
+  const [library, setLibrary] = useState<FacetsLibraryState>(loadLibrary());
   const navigate = useNavigate();
-  const isEditable = import.meta.env.VITE_IS_FACETS !== "true";
 
   useEffect(() => {
-    const data = isEditable
-      ? localStorage.getItem("honeData") || "{}"
-      : localStorage.getItem("facetsData") || "{}";
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === FACET_LIBRARY_KEY) {
+        setLibrary(loadLibrary());
+      }
+    };
 
-    const parsedData = JSON.parse(data);
-    const fetchedFacets = extractFacets(parsedData);
-    console.log("fetchedFacets:", fetchedFacets);
-    setFacets(fetchedFacets);
-  }, [isEditable]);
+    window.addEventListener("storage", handleStorage);
 
-  const facetItems = facets
-    .map((facet) => {
-      const uniqueFacets = new Set<Facet>();
-      facet?.honedBy?.forEach((honedFacetId) => {
-        const matchedFacet = facets.find(
-          (facet) => facet.facetId === honedFacetId,
-        );
-        if (matchedFacet) {
-          uniqueFacets.add(matchedFacet);
-        }
-      });
-      const uniqueHonedByFacets = Array.from(uniqueFacets);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
-      const uniqueHonedByFacetsWithSimilarity = listFacetsWithSimilarity(
-        facet,
-        uniqueHonedByFacets,
-      );
+  useEffect(() => {
+    setLibrary(loadLibrary());
+  }, []);
 
-      return {
-        facetId: facet.facetId,
-        title: facet.title,
-        articleId: facet.articleId,
-        honedByAmount: facet.honedAmount || 0,
-        honedByFacets: uniqueHonedByFacetsWithSimilarity,
-      };
-    })
-    .sort((a, b) => b.honedByAmount - a.honedByAmount);
+  const facetItems: FacetListItem[] = useMemo(() => {
+    const facets = Object.values(library.facetsById).sort(
+      (a, b) => b.updatedAt - a.updatedAt,
+    );
+
+    return facets.map((facet) => {
+      const honedFrom = (facet.honedFrom || [])
+        .slice()
+        .sort((a, b) => b.honedAt - a.honedAt)
+        .map((edge) => {
+          const source = library.facetsById[edge.fromFacetId];
+          if (!source) {
+            return null;
+          }
+          const similarity = getJaccardSimilarity(
+            combineText(facet),
+            combineText(source),
+          );
+          return {
+            edge,
+            source,
+            similarity,
+          };
+        })
+        .filter(Boolean) as HonedFromListItem[];
+
+      return { facet, honedFrom };
+    });
+  }, [library]);
 
   return (
     <div className="facets-container">
       <ul className="facets-list">
-        {facetItems?.length > 0 ? (
-          facetItems.map((facet) => (
-            <li key={facet.facetId} className="facet-item">
-              <a
-                className="facet-link"
-                href="/#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate(
-                    `/article/${facet.articleId}?facetId=${facet.facetId}`,
-                  );
-                  console.log("Navigating to", `/article/${facet.articleId}`);
-                }}
-              >
-                {facet.title}
-              </a>
+        {facetItems.length > 0 ? (
+          facetItems.map(({ facet, honedFrom }) => {
+            const articleId = getArticleIdFromFacetId(facet.facetId);
+            const facetLink = articleId
+              ? `/article/${articleId}?facetId=${facet.facetId}`
+              : null;
 
-              {facet.honedByFacets.length > 0 && (
-                <ul className="honed-by-list">
-                  {facet?.honedByFacets?.map((honedByFacet, index) => (
-                    <li key={index} className="honed-by-item">
-                      <a
-                        className="honed-by-link"
-                        href="/#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigate(
-                            `/article/${honedByFacet.articleId}?facetId=${honedByFacet.facetId}`,
-                          );
-                        }}
-                      >
-                        {honedByFacet.title} (
-                        {Math.round(honedByFacet.similarity * 100)}%)
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))
+            return (
+              <li key={facet.facetId} className="facet-item">
+                <div className="facet-header">
+                  {facetLink ? (
+                    <a
+                      className="facet-link"
+                      href="/#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(facetLink);
+                      }}
+                    >
+                      {facet.title}
+                    </a>
+                  ) : (
+                    <span className="facet-link">{facet.title}</span>
+                  )}
+                  <div className="facet-meta">
+                    <span className="facet-updated">
+                      Updated {formatTimestamp(facet.updatedAt)}
+                    </span>
+                    {honedFrom.length > 0 && (
+                      <span className="facet-stats">
+                        • Honed from {honedFrom.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {honedFrom.length > 0 && (
+                  <div className="honed-from-section">
+                    <div className="honed-from-label">Honed from:</div>
+                    <ul className="honed-from-list">
+                      {honedFrom.map(({ source, edge, similarity }) => {
+                        const sourceArticleId = getArticleIdFromFacetId(
+                          source.facetId,
+                        );
+                        const sourceLink = sourceArticleId
+                          ? `/article/${sourceArticleId}?facetId=${source.facetId}`
+                          : null;
+
+                        return (
+                          <li
+                            key={`${facet.facetId}-${source.facetId}-${edge.honedAt}`}
+                            className="honed-from-item"
+                          >
+                            {sourceLink ? (
+                              <a
+                                className="honed-by-link"
+                                href="/#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigate(sourceLink);
+                                }}
+                              >
+                                {source.title}
+                              </a>
+                            ) : (
+                              <span className="honed-by-link">
+                                {source.title}
+                              </span>
+                            )}
+                            <span className="honed-from-meta">
+                              {Math.round(similarity * 100)}% similarity
+                              {edge.honedAt && (
+                                <span className="honed-from-time">
+                                  {" "}
+                                  • {formatTimestamp(edge.honedAt)}
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            );
+          })
         ) : (
-          <li className="no-facets">No facets found</li>
+          <li className="no-facets">No facets in the library yet.</li>
         )}
       </ul>
     </div>
