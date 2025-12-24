@@ -127,7 +127,9 @@ const run = async () => {
   const devServerEnv = {
     ...process.env,
     PORT: `${port}`,
-    ...(shouldCollectCoverage ? { VITE_COVERAGE: "true" } : {}),
+    ...(shouldCollectCoverage
+      ? { VITE_COVERAGE: "true", CYPRESS_COVERAGE: "true" }
+      : {}),
   };
 
   const devServer = spawn(
