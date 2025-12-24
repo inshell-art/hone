@@ -9,6 +9,7 @@
   --grey: #e4e4e4;
   --Scheele-green: #006100;
   --Scheele-green-rgb: 0, 97, 0;
+  --Gamboge-yellow: #c99700;
 
   --tiny: 12px;
   --small: 16px;
@@ -120,26 +121,12 @@ a {
   padding-top: var(--super-large);
 }
 
-.facet-status-indicator {
-  position: relative;
+.facet-title[data-state="updated"] {
+  color: var(--Scheele-green);
 }
 
-.facet-status-indicator::after {
-  content: attr(data-facet-status);
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  background: var(--Scheele-green);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: var(--tiny);
-  letter-spacing: 0.04em;
-}
-
-.facet-status-indicator[data-facet-status="Draft"]::after {
-  background: var(--grey);
-  color: var(--light-black);
+.facet-title[data-state="dirty"] {
+  color: var(--Gamboge-yellow);
 }
 
 /* For Home */
@@ -368,7 +355,7 @@ a {
 .command-palette {
   position: fixed;
   width: 380px;
-  border: 1px solid var(--Scheele-green);
+  border: 1px solid var(--ash);
   box-shadow: 0 4px 12px rgba(var(--Scheele-green-rgb), 0.25);
   background-color: var(--light-white);
   border-radius: 6px;
@@ -413,6 +400,13 @@ a {
 
 .command-palette-item.selected {
   background-color: rgba(var(--Scheele-green-rgb), 0.15);
+}
+
+.command-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .command-title {

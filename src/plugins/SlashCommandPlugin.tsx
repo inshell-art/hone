@@ -10,9 +10,9 @@ import {
   $getNodeByKey,
   $setSelection,
   $isTextNode,
+  $isParagraphNode,
   COMMAND_PRIORITY_LOW,
   KEY_DOWN_COMMAND,
-  SELECTION_CHANGE_COMMAND,
 } from "lexical";
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { FacetLibraryItem, FacetsLibraryState, FacetId } from "../types/types";
@@ -61,33 +61,29 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
   const [honeCandidates, setHoneCandidates] = useState<HoneCandidate[]>([]);
   const [targetFacet, setTargetFacet] = useState<FacetSnapshot | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const activeFacetElementRef = useRef<HTMLElement | null>(null);
   const savedSelectionRef = useRef<{
     key: string;
     offset: number;
     type: "text" | "element";
   } | null>(null);
-  const [activeFacetStatus, setActiveFacetStatus] = useState<{
-    key: string;
-    state: "updated" | "draft";
-  } | null>(null);
+  const facetStateKeysRef = useRef<Set<string>>(new Set());
 
   const commandOptions: CommandOption[] = useMemo(
     () => [
       {
         id: "facet",
-        title: "/facet",
-        description: "Create a new facet.",
+        title: "/create",
+        description: "a new facets.",
       },
       {
         id: "update",
         title: "/update",
-        description: "Update this facet to the library.",
+        description: "this facet.",
       },
       {
         id: "hone",
         title: "/hone",
-        description: "Hone this facet with another library facet.",
+        description: "this facet with another one.",
       },
     ],
     [],
@@ -154,49 +150,55 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     setPaletteMode("commands");
     setHoneCandidates([]);
     setTargetFacet(null);
-    editor.setEditable(false);
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [captureSelection, editor]);
+  }, [captureSelection]);
 
-  const closePalette = useCallback(() => {
-    setIsOpen(false);
-    setQuery("");
-    setSelectedIndex(0);
-    setPaletteMode("commands");
-    setHoneCandidates([]);
-    setTargetFacet(null);
-    editor.setEditable(true);
-    const savedSelection = savedSelectionRef.current;
-    if (savedSelection) {
-      editor.update(() => {
-        const node = $getNodeByKey(savedSelection.key);
-        if (!node) {
-          return;
-        }
+  const closePalette = useCallback(
+    (restoreSelection: boolean = true) => {
+      setIsOpen(false);
+      setQuery("");
+      setSelectedIndex(0);
+      setPaletteMode("commands");
+      setHoneCandidates([]);
+      setTargetFacet(null);
+      if (!restoreSelection) {
+        savedSelectionRef.current = null;
+        return;
+      }
 
-        const selection = $createRangeSelection();
-        if (savedSelection.type === "text" && $isTextNode(node)) {
-          const offset = Math.min(
-            savedSelection.offset,
-            node.getTextContentSize(),
-          );
-          selection.setTextNodeRange(node, offset, node, offset);
-        } else {
-          selection.anchor.set(
-            savedSelection.key,
-            savedSelection.offset ?? 0,
-            "element",
-          );
-          selection.focus.set(
-            savedSelection.key,
-            savedSelection.offset ?? 0,
-            "element",
-          );
-        }
-        $setSelection(selection);
-      });
-    }
-  }, [editor]);
+      const savedSelection = savedSelectionRef.current;
+      if (savedSelection) {
+        editor.update(() => {
+          const node = $getNodeByKey(savedSelection.key);
+          if (!node) {
+            return;
+          }
+
+          const selection = $createRangeSelection();
+          if (savedSelection.type === "text" && $isTextNode(node)) {
+            const offset = Math.min(
+              savedSelection.offset,
+              node.getTextContentSize(),
+            );
+            selection.setTextNodeRange(node, offset, node, offset);
+          } else {
+            selection.anchor.set(
+              savedSelection.key,
+              savedSelection.offset ?? 0,
+              "element",
+            );
+            selection.focus.set(
+              savedSelection.key,
+              savedSelection.offset ?? 0,
+              "element",
+            );
+          }
+          $setSelection(selection);
+        });
+      }
+    },
+    [editor],
+  );
 
   const isSelectionAtLineStart = useCallback(() => {
     return editor.getEditorState().read(() => {
@@ -205,14 +207,135 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
         return false;
       }
 
-      const anchorNode = selection.anchor.getNode();
-      const offset = selection.anchor.offset;
-      const text = anchorNode.getTextContent();
-      const beforeText = text.slice(0, offset);
+      const domSelection = window.getSelection();
+      if (!domSelection || domSelection.rangeCount === 0) {
+        return false;
+      }
 
-      return beforeText.trim().length === 0;
+      const range = domSelection.getRangeAt(0).cloneRange();
+      if (!range.collapsed) {
+        return false;
+      }
+
+      const anchorNode = selection.anchor.getNode();
+      const topLevel = anchorNode.getTopLevelElementOrThrow();
+      const topLevelElement = editor.getElementByKey(
+        topLevel.getKey(),
+      ) as HTMLElement | null;
+
+      if (!topLevelElement) {
+        return false;
+      }
+
+      const textRange = range.cloneRange();
+      try {
+        textRange.setStart(topLevelElement, 0);
+      } catch (error) {
+        return false;
+      }
+
+      if (textRange.toString().trim().length === 0) {
+        return true;
+      }
+
+      const caretRects = Array.from(range.getClientRects());
+      const caretRect =
+        caretRects.find((rect) => rect.width || rect.height) ??
+        range.getBoundingClientRect();
+      if (!caretRect || (caretRect.width === 0 && caretRect.height === 0)) {
+        return false;
+      }
+
+      if (
+        range.startContainer.nodeType !== Node.TEXT_NODE ||
+        range.startOffset === 0
+      ) {
+        return false;
+      }
+
+      const previousRange = document.createRange();
+      previousRange.setStart(range.startContainer, range.startOffset - 1);
+      previousRange.setEnd(range.startContainer, range.startOffset);
+
+      const previousRects = Array.from(previousRange.getClientRects());
+      const previousRect =
+        previousRects.find((rect) => rect.width || rect.height) ??
+        previousRange.getBoundingClientRect();
+      if (
+        !previousRect ||
+        (previousRect.width === 0 && previousRect.height === 0)
+      ) {
+        return false;
+      }
+
+      const elementRect = topLevelElement.getBoundingClientRect();
+      const paddingLeft = Number.parseFloat(
+        window.getComputedStyle(topLevelElement).paddingLeft || "0",
+      );
+      const lineStartLeft = elementRect.left + paddingLeft;
+      const lineStartThreshold = 6;
+      const isAtLineStart =
+        caretRect.left <= lineStartLeft + lineStartThreshold;
+      const isNewVisualLine = caretRect.top - previousRect.top > 1;
+
+      return isAtLineStart && isNewVisualLine;
     });
   }, [editor]);
+
+  const buildFacetSnapshot = useCallback((facetNode: FacetTitleNode) => {
+    const facetId = facetNode.getUniqueId();
+    const titleText = facetNode
+      .getTextContent()
+      .replace(/^\$\s*/, "")
+      .trim();
+    const root = $getRoot();
+    const children = root.getChildren();
+    const bodyTexts: string[] = [];
+    let collecting = false;
+
+    for (const child of children) {
+      if (child === facetNode) {
+        collecting = true;
+        continue;
+      }
+
+      if (child instanceof FacetTitleNode) {
+        if (collecting) {
+          break;
+        }
+        continue;
+      }
+
+      if (collecting) {
+        const text = child.getTextContent().trim();
+        if (text.length > 0) {
+          bodyTexts.push(text);
+        }
+      }
+    }
+
+    return {
+      facetId,
+      title: titleText || facetId,
+      bodyText: bodyTexts.join("\n"),
+    };
+  }, []);
+
+  const getFacetStatus = useCallback(
+    (snapshot: FacetSnapshot): "updated" | "draft" => {
+      const libraryFacet = library.facetsById[snapshot.facetId];
+      if (!libraryFacet) {
+        return "draft";
+      }
+
+      const isSameTitle = libraryFacet.title.trim() === snapshot.title.trim();
+      const isSameBody =
+        libraryFacet.bodyText.trim() === snapshot.bodyText.trim();
+
+      return isSameTitle && isSameBody ? "updated" : "draft";
+    },
+    [library],
+  );
 
   const getCurrentFacetSnapshot = useCallback((): FacetSnapshot | null => {
     let snapshot: FacetSnapshot | null = null;
@@ -228,30 +351,52 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
         return;
       }
 
-      const facetId = facetNode.getUniqueId();
-      const titleText = facetNode
-        .getTextContent()
-        .replace(/^\$\s*/, "")
-        .trim();
+      snapshot = buildFacetSnapshot(facetNode);
+    });
+
+    return snapshot;
+  }, [buildFacetSnapshot, editor]);
+
+  const syncFacetTitleStates = useCallback(() => {
+    const facetStates = new Map<string, "updated" | "dirty">();
+
+    editor.getEditorState().read(() => {
       const root = $getRoot();
       const children = root.getChildren();
-      const bodyTexts: string[] = [];
-      let collecting = false;
+      let currentFacetNode: FacetTitleNode | null = null;
+      let bodyTexts: string[] = [];
+
+      const flushFacet = () => {
+        if (!currentFacetNode) {
+          return;
+        }
+
+        const facetId = currentFacetNode.getUniqueId();
+        const titleText = currentFacetNode
+          .getTextContent()
+          .replace(/^\$\s*/, "")
+          .trim();
+        const snapshot: FacetSnapshot = {
+          facetId,
+          title: titleText || facetId,
+          bodyText: bodyTexts.join("\n"),
+        };
+        const status = getFacetStatus(snapshot);
+        facetStates.set(
+          currentFacetNode.getKey(),
+          status === "updated" ? "updated" : "dirty",
+        );
+      };
 
       for (const child of children) {
-        if (child === facetNode) {
-          collecting = true;
-          continue;
-        }
-
         if (child instanceof FacetTitleNode) {
-          if (collecting) {
-            break;
-          }
+          flushFacet();
+          currentFacetNode = child;
+          bodyTexts = [];
           continue;
         }
 
-        if (collecting) {
+        if (currentFacetNode) {
           const text = child.getTextContent().trim();
           if (text.length > 0) {
             bodyTexts.push(text);
@@ -259,61 +404,39 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
         }
       }
 
-      snapshot = {
-        facetId,
-        title: titleText || facetId,
-        bodyText: bodyTexts.join("\n"),
-      };
+      flushFacet();
     });
 
-    return snapshot;
-  }, [editor]);
-
-  const updateFacetStatusIndicator = useCallback(() => {
-    editor.getEditorState().read(() => {
-      const selection = $getSelection();
-      if (!$isRangeSelection(selection)) {
-        setActiveFacetStatus(null);
-        return;
+    const nextKeys = new Set<string>();
+    facetStates.forEach((state, key) => {
+      nextKeys.add(key);
+      const element = editor.getElementByKey(key) as HTMLElement | null;
+      if (element) {
+        element.setAttribute("data-state", state);
       }
-
-      const anchorTopLevel = selection.anchor
-        .getNode()
-        .getTopLevelElementOrThrow();
-
-      if (!(anchorTopLevel instanceof FacetTitleNode)) {
-        setActiveFacetStatus(null);
-        return;
-      }
-
-      const facetId = anchorTopLevel.getUniqueId();
-      const isUpdated = Boolean(library.facetsById[facetId]);
-
-      setActiveFacetStatus({
-        key: anchorTopLevel.getKey(),
-        state: isUpdated ? "updated" : "draft",
-      });
     });
-  }, [editor, library]);
+
+    facetStateKeysRef.current.forEach((key) => {
+      if (!nextKeys.has(key)) {
+        const element = editor.getElementByKey(key) as HTMLElement | null;
+        element?.removeAttribute("data-state");
+      }
+    });
+
+    facetStateKeysRef.current = nextKeys;
+  }, [editor, getFacetStatus]);
 
   useEffect(() => {
-    const unregisterSelectionListener = editor.registerCommand(
-      SELECTION_CHANGE_COMMAND,
-      () => {
-        updateFacetStatusIndicator();
-        return false;
-      },
-      COMMAND_PRIORITY_LOW,
-    );
-
-    return () => {
-      unregisterSelectionListener();
-    };
-  }, [editor, updateFacetStatusIndicator]);
+    syncFacetTitleStates();
+  }, [library, syncFacetTitleStates]);
 
   useEffect(() => {
-    updateFacetStatusIndicator();
-  }, [library, updateFacetStatusIndicator]);
+    const unregisterUpdateListener = editor.registerUpdateListener(() => {
+      syncFacetTitleStates();
+    });
+
+    return () => unregisterUpdateListener();
+  }, [editor, syncFacetTitleStates]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -328,29 +451,6 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
-
-  useEffect(() => {
-    const element =
-      activeFacetStatus?.key !== undefined && activeFacetStatus !== null
-        ? (editor.getElementByKey(activeFacetStatus.key) as HTMLElement | null)
-        : null;
-
-    if (activeFacetElementRef.current) {
-      activeFacetElementRef.current.removeAttribute("data-facet-status");
-      activeFacetElementRef.current.classList.remove("facet-status-indicator");
-    }
-
-    if (element && activeFacetStatus) {
-      element.setAttribute(
-        "data-facet-status",
-        activeFacetStatus.state === "updated" ? "Updated" : "Draft",
-      );
-      element.classList.add("facet-status-indicator");
-      activeFacetElementRef.current = element;
-    } else {
-      activeFacetElementRef.current = null;
-    }
-  }, [activeFacetStatus, editor]);
 
   useEffect(() => {
     const unregisterCommand = editor.registerCommand(
@@ -377,12 +477,6 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    return () => {
-      editor.setEditable(true);
-    };
-  }, [editor]);
-
   const createFacetAtCursor = useCallback(() => {
     editor.update(() => {
       const selection = $getSelection();
@@ -399,22 +493,33 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
 
       if (shouldReplace) {
         topLevel.replace(facetTitleNode);
+        facetTitleNode.insertAfter(bodyParagraph);
+      } else if ($isParagraphNode(topLevel)) {
+        selection.insertNodes([facetTitleNode, bodyParagraph]);
       } else {
         topLevel.insertAfter(facetTitleNode);
+        facetTitleNode.insertAfter(bodyParagraph);
       }
-
-      facetTitleNode.insertAfter(bodyParagraph);
 
       const firstChild = facetTitleNode.getFirstChild();
       if (firstChild && $isTextNode(firstChild)) {
-        firstChild.select();
+        const selection = $createRangeSelection();
+        const endOffset = firstChild.getTextContentSize();
+        selection.setTextNodeRange(
+          firstChild,
+          endOffset,
+          firstChild,
+          endOffset,
+        );
+        $setSelection(selection);
       } else {
         facetTitleNode.select();
       }
     });
 
     onMessageChange("Created facet", true);
-    closePalette();
+    closePalette(false);
+    setTimeout(() => editor.focus(), 0);
   }, [articleId, closePalette, editor, onMessageChange]);
 
   const handleUpdateFacet = useCallback(() => {
@@ -516,9 +621,17 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
       setLibrary(nextLibrary);
       insertHonedText(candidate);
       onMessageChange(`Honed with ${candidate.title}`, true);
-      closePalette();
+      closePalette(false);
+      setTimeout(() => editor.focus(), 0);
     },
-    [closePalette, insertHonedText, library, onMessageChange, targetFacet],
+    [
+      closePalette,
+      editor,
+      insertHonedText,
+      library,
+      onMessageChange,
+      targetFacet,
+    ],
   );
 
   const filteredCommands = useMemo(
@@ -602,7 +715,7 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
 
   return isOpen ? (
     <>
-      <div className="editor-overlay" onClick={closePalette}></div>
+      <div className="editor-overlay" onClick={() => closePalette()}></div>
       <div
         className="command-palette"
         style={{ top: palettePosition.top, left: palettePosition.left }}
@@ -617,11 +730,7 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
               setSelectedIndex(0);
             }}
             onKeyDown={handlePaletteKeyDown}
-            placeholder={
-              paletteMode === "commands"
-                ? "facet, update, hone"
-                : "Search library facets"
-            }
+            placeholder="Type a command..."
           />
         </div>
         <ul className="command-palette-list">
@@ -657,20 +766,17 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
                 }
               }}
             >
-              <div className="command-title">
-                {paletteMode === "commands"
-                  ? (option as CommandOption).title
-                  : (option as HoneCandidate).title}
-              </div>
-              <div className="command-subtitle">
-                {paletteMode === "commands" ? (
-                  (option as CommandOption).description
-                ) : (
-                  <>
-                    {Math.round((option as HoneCandidate).similarity * 100)}%
-                    similarity
-                  </>
-                )}
+              <div className="command-line">
+                <span className="command-title">
+                  {paletteMode === "commands"
+                    ? (option as CommandOption).title
+                    : (option as HoneCandidate).title}
+                </span>
+                <span className="command-subtitle">
+                  {paletteMode === "commands"
+                    ? (option as CommandOption).description
+                    : `${Math.round((option as HoneCandidate).similarity * 100)}%`}
+                </span>
               </div>
             </li>
           ))}

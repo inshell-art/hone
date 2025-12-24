@@ -1,4 +1,5 @@
 import { defineConfig } from "cypress";
+import codeCoverageTask from "@cypress/code-coverage/task";
 
 const baseUrl = process.env.BASE_URL || "http://localhost:5173";
 
@@ -6,6 +7,10 @@ export default defineConfig({
   e2e: {
     baseUrl,
     specPattern: "cypress/e2e/**/*.spec.ts",
+    setupNodeEvents(on, config) {
+      codeCoverageTask(on, config);
+      return config;
+    },
   },
   //config env to run:
   // 1, pre-commit to check lint, prettier and type-check as "quality check"

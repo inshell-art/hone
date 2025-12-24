@@ -23,8 +23,9 @@ describe("Editor E2E Tests", () => {
       "Type your article title here...",
     );
     cy.get(".editor-input").should("have.text", "");
-    cy.contains("No article found").should("be.visible");
-    cy.contains("Skipping auto-save").should("be.visible");
+    cy.contains("Skipping auto-save: content has no text.").should(
+      "be.visible",
+    );
   });
 
   it("should auto save and delete the article after clearing the editor", () => {
@@ -72,7 +73,7 @@ describe("Editor E2E Tests", () => {
     cy.get(".editor-input").type("/");
 
     cy.get(".command-palette").should("be.visible");
-    cy.contains(".command-title", "/facet").click();
+    cy.contains(".command-title", "/create").click();
 
     cy.get(".editor-input").type("Facet Alpha{enter}Facet alpha body");
     cy.get(".editor-input").find("h2.facet-title").click();
