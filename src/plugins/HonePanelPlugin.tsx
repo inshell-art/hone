@@ -12,9 +12,9 @@ import {
 import { extractFacets } from "../utils/extractFacets";
 import { Facet, FacetWithSimilarity } from "../types/types";
 import {
-  INSERT_SYMBOL,
   listFacetsWithSimilarity,
   findNearestFacetTitleNode,
+  formatTimestamp,
 } from "../utils/utils";
 import { HONE_DATA_KEY } from "../constants/storage";
 
@@ -150,22 +150,32 @@ const HonePanelPlugin = () => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
           const nodesToInsert: ElementNode[] = [];
+          const timestamp = formatTimestamp(Date.now());
+          const headerText = `--- honed-from: ${facet.facetId} | ${facet.title} | ${timestamp} ---`;
+          const footerText = "--- end honed-from ---";
 
-          const titleParagraph = $createParagraphNode();
-          const titleTextNode = $createTextNode(
-            `${INSERT_SYMBOL} ${facet.title}`,
-          );
-          titleParagraph.append(titleTextNode);
-          nodesToInsert.push(titleParagraph);
+          const headerParagraph = $createParagraphNode();
+          headerParagraph.append($createTextNode(headerText));
+          nodesToInsert.push(headerParagraph);
 
-          facet.content.forEach((content) => {
-            const contentParagraph = $createParagraphNode();
-            const contentTextNode = $createTextNode(
-              `${INSERT_SYMBOL} ${content}`,
-            );
-            contentParagraph.append(contentTextNode);
-            nodesToInsert.push(contentParagraph);
-          });
+          nodesToInsert.push($createParagraphNode());
+
+          if (facet.content.length > 0) {
+            facet.content.forEach((content) => {
+              const contentParagraph = $createParagraphNode();
+              const contentTextNode = $createTextNode(content);
+              contentParagraph.append(contentTextNode);
+              nodesToInsert.push(contentParagraph);
+            });
+          } else {
+            nodesToInsert.push($createParagraphNode());
+          }
+
+          nodesToInsert.push($createParagraphNode());
+
+          const footerParagraph = $createParagraphNode();
+          footerParagraph.append($createTextNode(footerText));
+          nodesToInsert.push(footerParagraph);
 
           const anchorNode = selection.anchor.getNode();
           const insertionNode = anchorNode.getTopLevelElementOrThrow();

@@ -19,6 +19,7 @@ import { FacetLibraryItem, FacetsLibraryState, FacetId } from "../types/types";
 import { addHoneEdge, loadLibrary, upsertFacet } from "../utils/facetLibrary";
 import {
   findNearestFacetTitleNode,
+  formatTimestamp,
   getJaccardSimilarity,
 } from "../utils/utils";
 import { FACET_LIBRARY_KEY } from "../constants/storage";
@@ -730,7 +731,10 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
       editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
-          const delimiterBlock = `\n\n---\nHoned from: ${sourceFacet.title}\n${sourceFacet.bodyText}\n---\n`;
+          const timestamp = formatTimestamp(Date.now());
+          const header = `--- honed-from: ${sourceFacet.facetId} | ${sourceFacet.title} | ${timestamp} ---`;
+          const bodyText = sourceFacet.bodyText ?? "";
+          const delimiterBlock = `\n\n${header}\n\n${bodyText}\n\n--- end honed-from ---\n`;
           selection.insertText(delimiterBlock);
         }
       });
