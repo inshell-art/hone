@@ -30,20 +30,47 @@ const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
 
   // Scroll to the facet title when the facetId query param is present
   useEffect(() => {
-    if (facetId) {
-      scrollToFacet(facetId);
+    if (!facetId) {
+      return;
     }
+
+    const maxAttempts = 20;
+    const retryDelayMs = 50;
+    let attempts = 0;
+    let timeoutId: number | null = null;
+    let cancelled = false;
+
+    const tryScroll = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const facetTitleNode = document.querySelector(
+        `[data-facet-title-id="${facetId}"]`,
+      );
+
+      if (facetTitleNode) {
+        facetTitleNode.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        return;
+      }
+
+      attempts += 1;
+      timeoutId = window.setTimeout(tryScroll, retryDelayMs);
+    };
+
+    tryScroll();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, [facetId]);
-
-  const scrollToFacet = (facetId: string) => {
-    const facetTitleNode = document.querySelector(
-      `[data-facet-title-id="${facetId}"]`,
-    );
-
-    if (facetTitleNode) {
-      facetTitleNode.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   // Handle messages from child components
   const handleMessageChange = useCallback(

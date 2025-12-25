@@ -62,6 +62,8 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
   const [targetFacet, setTargetFacet] = useState<FacetSnapshot | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const paletteRef = useRef<HTMLDivElement | null>(null);
+  const paletteListRef = useRef<HTMLUListElement | null>(null);
+  const paletteItemRefs = useRef<Array<HTMLLIElement | null>>([]);
   const paletteAnchorRectRef = useRef<DOMRect | null>(null);
   const bodyStyleRef = useRef<{
     overflow: string;
@@ -665,7 +667,13 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
   }, [closePalette, getCurrentFacetSnapshot, library, onMessageChange]);
 
   const startHoneFlow = useCallback(() => {
-    if (Object.keys(library.facetsById).length === 0) {
+    let workingLibrary = loadLibrary();
+
+    if (workingLibrary.updatedAt !== library.updatedAt) {
+      setLibrary(workingLibrary);
+    }
+
+    if (Object.keys(workingLibrary.facetsById).length === 0) {
       onMessageChange("No library facets yet — use /update first.", true);
       closePalette();
       return;
@@ -678,8 +686,6 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
       closePalette();
       return;
     }
-
-    let workingLibrary = library;
 
     if (!workingLibrary.facetsById[snapshot.facetId]) {
       workingLibrary = upsertFacet(workingLibrary, snapshot);
@@ -708,6 +714,7 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
 
     setTargetFacet(snapshot);
     setHoneCandidates(candidates);
+    setQuery("");
     setPaletteMode("hone");
     setSelectedIndex(0);
   }, [
@@ -806,6 +813,34 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     };
   }, [currentOptions.length, isOpen, paletteMode, positionPalette]);
 
+  useEffect(() => {
+    if (!isOpen || selectedIndex < 0) {
+      return;
+    }
+
+    const listElement = paletteListRef.current;
+    const selectedElement = paletteItemRefs.current[selectedIndex];
+    if (!listElement || !selectedElement) {
+      return;
+    }
+
+    const listRect = listElement.getBoundingClientRect();
+    const itemRect = selectedElement.getBoundingClientRect();
+    const itemTop = itemRect.top - listRect.top + listElement.scrollTop;
+    const itemBottom = itemTop + selectedElement.offsetHeight;
+    const viewTop = listElement.scrollTop;
+    const viewBottom = viewTop + listElement.clientHeight;
+
+    if (itemTop < viewTop) {
+      listElement.scrollTop = itemTop;
+      return;
+    }
+
+    if (itemBottom > viewBottom) {
+      listElement.scrollTop = itemBottom - listElement.clientHeight;
+    }
+  }, [currentOptions.length, isOpen, paletteMode, selectedIndex]);
+
   const handlePaletteKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
@@ -879,7 +914,7 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
             placeholder="Type a command..."
           />
         </div>
-        <ul className="command-palette-list">
+        <ul ref={paletteListRef} className="command-palette-list">
           {currentOptions.map((option, index) => (
             <li
               key={
@@ -887,6 +922,9 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
                   ? (option as CommandOption).id
                   : (option as HoneCandidate).facetId
               }
+              ref={(element) => {
+                paletteItemRefs.current[index] = element;
+              }}
               className={`command-palette-item ${
                 index === selectedIndex ? "selected" : ""
               }`}

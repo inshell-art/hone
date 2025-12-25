@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatTimestamp, getJaccardSimilarity } from "../utils/utils";
 import { FacetLibraryItem, FacetsLibraryState, HoneEdge } from "../types/types";
+import { extractFacets } from "../utils/extractFacets";
 import { loadLibrary } from "../utils/facetLibrary";
-import { FACET_LIBRARY_KEY } from "../constants/storage";
+import { FACET_LIBRARY_KEY, HONE_DATA_KEY } from "../constants/storage";
 
 type HonedFromListItem = {
   edge: HoneEdge;
@@ -27,14 +28,26 @@ const getArticleIdFromFacetId = (facetId: string) => {
   return null;
 };
 
+const getDisplayFacetTitle = (facet: FacetLibraryItem) => {
+  const trimmedTitle = facet.title.trim();
+  if (!trimmedTitle || trimmedTitle === facet.facetId) {
+    return "Untitled facet";
+  }
+  return trimmedTitle;
+};
+
 const Facets: React.FC = () => {
   const [library, setLibrary] = useState<FacetsLibraryState>(loadLibrary());
+  const [articlesRevision, setArticlesRevision] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === FACET_LIBRARY_KEY) {
         setLibrary(loadLibrary());
+      }
+      if (event.key === HONE_DATA_KEY) {
+        setArticlesRevision(Date.now());
       }
     };
 
@@ -46,6 +59,25 @@ const Facets: React.FC = () => {
   useEffect(() => {
     setLibrary(loadLibrary());
   }, []);
+
+  const { facetIdToArticleId, articleIds } = useMemo(() => {
+    void articlesRevision;
+    try {
+      const raw = localStorage.getItem(HONE_DATA_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const liveFacets = extractFacets(parsed);
+      const map = new Map<string, string>();
+      liveFacets.forEach((facet) => {
+        map.set(facet.facetId, facet.articleId);
+      });
+      return {
+        facetIdToArticleId: map,
+        articleIds: new Set(Object.keys(parsed)),
+      };
+    } catch (error) {
+      return { facetIdToArticleId: new Map(), articleIds: new Set() };
+    }
+  }, [articlesRevision]);
 
   const facetItems: FacetListItem[] = useMemo(() => {
     const facets = Object.values(library.facetsById).sort(
@@ -82,10 +114,14 @@ const Facets: React.FC = () => {
       <ul className="facets-list">
         {facetItems.length > 0 ? (
           facetItems.map(({ facet, honedFrom }) => {
-            const articleId = getArticleIdFromFacetId(facet.facetId);
-            const facetLink = articleId
-              ? `/article/${articleId}?facetId=${facet.facetId}`
-              : null;
+            const resolvedArticleId =
+              facetIdToArticleId.get(facet.facetId) ??
+              getArticleIdFromFacetId(facet.facetId);
+            const facetLink =
+              resolvedArticleId && articleIds.has(resolvedArticleId)
+                ? `/article/${resolvedArticleId}?facetId=${facet.facetId}`
+                : null;
+            const displayTitle = getDisplayFacetTitle(facet);
 
             return (
               <li key={facet.facetId} className="facet-item">
@@ -99,10 +135,10 @@ const Facets: React.FC = () => {
                         navigate(facetLink);
                       }}
                     >
-                      {facet.title}
+                      {displayTitle}
                     </a>
                   ) : (
-                    <span className="facet-link">{facet.title}</span>
+                    <span className="facet-link">{displayTitle}</span>
                   )}
                   <div className="facet-meta">
                     <span className="facet-updated">
@@ -121,12 +157,14 @@ const Facets: React.FC = () => {
                     <div className="honed-from-label">Honed from:</div>
                     <ul className="honed-from-list">
                       {honedFrom.map(({ source, edge, similarity }) => {
-                        const sourceArticleId = getArticleIdFromFacetId(
-                          source.facetId,
-                        );
-                        const sourceLink = sourceArticleId
-                          ? `/article/${sourceArticleId}?facetId=${source.facetId}`
-                          : null;
+                        const sourceArticleId =
+                          facetIdToArticleId.get(source.facetId) ??
+                          getArticleIdFromFacetId(source.facetId);
+                        const sourceLink =
+                          sourceArticleId && articleIds.has(sourceArticleId)
+                            ? `/article/${sourceArticleId}?facetId=${source.facetId}`
+                            : null;
+                        const sourceTitle = getDisplayFacetTitle(source);
 
                         return (
                           <li
@@ -142,11 +180,11 @@ const Facets: React.FC = () => {
                                   navigate(sourceLink);
                                 }}
                               >
-                                {source.title}
+                                {sourceTitle}
                               </a>
                             ) : (
                               <span className="honed-by-link">
-                                {source.title}
+                                {sourceTitle}
                               </span>
                             )}
                             <span className="honed-from-meta">
