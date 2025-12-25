@@ -9,6 +9,7 @@ import {
 import { FacetTitleNode } from "../models/FacetTitleNode";
 import { Facet } from "../types/types";
 import { HONE_DATA_KEY } from "../constants/storage";
+import { computeSimilarity, tokenize } from "./similarity";
 
 export const INSERT_SYMBOL = ">>>>>>>";
 
@@ -42,7 +43,7 @@ export const formatTimestamp = (timestamp: number) => {
 };
 
 const splitAndNormalizeText = (text: string) => {
-  return text.toLowerCase().match(/\w+/g) || [];
+  return tokenize(text, { removeStopwords: false });
 };
 
 export const getJaccardSimilarity = (text1: string, text2: string) => {
@@ -54,6 +55,19 @@ export const getJaccardSimilarity = (text1: string, text2: string) => {
 
   return intersection.size / union.size; // Jaccard similarity = intersection / union
 };
+
+export function getFacetSimilarityScore(
+  aTitle: string,
+  aBodyText: string,
+  bTitle: string,
+  bBodyText: string,
+  corpus?: string[],
+): number {
+  const docA = `${aTitle}\n${aBodyText}`;
+  const docB = `${bTitle}\n${bBodyText}`;
+
+  return computeSimilarity(docA, docB, corpus);
+}
 
 export const listFacetsWithSimilarity = (
   currentFacet: Facet | undefined,
@@ -67,17 +81,21 @@ export const listFacetsWithSimilarity = (
   };
 
   const facetToCompare = currentFacet || emptyFacet;
+  const comparisonDoc = `${facetToCompare.title}\n${facetToCompare.content.join(" ")}`;
+  const candidateDocs = facets.map(
+    (facet) => `${facet.title}\n${facet.content.join(" ")}`,
+  );
+  const corpusDocs = [comparisonDoc, ...candidateDocs];
 
   return facets
-    .map((facet) => {
-      return {
-        ...facet,
-        similarity: getJaccardSimilarity(
-          facetToCompare.title + "" + facetToCompare.content.join(" "),
-          facet.title + "" + facet.content.join(" "),
-        ),
-      };
-    })
+    .map((facet, index) => ({
+      ...facet,
+      similarity: computeSimilarity(
+        comparisonDoc,
+        candidateDocs[index] ?? "",
+        corpusDocs,
+      ),
+    }))
     .sort((a, b) => b.similarity - a.similarity);
 };
 
