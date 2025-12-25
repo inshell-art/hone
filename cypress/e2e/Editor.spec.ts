@@ -89,6 +89,40 @@ describe("Editor E2E Tests", () => {
     });
   });
 
+  it("inserts a honed facet block with header and footer", () => {
+    cy.get(".editor-input").type(ARTICLE_TITLE + "{enter}");
+
+    cy.get(".editor-input").type("/");
+    cy.get(".command-palette").should("be.visible");
+    cy.contains(".command-title", "/create").click();
+    cy.get(".editor-input").type("Facet One{enter}First body");
+
+    cy.get(".editor-input").find("h2.facet-title").first().click();
+    cy.get(".editor-input").type("{home}/");
+    cy.contains(".command-title", "/update").click();
+
+    cy.get(".editor-input").find("p").last().click();
+    cy.get(".editor-input").type("{enter}{home}/");
+    cy.contains(".command-title", "/create").click();
+    cy.get(".editor-input").type("Facet Two{enter}Second body");
+
+    cy.get(".editor-input").find("h2.facet-title").eq(1).click();
+    cy.get(".editor-input").type("{home}/");
+    cy.contains(".command-title", "/update").click();
+
+    cy.get(".editor-input").find("p").last().click();
+    cy.get(".editor-input").type("{home}/");
+    cy.contains(".command-title", "/hone").click();
+    cy.contains(".command-title", "Facet One").click();
+
+    cy.get(".editor-input")
+      .invoke("text")
+      .then((text) => {
+        expect(text).to.include("--- honed-from:");
+        expect(text).to.include("--- end honed-from ---");
+      });
+  });
+
   it("should persist and reload an article", () => {
     cy.get(".editor-input").type(ARTICLE_TITLE + "{enter}");
     cy.get(".editor-input").type(FACET_TITLE + "{enter}");

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { formatTimestamp, getJaccardSimilarity } from "../utils/utils";
 import { FacetLibraryItem, FacetsLibraryState, HoneEdge } from "../types/types";
 import { extractFacets } from "../utils/extractFacets";
-import { loadLibrary } from "../utils/facetLibrary";
+import { loadLibrary, saveLibrary } from "../utils/facetLibrary";
 import { FACET_LIBRARY_KEY, HONE_DATA_KEY } from "../constants/storage";
 
 type HonedFromListItem = {
@@ -60,24 +60,56 @@ const Facets: React.FC = () => {
     setLibrary(loadLibrary());
   }, []);
 
-  const { facetIdToArticleId, articleIds } = useMemo(() => {
+  const { facetIdToArticleId, articleIds, liveFacetIds } = useMemo(() => {
     void articlesRevision;
     try {
       const raw = localStorage.getItem(HONE_DATA_KEY);
       const parsed = raw ? JSON.parse(raw) : {};
       const liveFacets = extractFacets(parsed);
       const map = new Map<string, string>();
+      const liveIds = new Set<string>();
       liveFacets.forEach((facet) => {
         map.set(facet.facetId, facet.articleId);
+        liveIds.add(facet.facetId);
       });
       return {
         facetIdToArticleId: map,
         articleIds: new Set(Object.keys(parsed)),
+        liveFacetIds: liveIds,
       };
     } catch (error) {
-      return { facetIdToArticleId: new Map(), articleIds: new Set() };
+      return {
+        facetIdToArticleId: new Map(),
+        articleIds: new Set(),
+        liveFacetIds: new Set(),
+      };
     }
   }, [articlesRevision]);
+
+  useEffect(() => {
+    if (liveFacetIds.size === 0) {
+      return;
+    }
+
+    const nextFacets: Record<string, FacetLibraryItem> = {};
+    let removed = false;
+
+    Object.values(library.facetsById).forEach((facet) => {
+      if (!liveFacetIds.has(facet.facetId)) {
+        removed = true;
+        return;
+      }
+
+      nextFacets[facet.facetId] = facet;
+    });
+
+    if (!removed) {
+      return;
+    }
+
+    const nextState = saveLibrary({ ...library, facetsById: nextFacets });
+    setLibrary(nextState);
+  }, [library, liveFacetIds]);
 
   const facetItems: FacetListItem[] = useMemo(() => {
     const facets = Object.values(library.facetsById).sort(
