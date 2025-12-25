@@ -61,6 +61,12 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
   const [honeCandidates, setHoneCandidates] = useState<HoneCandidate[]>([]);
   const [targetFacet, setTargetFacet] = useState<FacetSnapshot | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const paletteRef = useRef<HTMLDivElement | null>(null);
+  const paletteAnchorRectRef = useRef<DOMRect | null>(null);
+  const bodyStyleRef = useRef<{
+    overflow: string;
+    paddingRight: string;
+  } | null>(null);
   const savedSelectionRef = useRef<{
     key: string;
     offset: number;
@@ -89,69 +95,118 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     [],
   );
 
-  const captureSelection = useCallback(() => {
-    editor.getEditorState().read(() => {
-      const selection = $getSelection();
-      if (!$isRangeSelection(selection)) {
-        savedSelectionRef.current = null;
-        return;
-      }
-
-      const anchor = selection.anchor;
-      const anchorNode = anchor.getNode();
-      const anchorType: "text" | "element" = $isTextNode(anchorNode)
-        ? "text"
-        : "element";
-
-      savedSelectionRef.current = {
-        key: anchorNode.getKey(),
-        offset: anchor.offset,
-        type: anchorType,
-      };
-
-      const domSelection = window.getSelection();
-      let rect: DOMRect | undefined;
-
-      if (domSelection && domSelection.rangeCount > 0) {
-        const range = domSelection.getRangeAt(0).cloneRange();
-        range.collapse(true);
-        const clientRect = Array.from(range.getClientRects()).find(
-          (r) => r.width || r.height,
-        );
-        rect = clientRect ?? range.getBoundingClientRect();
-      }
-
-      if ((!rect || (rect.width === 0 && rect.height === 0)) && anchorNode) {
-        const anchorElement = editor.getElementByKey(anchorNode.getKey());
-        if (anchorElement) {
-          rect = anchorElement.getBoundingClientRect();
+  const captureSelection = useCallback(
+    (options?: { applyPosition?: boolean }) => {
+      const applyPosition = options?.applyPosition !== false;
+      const rect = editor.getEditorState().read(() => {
+        let localRect: DOMRect | null = null;
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+          savedSelectionRef.current = null;
+          return null;
         }
+
+        const anchor = selection.anchor;
+        const anchorNode = anchor.getNode();
+        const anchorType: "text" | "element" = $isTextNode(anchorNode)
+          ? "text"
+          : "element";
+
+        savedSelectionRef.current = {
+          key: anchorNode.getKey(),
+          offset: anchor.offset,
+          type: anchorType,
+        };
+
+        const domSelection = window.getSelection();
+        if (domSelection && domSelection.rangeCount > 0) {
+          const range = domSelection.getRangeAt(0).cloneRange();
+          range.collapse(true);
+          const clientRect = Array.from(range.getClientRects()).find(
+            (r) => r.width || r.height,
+          );
+          localRect = clientRect ?? range.getBoundingClientRect();
+        }
+
+        if (
+          (!localRect || (localRect.width === 0 && localRect.height === 0)) &&
+          anchorNode
+        ) {
+          const anchorElement = editor.getElementByKey(anchorNode.getKey());
+          if (anchorElement) {
+            localRect = anchorElement.getBoundingClientRect();
+          }
+        }
+
+        return localRect;
+      });
+
+      if (!applyPosition) {
+        return rect;
       }
 
       if (rect && isFinite(rect.left) && isFinite(rect.top)) {
+        paletteAnchorRectRef.current = rect;
         setPalettePosition({
           top: rect.bottom + 6,
           left: rect.left,
         });
       } else {
+        paletteAnchorRectRef.current = null;
         setPalettePosition({
           top: 40,
           left: 40,
         });
       }
-    });
-  }, [editor]);
+
+      return rect;
+    },
+    [editor],
+  );
+
+  const ensureCaretInView = useCallback((rect: DOMRect | null) => {
+    if (!rect) {
+      return false;
+    }
+
+    const margin = 16;
+    if (rect.top < margin) {
+      window.scrollBy({ top: rect.top - margin, behavior: "auto" });
+      return true;
+    }
+
+    if (rect.bottom > window.innerHeight - margin) {
+      window.scrollBy({
+        top: rect.bottom - window.innerHeight + margin,
+        behavior: "auto",
+      });
+      return true;
+    }
+
+    return false;
+  }, []);
 
   const openPalette = useCallback(() => {
-    captureSelection();
-    setIsOpen(true);
-    setQuery("");
-    setSelectedIndex(0);
-    setPaletteMode("commands");
-    setHoneCandidates([]);
-    setTargetFacet(null);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }, [captureSelection]);
+    const rect = captureSelection({ applyPosition: false });
+    const didScroll = ensureCaretInView(rect);
+
+    const finalizeOpen = () => {
+      captureSelection();
+      setIsOpen(true);
+      setQuery("");
+      setSelectedIndex(0);
+      setPaletteMode("commands");
+      setHoneCandidates([]);
+      setTargetFacet(null);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    };
+
+    if (didScroll) {
+      requestAnimationFrame(finalizeOpen);
+    } else {
+      finalizeOpen();
+    }
+  }, [captureSelection, ensureCaretInView]);
 
   const closePalette = useCallback(
     (restoreSelection: boolean = true) => {
@@ -477,6 +532,78 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      if (bodyStyleRef.current) {
+        const body = document.body;
+        body.style.overflow = bodyStyleRef.current.overflow;
+        body.style.paddingRight = bodyStyleRef.current.paddingRight;
+        bodyStyleRef.current = null;
+      }
+      return;
+    }
+
+    const body = document.body;
+    if (!bodyStyleRef.current) {
+      bodyStyleRef.current = {
+        overflow: body.style.overflow,
+        paddingRight: body.style.paddingRight,
+      };
+    }
+
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = "hidden";
+    body.style.paddingRight = scrollbarWidth > 0 ? `${scrollbarWidth}px` : "";
+
+    return () => {
+      if (bodyStyleRef.current) {
+        body.style.overflow = bodyStyleRef.current.overflow;
+        body.style.paddingRight = bodyStyleRef.current.paddingRight;
+        bodyStyleRef.current = null;
+      }
+    };
+  }, [isOpen]);
+
+  const positionPalette = useCallback(() => {
+    const anchorRect = paletteAnchorRectRef.current;
+    const paletteElement = paletteRef.current;
+    if (!anchorRect || !paletteElement) {
+      return;
+    }
+
+    const paletteRect = paletteElement.getBoundingClientRect();
+    const margin = 8;
+    const spacing = 6;
+    let top = anchorRect.bottom + spacing;
+    let left = anchorRect.left;
+
+    const maxBottom = window.innerHeight - margin;
+    if (top + paletteRect.height > maxBottom) {
+      const aboveTop = anchorRect.top - spacing - paletteRect.height;
+      if (aboveTop >= margin) {
+        top = aboveTop;
+      } else {
+        top = Math.max(margin, maxBottom - paletteRect.height);
+      }
+    }
+
+    const maxRight = window.innerWidth - margin;
+    if (left + paletteRect.width > maxRight) {
+      left = Math.max(margin, maxRight - paletteRect.width);
+    }
+    if (left < margin) {
+      left = margin;
+    }
+
+    if (
+      Math.abs(top - palettePosition.top) > 1 ||
+      Math.abs(left - palettePosition.left) > 1
+    ) {
+      setPalettePosition({ top, left });
+    }
+  }, [palettePosition.left, palettePosition.top]);
+
   const createFacetAtCursor = useCallback(() => {
     editor.update(() => {
       const selection = $getSelection();
@@ -661,6 +788,24 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     }
   }, [currentOptions.length, selectedIndex]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePosition = () => {
+      positionPalette();
+    };
+
+    const raf = window.requestAnimationFrame(handlePosition);
+    window.addEventListener("resize", handlePosition);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", handlePosition);
+    };
+  }, [currentOptions.length, isOpen, paletteMode, positionPalette]);
+
   const handlePaletteKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
@@ -717,6 +862,7 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     <>
       <div className="editor-overlay" onClick={() => closePalette()}></div>
       <div
+        ref={paletteRef}
         className="command-palette"
         style={{ top: palettePosition.top, left: palettePosition.left }}
       >
