@@ -663,7 +663,7 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
 
     const nextState = upsertFacet(library, snapshot);
     setLibrary(nextState);
-    onMessageChange("Updated", true);
+    onMessageChange("Updated. The facet title is green now.", true);
     closePalette();
   }, [closePalette, getCurrentFacetSnapshot, library, onMessageChange]);
 
@@ -915,7 +915,11 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
               setSelectedIndex(0);
             }}
             onKeyDown={handlePaletteKeyDown}
-            placeholder="Type a command..."
+            placeholder={
+              paletteMode === "commands"
+                ? "Type a command..."
+                : "Type to search..."
+            }
           />
         </div>
         <ul ref={paletteListRef} className="command-palette-list">

@@ -177,16 +177,13 @@ const Facets: React.FC = () => {
                       Updated {formatTimestamp(facet.updatedAt)}
                     </span>
                     {honedFrom.length > 0 && (
-                      <span className="facet-stats">
-                        • Honed from {honedFrom.length}
-                      </span>
+                      <span className="facet-stats">• Honed from:</span>
                     )}
                   </div>
                 </div>
 
                 {honedFrom.length > 0 && (
                   <div className="honed-from-section">
-                    <div className="honed-from-label">Honed from:</div>
                     <ul className="honed-from-list">
                       {honedFrom.map(({ source, edge, similarity }) => {
                         const sourceArticleId =
