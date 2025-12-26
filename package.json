@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "start": "vite preview",
-    "emu": "npx vite build --mode emu && firebase use emu && firebase emulators:start --only hosting",
+    "emu": "npx vite build --mode emu && firebase emulators:start --only hosting --project hone-emu-0",
     "deploy:staging": "firebase use staging && firebase deploy --only hosting",
     "cy:run": "cypress run",
     "test": "node scripts/run-e2e.mjs",
@@ -18,8 +18,8 @@
     "preview": "vite preview",
     "prepare": "husky",
     "dev:publish": "vite --mode publish --host",
-    "emu:publish": "npx vite build --mode publish && firebase use emu && firebase emulators:start --only hosting",
-    "publish": "npx vite build --mode publish && firebase use emu && firebase emulators:start --only hosting"
+    "emu:publish": "npx vite build --mode publish && firebase emulators:start --only hosting --project hone-emu-0",
+    "publish": "npx vite build --mode publish && firebase emulators:start --only hosting --project hone-emu-0"
   },
   "dependencies": {
     "@lexical/clipboard": "^0.17.1",
