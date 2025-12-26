@@ -98,6 +98,7 @@ a {
   top: var(--medium);
   margin: 0px;
   text-align: left;
+  padding-bottom: var(--large);
 }
 
 .editor-placeholder {

@@ -13,7 +13,7 @@ This repo is a Vite + React + Lexical app.
 
 ## Firebase emulators / pre-push
 - `.husky/pre-push` runs `npm run emu` then `npm run test` with `BASE_URL=http://localhost:5002`.
-- The emulator requires the Firebase CLI (`firebase`).
+- The emulator requires the Firebase CLI (`firebase`), provided by `firebase-tools` in devDependencies.
 - If the emulator is unavailable, you can push with `HUSKY=0`.
 
 ## Branching / merging
