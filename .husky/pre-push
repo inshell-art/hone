@@ -4,9 +4,18 @@ if [ "$CI" = "true" ]; then
     exit 0
 fi
 
+PORT=5002
+
+# Stop any existing emulator on the hosting port to avoid duplicate instances
+EXISTING_PID=$(lsof -t -i:$PORT 2>/dev/null | head -n 1)
+if [ -n "$EXISTING_PID" ]; then
+    kill "$EXISTING_PID"
+    echo "Stopped existing process $EXISTING_PID on port $PORT"
+    sleep 1
+fi
+
 npm run emu &
 
-PORT=5002
 HOSTING_URL="http://localhost:$PORT"
 
 export BASE_URL=$HOSTING_URL
@@ -14,7 +23,7 @@ npm run test
 
 # Kill the process running on the port
 if [ -n "$PORT" ]; then
-    PID=$(lsof -t -i:$PORT)
+    PID=$(lsof -t -i:$PORT 2>/dev/null | head -n 1)
     if [ -n "$PID" ]; then
         kill $PID
         echo "Killed process $PID was running on port $PORT"
