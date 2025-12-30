@@ -1,87 +1,79 @@
 # Hone: A Minimalist Editor to Polish Ideas into Principles
 
-Hone is a unique editor designed to help you refine your ideas until they transform into core principles. By providing a simple structure focused on facets and articles, Hone facilitates deep reflection, honing thoughts into refined insights.
+Hone is a minimalist writing app for facets and articles. A facet is a titled idea (a line that starts with `$`). Articles collect facets and the narrative between them so you can revisit, refine, and hone your thinking.
 
-## Try It Now!
+## Try It Now
 
-You can try Hone right away without installing anything. Simply visit our hosted site:
-[hone.inshell.art](https://hone.inshell.art)
+Visit the hosted app: https://hone.inshell.art
 
 ## Key Features
 
-- **Facets and Articles**: Hone offers two text formats—facets and articles. A facet is a highlighted block of text that starts with `$`, representing a specific idea. Articles are composed of one or more facets, allowing you to tell stories, explore ideas, and capture your thoughts in detail.
-- **Hone Your Thoughts**: Each facet can be "honed" by inserting another facet into it. This creates a chain of reflection, allowing ideas to be polished repeatedly, deepening understanding and leading to core principles.
-- **Simplicity by Design**: With no added formatting beyond the facet titles, Hone maintains a clear and focused approach to writing, adhering to Occam's razor: simplicity to the extreme. There are no features like bold, italics, or underline—just you, your thoughts, and the facets that capture them.
-- **Local and Private Storage**: Hone saves all your work locally, directly to your browser's LocalStorage. There is no cloud storage or account registration—all your data remains private and secure on your device.
+- **Facets and articles**: Facet titles are the only formatting; everything else is plain text.
+- **Slash commands**: Type `/` at the start of a line to open the palette.
+  - `/create` inserts a `$` facet title.
+  - `/update` saves the current facet to the library.
+  - `/hone` inserts another facet into the current one.
+- **Honed from blocks**: Honed inserts are wrapped as:
+  - `--- honed-from: <id> | <title> | <timestamp> ---`
+  - `--- end honed-from ---`
+- **Facet library**: The Facets tab lists updated time and a "Honed from" history with similarity scores.
+- **Local-first**: Data lives in your browser LocalStorage. Import/Export is available in the footer.
 
-## Installation and Setup
+## Quick Start (Local Dev)
 
-To use Hone, follow these steps:
+```bash
+git clone https://github.com/inshell-art/hone.git
+cd hone
+npm install
+npm run dev
+```
 
-1. **Clone the Repository**:
+Open http://localhost:5173
 
-   ```
-   git clone https://github.com/yourusername/hone.git
-   cd hone
-   ```
+## Optional: Firebase Hosting Emulator
 
-2. **Install Dependencies**:
+```bash
+npm run emu
+```
 
-   ```
-   npm install
-   ```
+This builds and serves through the Firebase Hosting emulator at http://localhost:5002
 
-3. **Run the Application**:
+## Tests
 
-   ```
-   npm start
-   ```
+```bash
+npm run test          # Cypress E2E (spins up Vite on a free port)
+npm run test:unit     # Vitest
+npm run test:coverage # Cypress E2E + coverage report
+```
 
-   This command will start a local server. Open your browser and navigate to `http://localhost:4173` to start using Hone.
+## Usage Tips
 
-## Using Hone
-
-### Two Formats: Facets and Articles
-
-- **Facet**: Begin a facet by starting a line with `$`. This denotes a distinct idea or section of an article.
-- **Article**: Articles consist of multiple facets, with a title that precedes the facets. The section between the article title and the first facet serves as an introduction or setup.
-
-### How to Hone a Facet
-
-- To hone a facet, place your cursor at the beginning of any facet line and press `Cmd + Enter` (on Mac) or `Ctrl + Enter` (on Windows). A panel will appear, showing all available facets.
-- Each facet is accompanied by a **similarity percentage** calculated using **Jaccard Similarity**, indicating how closely related it is to the current facet.
-
-### Recording Honed Facets
-
-- When a facet is honed, Hone records this action. In the **Facets tab**, the hierarchy of facets is displayed, showing which facets have been honed and how many times.
-- Facets are sorted by the number of times they have been honed, emphasizing their level of development.
+- Start a facet by typing `$` at the start of a line or using `/create`.
+- Update a facet by placing the caret inside it, then type `/` at line start and choose `/update`.
+- Hone a facet the same way with `/hone`, then pick a facet from the list.
 
 ## Storage and Privacy
 
-- All data in Hone is stored in your browser's **LocalStorage**. There are no external servers or cloud services involved, so your data remains private and secure.
-- **Automatic Saving**: Hone automatically saves any changes within one second, ensuring that nothing is lost.
-
-## Getting Started
-
-- Click **"Create Article"** at the top-right corner of the home page to start writing.
-- Begin your article with facets by typing `$` at the start of a line, hone your ideas, and watch them evolve.
+- Everything is stored locally in LocalStorage.
+- Autosave runs within about a second.
+- Import/Export lets you back up or move data.
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
+MIT. See `LICENSE`.
 
 ## Contributing
 
-We welcome contributions! Feel free to open an issue or submit a pull request to improve Hone.
+Issues and pull requests are welcome.
 
-## Inspired by:
+## Inspired By
 
-- [Vim](https://www.vim.org/): The modes switching.
-- [Notion](https://www.notion.so/): The block.
-- [Obsidian](https://obsidian.md/): The double bracket link.
-- [Day One](https://dayoneapp.com/): The journal daily to create scenarios to polish ideas.
-- [iA Writer](https://ia.net/writer): The focus mode.
+- Vim (modes)
+- Notion (blocks)
+- Obsidian (links)
+- Day One (journaling)
+- iA Writer (focus)
 
 ## Contact
 
-For more information, suggestions, or contributions, please reach out via [GitHub Issues](https://github.com/inshell-art/hone/issues).
+Use GitHub Issues: https://github.com/inshell-art/hone/issues
