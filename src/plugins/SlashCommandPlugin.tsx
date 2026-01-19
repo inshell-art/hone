@@ -18,6 +18,11 @@ import { FacetTitleNode } from "../models/FacetTitleNode";
 import { FacetLibraryItem, FacetsLibraryState, FacetId } from "../types/types";
 import { addHoneEdge, loadLibrary, upsertFacet } from "../utils/facetLibrary";
 import {
+  loadArticleEditions,
+  publishArticleEdition,
+  saveArticleEditions,
+} from "../utils/articleEditions";
+import {
   findNearestFacetTitleNode,
   formatTimestamp,
   getJaccardSimilarity,
@@ -36,7 +41,7 @@ type SlashCommandPluginProps = {
 };
 
 type CommandOption = {
-  id: "facet" | "update" | "hone";
+  id: "facet" | "update" | "hone" | "publish";
   title: string;
   description: string;
 };
@@ -88,6 +93,11 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
         id: "update",
         title: "/update",
         description: "this facet.",
+      },
+      {
+        id: "publish",
+        title: "/publish",
+        description: "this article.",
       },
       {
         id: "hone",
@@ -667,6 +677,25 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     closePalette();
   }, [closePalette, getCurrentFacetSnapshot, library, onMessageChange]);
 
+  const handlePublishArticle = useCallback(() => {
+    const content = editor.getEditorState().toJSON();
+    const publishState = loadArticleEditions();
+    const result = publishArticleEdition(publishState, { articleId, content });
+
+    if (result.status === "duplicate") {
+      onMessageChange(
+        `No changes since v${Math.max(result.latestVersion, 1)}`,
+        true,
+      );
+      closePalette();
+      return;
+    }
+
+    saveArticleEditions(result.state);
+    onMessageChange(`Published v${result.edition?.version}`, true);
+    closePalette();
+  }, [articleId, closePalette, editor, onMessageChange]);
+
   const startHoneFlow = useCallback(() => {
     let workingLibrary = loadLibrary();
 
@@ -879,6 +908,9 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
           case "update":
             handleUpdateFacet();
             break;
+          case "publish":
+            handlePublishArticle();
+            break;
           case "hone":
             startHoneFlow();
             break;
@@ -946,6 +978,9 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
                       break;
                     case "update":
                       handleUpdateFacet();
+                      break;
+                    case "publish":
+                      handlePublishArticle();
                       break;
                     case "hone":
                       startHoneFlow();

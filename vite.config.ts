@@ -21,5 +21,9 @@ export default () => {
     build: {
       outDir: "dist",
     },
+    test: {
+      include: ["src/**/*.test.{ts,tsx}"],
+      exclude: ["cypress/**", "dist/**", "node_modules/**"],
+    },
   });
 };

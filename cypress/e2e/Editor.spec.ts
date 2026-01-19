@@ -13,7 +13,7 @@ describe("Editor E2E Tests", () => {
 
   beforeEach(() => {
     cy.clearLocalStorage();
-    cy.visit(`/article/${articleId}`);
+    cy.visit(`/a/${articleId}`);
   });
 
   it("should load the editor with empty data", () => {
@@ -130,7 +130,7 @@ describe("Editor E2E Tests", () => {
 
     cy.wait(1000);
 
-    cy.visit(`/article/${articleId}`);
+    cy.visit(`/a/${articleId}`);
 
     cy.wait(500);
 
@@ -142,5 +142,26 @@ describe("Editor E2E Tests", () => {
       .find("h2.facet-title")
       .invoke("text")
       .should("eq", FACET_TITLE);
+  });
+
+  it("keeps v1 edition immutable after publishing v2", () => {
+    const CONTENT_V1 = "First edition content";
+    const CONTENT_V2 = "Second edition content";
+
+    cy.get(".editor-input").type(`${ARTICLE_TITLE}{enter}${CONTENT_V1}`);
+    cy.get(".editor-input").type("{enter}{home}/");
+    cy.get(".command-palette").should("be.visible");
+    cy.contains(".command-title", "/publish").click();
+    cy.contains("Published v1").should("be.visible");
+
+    cy.get(".editor-input").type(`{enter}${CONTENT_V2}`);
+    cy.get(".editor-input").type("{enter}{home}/");
+    cy.get(".command-palette").should("be.visible");
+    cy.contains(".command-title", "/publish").click();
+    cy.contains("Published v2").should("be.visible");
+
+    cy.visit(`/a/${articleId}/v/1`);
+    cy.get(".editor-input").should("contain.text", CONTENT_V1);
+    cy.get(".editor-input").should("not.contain.text", CONTENT_V2);
   });
 });

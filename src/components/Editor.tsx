@@ -14,17 +14,31 @@ import { FacetTitleNode } from "../models/FacetTitleNode";
 import { ArticleTitleNode } from "../models/ArticleTitleNode";
 import { HeadingNode } from "@lexical/rich-text";
 import MessageDisplay from "./MessageDisplay";
-import { useCallback, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import DisableTextFormattingPlugin from "../plugins/DisableTextFormattingPlugin";
 import StripFormattingPastePlugin from "../plugins/StripFormattingPastePlugin";
 import KeepTitlesInOneLinePlugin from "../plugins/KeepTitlesInOneLinePlugin";
 import SlashCommandPlugin from "../plugins/SlashCommandPlugin";
+import {
+  ARTICLE_EDITIONS_UPDATED_EVENT,
+  getEditionsForArticle,
+  getArticleRecord,
+  loadArticleEditions,
+} from "../utils/articleEditions";
+import { HONE_ARTICLE_EDITIONS_KEY } from "../constants/storage";
+import { ArticleEdition } from "../types/types";
+import { formatTimestamp } from "../utils/utils";
 
 const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [isTemporary, setIsTemporary] = useState<boolean>(false);
+  const [editions, setEditions] = useState<ArticleEdition[]>([]);
+  const [latestVersion, setLatestVersion] = useState<number | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const historyRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParam = new URLSearchParams(location.search);
   const facetId = queryParam.get("facetId");
 
@@ -85,6 +99,67 @@ const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
     setMessage(null);
   };
 
+  const refreshPublishInfo = useCallback(() => {
+    const publishState = loadArticleEditions();
+    const record = getArticleRecord(publishState, articleId);
+    setLatestVersion(record?.latestVersion ?? null);
+    setEditions(getEditionsForArticle(publishState, articleId));
+  }, [articleId]);
+
+  useEffect(() => {
+    refreshPublishInfo();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === HONE_ARTICLE_EDITIONS_KEY) {
+        refreshPublishInfo();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(ARTICLE_EDITIONS_UPDATED_EVENT, refreshPublishInfo);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(
+        ARTICLE_EDITIONS_UPDATED_EVENT,
+        refreshPublishInfo,
+      );
+    };
+  }, [refreshPublishInfo]);
+
+  useEffect(() => {
+    if (!isHistoryOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        historyRef.current &&
+        !historyRef.current.contains(event.target as Node)
+      ) {
+        setIsHistoryOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isHistoryOpen]);
+
+  const copyEditionLink = useCallback(
+    async (version: number) => {
+      const url = `${window.location.origin}/a/${articleId}/v/${version}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        handleMessageChange(`Copied v${version} link`, true);
+      } catch (error) {
+        window.prompt("Copy edition link:", url);
+      }
+    },
+    [articleId, handleMessageChange],
+  );
+
   const initialConfig = {
     namespace: "HoneEditor",
     theme: HoneEditorTheme,
@@ -121,13 +196,65 @@ const Editor: React.FC<EditorProps> = ({ articleId, isEditable }) => {
         />
       )}
       <div className="editor-container">
+        {isEditable && (
+          <div className="editor-status">
+            <span className="editor-status-chip">Draft</span>
+            {latestVersion ? (
+              <div className="editor-publish" ref={historyRef}>
+                <button
+                  type="button"
+                  className="editor-status-chip editor-status-button"
+                  onClick={() => setIsHistoryOpen((open) => !open)}
+                >
+                  Published v{latestVersion}
+                </button>
+                <button
+                  type="button"
+                  className="editor-status-link"
+                  onClick={() => copyEditionLink(latestVersion)}
+                >
+                  Copy v{latestVersion} link
+                </button>
+                {isHistoryOpen && (
+                  <div className="edition-history">
+                    {editions.map((edition) => (
+                      <div
+                        key={edition.editionId}
+                        className="edition-history-item"
+                      >
+                        <button
+                          type="button"
+                          className="edition-history-link"
+                          onClick={() => {
+                            setIsHistoryOpen(false);
+                            navigate(`/a/${articleId}/v/${edition.version}`);
+                          }}
+                        >
+                          v{edition.version} —{" "}
+                          {formatTimestamp(edition.createdAt)}
+                        </button>
+                        <button
+                          type="button"
+                          className="edition-history-copy"
+                          onClick={() => copyEditionLink(edition.version)}
+                        >
+                          Copy link
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
         <RichTextPlugin
           contentEditable={<ContentEditable className="editor-input" />}
           placeholder={<Placeholder />}
           ErrorBoundary={CustomErrorBoundary}
         />
         <SetArticleTitlePlugin />
-        <SetFacetTitlePlugin articleId={articleId} />
+        {isEditable && <SetFacetTitlePlugin articleId={articleId} />}
         <LoadArticlePlugin
           articleId={articleId}
           onMessageChange={handleMessageChange}

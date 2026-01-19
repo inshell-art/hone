@@ -7,9 +7,18 @@ import {
   BaseSelection,
 } from "lexical";
 import { FacetTitleNode } from "../models/FacetTitleNode";
-import { Facet } from "../types/types";
-import { HONE_DATA_KEY } from "../constants/storage";
+import { Facet, HoneData, HoneExportV1 } from "../types/types";
+import {
+  FACET_LIBRARY_KEY,
+  HONE_ARTICLE_EDITIONS_KEY,
+  HONE_DATA_KEY,
+} from "../constants/storage";
 import { computeSimilarity, tokenize } from "./similarity";
+import {
+  createEmptyPublishState,
+  loadArticleEditions,
+} from "./articleEditions";
+import { createEmptyLibrary, loadLibrary } from "./facetLibrary";
 
 export const INSERT_SYMBOL = ">>>>>>>";
 
@@ -121,20 +130,31 @@ export const findNearestFacetTitleNode = (selection: BaseSelection | null) => {
 
 export const exportSavedArticles = () => {
   const savedArticlesJSON = localStorage.getItem(HONE_DATA_KEY);
-  if (!savedArticlesJSON) {
-    console.log("No articles to export.");
-    alert("No articles to export.");
+  const honeData: HoneData = savedArticlesJSON
+    ? JSON.parse(savedArticlesJSON)
+    : {};
+  const facetsLibrary = loadLibrary();
+  const articleEditions = loadArticleEditions();
+
+  const hasDrafts = Object.keys(honeData).length > 0;
+  const hasFacets = Object.keys(facetsLibrary.facetsById).length > 0;
+  const hasEditions = Object.keys(articleEditions.articles).length > 0;
+
+  if (!hasDrafts && !hasFacets && !hasEditions) {
+    console.log("No data to export.");
+    alert("No data to export.");
     return;
   }
 
-  const savedArticles = JSON.parse(savedArticlesJSON);
-  if (Object.keys(savedArticles).length === 0) {
-    console.log("No articles to export.");
-    alert("No articles to export.");
-    return;
-  }
+  const exportPayload: HoneExportV1 = {
+    version: 1,
+    exportedAt: Date.now(),
+    honeData,
+    facetsLibraryV2: facetsLibrary,
+    articleEditionsV1: articleEditions,
+  };
 
-  const dataStr = JSON.stringify(savedArticles, null, 2);
+  const dataStr = JSON.stringify(exportPayload, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
@@ -196,9 +216,53 @@ export const importSavedArticles = (
         throw new Error("Invalid data format");
       }
 
-      console.log("Imported Data:", importedData);
+      const importedExport = importedData as Partial<HoneExportV1> & {
+        facetsLibrary?: unknown;
+        articleEditions?: unknown;
+      };
+      const hasExportShape =
+        importedExport.version === 1 &&
+        ("honeData" in importedExport ||
+          "facetsLibraryV2" in importedExport ||
+          "articleEditionsV1" in importedExport);
 
-      localStorage.setItem(HONE_DATA_KEY, JSON.stringify(importedData));
+      if (hasExportShape) {
+        const nextHoneData =
+          (importedExport.honeData as HoneData | undefined) ?? {};
+        const nextFacets =
+          (importedExport.facetsLibraryV2 as
+            | ReturnType<typeof createEmptyLibrary>
+            | undefined) ?? createEmptyLibrary();
+        const nextEditions =
+          (importedExport.articleEditionsV1 as
+            | ReturnType<typeof createEmptyPublishState>
+            | undefined) ?? createEmptyPublishState();
+
+        localStorage.setItem(HONE_DATA_KEY, JSON.stringify(nextHoneData));
+        localStorage.setItem(FACET_LIBRARY_KEY, JSON.stringify(nextFacets));
+        localStorage.setItem(
+          HONE_ARTICLE_EDITIONS_KEY,
+          JSON.stringify(nextEditions),
+        );
+        window.location.reload();
+        return;
+      }
+
+      const nextHoneData = importedData as HoneData;
+      localStorage.setItem(HONE_DATA_KEY, JSON.stringify(nextHoneData));
+
+      if (!localStorage.getItem(FACET_LIBRARY_KEY)) {
+        localStorage.setItem(
+          FACET_LIBRARY_KEY,
+          JSON.stringify(createEmptyLibrary()),
+        );
+      }
+      if (!localStorage.getItem(HONE_ARTICLE_EDITIONS_KEY)) {
+        localStorage.setItem(
+          HONE_ARTICLE_EDITIONS_KEY,
+          JSON.stringify(createEmptyPublishState()),
+        );
+      }
       window.location.reload();
     } catch (error) {
       alert("Failed to import savedArticles.");

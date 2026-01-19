@@ -12,7 +12,9 @@ Visit the hosted app: https://hone.inshell.art
 - **Slash commands**: Type `/` at the start of a line to open the palette.
   - `/create` inserts a `$` facet title.
   - `/update` saves the current facet to the library.
+  - `/publish` snapshots the current article as an immutable edition (v1, v2, ...).
   - `/hone` inserts another facet into the current one.
+- **Immutable editions**: Each publish creates a versioned snapshot with stable URLs (`/a/:articleId/v/:version`).
 - **Honed from blocks**: Honed inserts are wrapped as:
   - `--- honed-from: <id> | <title> | <timestamp> ---`
   - `--- end honed-from ---`
@@ -50,6 +52,7 @@ npm run test:coverage # Cypress E2E + coverage report
 
 - Start a facet by typing `$` at the start of a line or using `/create`.
 - Update a facet by placing the caret inside it, then type `/` at line start and choose `/update`.
+- Publish an article by typing `/` at the start of a line and choosing `/publish`.
 - Hone a facet the same way with `/hone`, then pick a facet from the list.
 
 ## Storage and Privacy

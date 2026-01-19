@@ -61,6 +61,12 @@ a {
   .navbar {
     background-color: var(--dark-black) !important;
   }
+  .edition-history {
+    background-color: var(--dark-black);
+  }
+  .edition-history-link {
+    color: var(--dark-white);
+  }
 }
 
 /* for HoneEditor */
@@ -99,6 +105,84 @@ a {
   margin: 0px;
   text-align: left;
   padding-bottom: var(--large);
+}
+
+.editor-status {
+  display: flex;
+  align-items: center;
+  gap: var(--small);
+  margin-bottom: var(--small);
+  font-size: var(--tiny);
+  color: var(--ash);
+}
+
+.editor-status-chip {
+  border: 1px solid var(--ash);
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: transparent;
+  font-size: var(--tiny);
+  color: inherit;
+}
+
+.editor-status-button {
+  cursor: pointer;
+}
+
+.editor-status-link {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ash);
+  font-size: var(--tiny);
+  padding: 0;
+}
+
+.editor-publish {
+  display: flex;
+  align-items: center;
+  gap: var(--tiny);
+  position: relative;
+}
+
+.edition-history {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background-color: var(--light-white);
+  border: 1px solid var(--ash);
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 240px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  z-index: 1200;
+}
+
+.edition-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--small);
+  padding: 4px 6px;
+}
+
+.edition-history-link {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--tiny);
+  color: var(--light-black);
+  padding: 0;
+}
+
+.edition-history-copy {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--tiny);
+  color: var(--ash);
+  padding: 0;
 }
 
 .editor-placeholder {
@@ -264,6 +348,39 @@ a {
   text-decoration: none;
   font-weight: var(--regular);
   font-size: var(--medium);
+}
+
+.article-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--small);
+}
+
+.article-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--tiny);
+  color: var(--ash);
+}
+
+.article-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid var(--ash);
+  background: transparent;
+}
+
+.article-dot.hollow {
+  background: transparent;
+}
+
+.article-dot.filled {
+  background: var(--Scheele-green);
+  border-color: var(--Scheele-green);
 }
 
 .article-date {

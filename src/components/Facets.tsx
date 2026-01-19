@@ -151,7 +151,7 @@ const Facets: React.FC = () => {
               getArticleIdFromFacetId(facet.facetId);
             const facetLink =
               resolvedArticleId && articleIds.has(resolvedArticleId)
-                ? `/article/${resolvedArticleId}?facetId=${facet.facetId}`
+                ? `/a/${resolvedArticleId}?facetId=${facet.facetId}`
                 : null;
             const displayTitle = getDisplayFacetTitle(facet);
 
@@ -191,7 +191,7 @@ const Facets: React.FC = () => {
                           getArticleIdFromFacetId(source.facetId);
                         const sourceLink =
                           sourceArticleId && articleIds.has(sourceArticleId)
-                            ? `/article/${sourceArticleId}?facetId=${source.facetId}`
+                            ? `/a/${sourceArticleId}?facetId=${source.facetId}`
                             : null;
                         const sourceTitle = getDisplayFacetTitle(source);
 

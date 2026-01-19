@@ -5,7 +5,10 @@ import {
   INITIALIZED_DATA_PATH,
   HONE_DATA_KEY,
   FACETS_DATA_KEY,
+  FACET_LIBRARY_KEY,
+  HONE_ARTICLE_EDITIONS_KEY,
 } from "./constants/storage.ts";
+import { normalizeFacetsPayload } from "./utils/facetsPayload.ts";
 
 // Initialize for hone editor and facets page by isFacets
 // If you are here for hone only, just simply set the environment variable VITE_IS_FACETS to false
@@ -54,6 +57,21 @@ const initializeApp = async () => {
         }
         const data = await response.json();
         localStorage.setItem(FACETS_DATA_KEY, JSON.stringify(data));
+        const normalized = normalizeFacetsPayload(data);
+        localStorage.setItem(
+          FACET_LIBRARY_KEY,
+          JSON.stringify(normalized.facetsLibrary),
+        );
+        localStorage.setItem(
+          HONE_ARTICLE_EDITIONS_KEY,
+          JSON.stringify(normalized.articleEditions),
+        );
+        if (Object.keys(normalized.honeData).length > 0) {
+          localStorage.setItem(
+            HONE_DATA_KEY,
+            JSON.stringify(normalized.honeData),
+          );
+        }
         console.log("Initialized app with the fetched facets data");
       } catch (error) {
         console.error("Failed to initialize the facets data", error);

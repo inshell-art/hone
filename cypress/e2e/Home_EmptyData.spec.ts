@@ -68,7 +68,7 @@ describe("Home Empty Data E2E Tests", () => {
   it("should navigate to article page when Create Article link is clicked", () => {
     cy.contains("Create Article").click();
 
-    cy.url().should("match", /\/article\/[a-f0-9-]{36}$/);
+    cy.url().should("match", /\/a\/[a-f0-9-]{36}$/);
     cy.get(".editor-container").should("be.visible");
     cy.get(".editor-placeholder").should(
       "contain.text",
@@ -129,7 +129,7 @@ describe("Home Empty Data E2E Tests", () => {
     cy.get('a[href="#export"]').click();
 
     cy.on("window:alert", (str) => {
-      expect(str).to.equal("No articles to export.");
+      expect(str).to.equal("No data to export.");
     });
   });
 });

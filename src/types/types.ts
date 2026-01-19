@@ -35,6 +35,44 @@ export type HoneData = {
 
 export type FacetId = string;
 
+export type ArticleEdition = {
+  editionId: string;
+  articleId: string;
+  version: number;
+  createdAt: number;
+  title: string;
+  content: SerializedEditorState;
+  contentHash?: string;
+};
+
+export type ArticlePublishRecord = {
+  headEditionId: string;
+  latestVersion: number;
+  editionsById: Record<string, ArticleEdition>;
+  editionsOrder: string[];
+};
+
+export type ArticlePublishState = {
+  version: 1;
+  updatedAt: number;
+  articles: Record<string, ArticlePublishRecord>;
+};
+
+export type HoneExportV1 = {
+  version: 1;
+  exportedAt: number;
+  honeData: HoneData;
+  facetsLibraryV2: FacetsLibraryState;
+  articleEditionsV1: ArticlePublishState;
+};
+
+export type PublishedArticleSummary = {
+  articleId: string;
+  title: string;
+  latestVersion: number;
+  updatedAt: number;
+};
+
 export type HoneEdge = {
   fromFacetId: FacetId;
   honedAt: number;

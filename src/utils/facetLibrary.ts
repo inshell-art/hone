@@ -8,7 +8,7 @@ import { FACET_LIBRARY_KEY } from "../constants/storage";
 
 const LIBRARY_VERSION = 2;
 
-const createEmptyLibrary = (): FacetsLibraryState => ({
+export const createEmptyLibrary = (): FacetsLibraryState => ({
   version: LIBRARY_VERSION,
   updatedAt: Date.now(),
   facetsById: {},
