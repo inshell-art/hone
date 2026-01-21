@@ -5,20 +5,28 @@
  * So the Initialized and NoData states together constitute cy testing for Hone in MECE.
  */
 
-import { HoneData } from "../../src/types/types";
+import { FacetsLibraryState, HoneData } from "../../src/types/types";
 import {
   FACET_LIBRARY_KEY,
   HONE_DATA_KEY,
   INITIALIZED_DATA_PATH,
 } from "../../src/constants/storage";
 import { extractFacets } from "../../src/utils/extractFacets";
+import { normalizeFacetsPayload } from "../../src/utils/facetsPayload";
 
 describe("Home Initialized E2E Tests", () => {
   let honeData: HoneData = {};
+  let facetsLibrary: FacetsLibraryState = {
+    version: 2,
+    updatedAt: 0,
+    facetsById: {},
+  };
 
   before(() => {
     cy.readFile(`./public${INITIALIZED_DATA_PATH}`).then((data) => {
-      honeData = data;
+      const normalized = normalizeFacetsPayload(data);
+      honeData = normalized.honeData;
+      facetsLibrary = normalized.facetsLibrary;
     });
   });
 
@@ -41,12 +49,11 @@ describe("Home Initialized E2E Tests", () => {
 
   it("should display facets list correctly", () => {
     cy.contains("Facets").click();
+    const facetCount = Object.keys(facetsLibrary.facetsById).length;
 
     cy.url().should("include", "/facets");
-    cy.get(".no-facets").should(
-      "contain.text",
-      "No facets in the library yet."
-    );
+    expect(facetCount).to.be.greaterThan(0);
+    cy.get(".facet-item").should("have.length", facetCount);
   });
 
   it("should trigger download when Export link is clicked", () => {

@@ -1,5 +1,9 @@
 import { v4 as uuid4 } from "uuid";
-import { FACET_LIBRARY_KEY, HONE_DATA_KEY } from "../../src/constants/storage";
+import {
+  FACET_LIBRARY_KEY,
+  HONE_ARTICLE_EDITIONS_KEY,
+  HONE_DATA_KEY,
+} from "../../src/constants/storage";
 
 describe("Editor E2E Tests", () => {
   let articleId = "";
@@ -13,7 +17,19 @@ describe("Editor E2E Tests", () => {
 
   beforeEach(() => {
     cy.clearLocalStorage();
-    cy.visit(`/a/${articleId}`);
+    cy.visit(`/a/${articleId}`, {
+      onBeforeLoad(win) {
+        win.localStorage.setItem(HONE_DATA_KEY, JSON.stringify({}));
+        win.localStorage.setItem(
+          FACET_LIBRARY_KEY,
+          JSON.stringify({ version: 2, updatedAt: 0, facetsById: {} }),
+        );
+        win.localStorage.setItem(
+          HONE_ARTICLE_EDITIONS_KEY,
+          JSON.stringify({ version: 1, updatedAt: 0, articles: {} }),
+        );
+      },
+    });
   });
 
   it("should load the editor with empty data", () => {

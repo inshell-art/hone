@@ -10,6 +10,9 @@
   --Scheele-green: #006100;
   --Scheele-green-rgb: 0, 97, 0;
   --Gamboge-yellow: #c99700;
+  --toast-bg: var(--light-white);
+  --toast-fg: var(--ash);
+  --toast-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 
   --tiny: 12px;
   --small: 16px;
@@ -45,6 +48,11 @@ a {
 }
 
 @media (prefers-color-scheme: dark) {
+  :root {
+    --toast-bg: var(--dark-black);
+    --toast-fg: var(--dark-white);
+    --toast-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  }
   body {
     color: var(--dark-white);
     background-color: var(--dark-black);
@@ -60,6 +68,11 @@ a {
   }
   .navbar {
     background-color: var(--dark-black) !important;
+  }
+  .editor-message {
+    background-color: var(--dark-black) !important;
+    color: var(--dark-white) !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
   }
   .edition-history {
     background-color: var(--dark-black);
@@ -80,11 +93,11 @@ a {
   line-height: var(--small);
   text-align: center;
   font-size: var(--tiny);
-  color: var(--ash);
-  background-color: var(--light-white);
+  color: var(--toast-fg);
+  background-color: var(--toast-bg);
   padding: 0;
   border-radius: 999px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--toast-shadow);
   opacity: 0;
   transition: opacity 0.5s ease;
   z-index: 1200;

@@ -524,6 +524,11 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     const unregisterCommand = editor.registerCommand(
       KEY_DOWN_COMMAND,
       (event: KeyboardEvent) => {
+        if (event.key === "Escape" && isOpen) {
+          event.preventDefault();
+          closePalette();
+          return true;
+        }
         if (event.key === "/" && !isOpen && isSelectionAtLineStart()) {
           event.preventDefault();
           openPalette();
@@ -537,13 +542,34 @@ const SlashCommandPlugin: React.FC<SlashCommandPluginProps> = ({
     return () => {
       unregisterCommand();
     };
-  }, [editor, isOpen, isSelectionAtLineStart, openPalette]);
+  }, [closePalette, editor, isOpen, isSelectionAtLineStart, openPalette]);
 
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleGlobalEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      closePalette();
+    };
+
+    window.addEventListener("keydown", handleGlobalEscape, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleGlobalEscape, true);
+    };
+  }, [closePalette, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {

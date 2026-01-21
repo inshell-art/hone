@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatTimestamp, getJaccardSimilarity } from "../utils/utils";
+import { getJaccardSimilarity } from "../utils/utils";
 import { FacetLibraryItem, FacetsLibraryState, HoneEdge } from "../types/types";
 import { extractFacets } from "../utils/extractFacets";
 import { loadLibrary, saveLibrary } from "../utils/facetLibrary";
@@ -172,14 +172,11 @@ const Facets: React.FC = () => {
                   ) : (
                     <span className="facet-link">{displayTitle}</span>
                   )}
-                  <div className="facet-meta">
-                    <span className="facet-updated">
-                      Updated {formatTimestamp(facet.updatedAt)}
-                    </span>
-                    {honedFrom.length > 0 && (
-                      <span className="facet-stats">• Honed from:</span>
-                    )}
-                  </div>
+                  {honedFrom.length > 0 && (
+                    <div className="facet-meta">
+                      <span className="facet-stats">Honed from:</span>
+                    </div>
+                  )}
                 </div>
 
                 {honedFrom.length > 0 && (
@@ -218,12 +215,6 @@ const Facets: React.FC = () => {
                             )}
                             <span className="honed-from-meta">
                               {Math.round(similarity * 100)}% similarity
-                              {edge.honedAt && (
-                                <span className="honed-from-time">
-                                  {" "}
-                                  • {formatTimestamp(edge.honedAt)}
-                                </span>
-                              )}
                             </span>
                           </li>
                         );

@@ -35,7 +35,19 @@ const initializeApp = async () => {
         }
 
         const data = await response.json();
-        localStorage.setItem(HONE_DATA_KEY, JSON.stringify(data));
+        const normalized = normalizeFacetsPayload(data);
+        localStorage.setItem(
+          HONE_DATA_KEY,
+          JSON.stringify(normalized.honeData),
+        );
+        localStorage.setItem(
+          FACET_LIBRARY_KEY,
+          JSON.stringify(normalized.facetsLibrary),
+        );
+        localStorage.setItem(
+          HONE_ARTICLE_EDITIONS_KEY,
+          JSON.stringify(normalized.articleEditions),
+        );
         console.log("Initialized app with " + INITIALIZED_DATA_PATH);
       } catch (error) {
         console.error(
