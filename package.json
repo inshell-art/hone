@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "start": "vite preview",
+    "dev": "vite --host 127.0.0.1 --strictPort",
+    "start": "vite preview --host 127.0.0.1 --strictPort",
     "emu": "npx vite build --mode emu && firebase emulators:start --only hosting --project hone-emu-0",
     "deploy:staging": "firebase use staging && firebase deploy --only hosting",
     "cy:run": "cypress run",
@@ -15,9 +15,9 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "prettier": "npx prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,md}'",
     "type-check": "npx tsc --noEmit",
-    "preview": "vite preview",
+    "preview": "vite preview --host 127.0.0.1 --strictPort",
     "prepare": "husky",
-    "dev:publish": "vite --mode publish --host",
+    "dev:publish": "vite --mode publish --host 127.0.0.1 --strictPort",
     "emu:publish": "npx vite build --mode publish && firebase emulators:start --only hosting --project hone-emu-0",
     "publish": "npx vite build --mode publish && firebase emulators:start --only hosting --project hone-emu-0"
   },

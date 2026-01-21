@@ -47,24 +47,23 @@ const isPortFree = (port) =>
     socket.connect(port, "127.0.0.1");
   });
 
-const getAvailablePort = async () => {
-  const startPort = Number(process.env.E2E_PORT_START || 5173);
-  const maxAttempts = Number(process.env.E2E_PORT_ATTEMPTS || 20);
+const resolvePort = async () => {
+  const port = process.env.E2E_PORT
+    ? Number(process.env.E2E_PORT)
+    : Number(process.env.E2E_PORT_START || 5173);
 
-  for (let i = 0; i < maxAttempts; i += 1) {
-    const port = startPort + i;
-    // eslint-disable-next-line no-await-in-loop
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      if (await isPortFree(port)) {
-        return port;
-      }
-    } catch (error) {
-      throw error;
-    }
+  if (Number.isNaN(port)) {
+    throw new Error("E2E_PORT must be a valid number.");
   }
 
-  throw new Error("Unable to find a free port for E2E tests.");
+  const free = await isPortFree(port);
+  if (!free) {
+    throw new Error(
+      `Port ${port} is in use. Stop the existing process before running E2E tests.`,
+    );
+  }
+
+  return port;
 };
 
 const waitForServer = async (url, timeoutMs = 30000) => {
@@ -120,10 +119,8 @@ const runCoverageReport = () =>
   });
 
 const run = async () => {
-  const port = process.env.E2E_PORT
-    ? Number(process.env.E2E_PORT)
-    : await getAvailablePort();
-  const baseUrl = `http://localhost:${port}`;
+  const port = await resolvePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
   const devServerEnv = {
     ...process.env,
     PORT: `${port}`,
@@ -134,7 +131,16 @@ const run = async () => {
 
   const devServer = spawn(
     npmCommand,
-    ["run", "dev", "--", "--port", `${port}`, "--strictPort"],
+    [
+      "run",
+      "dev",
+      "--",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      `${port}`,
+      "--strictPort",
+    ],
     {
       stdio: "inherit",
       env: devServerEnv,
