@@ -1,0 +1,10 @@
+[package]
+name = "hone-markdown"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pulldown-cmark.workspace = true
+thiserror.workspace = true

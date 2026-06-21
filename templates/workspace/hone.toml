@@ -1,0 +1,20 @@
+schema_version = 1
+workspace_id = "hws_TEMPLATE"
+name = "My Hone"
+default_actor = "local-user"
+
+[structure]
+article_heading_level = 1
+facet_heading_level = 2
+allow_other_heading_levels = false
+
+[agent]
+preferred_host = "codex"
+proposal_limit = 5
+
+[privacy]
+hone_network_access = "forbidden"
+
+[index]
+engine = "sqlite"
+rebuild_on_integrity_failure = true
