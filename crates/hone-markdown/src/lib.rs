@@ -36,10 +36,10 @@ pub fn markdown_to_text(markdown: &str) -> String {
                 out.push_str(&text);
             }
             Event::SoftBreak | Event::HardBreak => out.push(' '),
-            Event::Start(Tag::Paragraph | Tag::Heading { .. } | Tag::Item) => {
-                if !ends_with_ws(&out) && !out.is_empty() {
-                    out.push(' ');
-                }
+            Event::Start(Tag::Paragraph | Tag::Heading { .. } | Tag::Item)
+                if !ends_with_ws(&out) && !out.is_empty() =>
+            {
+                out.push(' ');
             }
             _ => {}
         }
