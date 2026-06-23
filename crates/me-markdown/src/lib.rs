@@ -3,18 +3,18 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MarkdownError {
-    #[error("Facet body contains heading level {level} at line {line}. Split this into another facet or rewrite it as non-heading prose.")]
-    HeadingInFacet { level: u8, line: usize },
+    #[error("Cognition formulation contains heading level {level} at line {line}. Split this into another Cognition or rewrite it as non-heading prose.")]
+    HeadingInCognition { level: u8, line: usize },
 }
 
-pub fn validate_facet_body(markdown: &str) -> Result<(), MarkdownError> {
+pub fn validate_cognition_formulation(markdown: &str) -> Result<(), MarkdownError> {
     for (idx, line) in markdown.lines().enumerate() {
         let trimmed = line.trim_start();
         if trimmed.starts_with('#') {
             let count = trimmed.chars().take_while(|ch| *ch == '#').count();
             let after = trimmed.chars().nth(count);
             if (1..=6).contains(&count) && after.is_some_and(char::is_whitespace) {
-                return Err(MarkdownError::HeadingInFacet {
+                return Err(MarkdownError::HeadingInCognition {
                     level: count as u8,
                     line: idx + 1,
                 });
@@ -47,7 +47,7 @@ pub fn markdown_to_text(markdown: &str) -> String {
     normalize_ws(&out)
 }
 
-pub fn render_article(title: &str, rendered_segments: &[RenderedSegment]) -> String {
+pub fn render_expression(title: &str, rendered_segments: &[RenderedSegment]) -> String {
     let mut out = String::new();
     out.push_str("# ");
     out.push_str(title.trim());
@@ -61,7 +61,7 @@ pub fn render_article(title: &str, rendered_segments: &[RenderedSegment]) -> Str
                     out.push_str("\n\n");
                 }
             }
-            RenderedSegment::Facet { title, body } => {
+            RenderedSegment::Cognition { title, body } => {
                 out.push_str("## ");
                 out.push_str(title.trim());
                 out.push_str("\n\n");
@@ -79,7 +79,7 @@ pub fn render_article(title: &str, rendered_segments: &[RenderedSegment]) -> Str
 #[derive(Debug, Clone)]
 pub enum RenderedSegment {
     Prose(String),
-    Facet { title: String, body: String },
+    Cognition { title: String, body: String },
 }
 
 pub fn heading_level_to_u8(level: HeadingLevel) -> u8 {
@@ -106,8 +106,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rejects_heading_in_facet_body() {
-        let err = validate_facet_body("ok\n\n### bad").unwrap_err();
+    fn rejects_heading_in_cognition_formulation() {
+        let err = validate_cognition_formulation("ok\n\n### bad").unwrap_err();
         assert!(err.to_string().contains("heading level 3"));
     }
 

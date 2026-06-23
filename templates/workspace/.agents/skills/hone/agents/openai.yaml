@@ -1,7 +1,0 @@
-interface:
-  display_name: "Hone"
-  short_description: "Refine thought through durable facets."
-  default_prompt: "Hone this thought against my current facets."
-
-policy:
-  allow_implicit_invocation: true

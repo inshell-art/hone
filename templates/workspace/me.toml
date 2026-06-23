@@ -1,0 +1,15 @@
+schema_version = 3
+workspace_id = "mews_TEMPLATE"
+name = "ME"
+default_actor = "local-user"
+
+[agent]
+preferred_host = "codex"
+proposal_limit = 5
+
+[privacy]
+me_network_access = "forbidden"
+
+[index]
+engine = "sqlite"
+rebuild_on_integrity_failure = true

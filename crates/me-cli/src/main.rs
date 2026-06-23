@@ -3,21 +3,20 @@ use std::path::PathBuf;
 use std::process;
 
 use clap::{Args, Parser, Subcommand};
-use hone_store::{HoneError, Workspace};
+use me_store::{MeError, Workspace};
 use serde_json::{json, Value};
 
 #[derive(Debug, Parser)]
-#[command(
-    name = "hone",
-    version,
-    about = "Local system for refining thought over time"
-)]
+#[command(name = "me", version, about = "Your local Meaning Environment")]
 struct Cli {
     #[arg(long, global = true)]
     workspace: Option<PathBuf>,
 
     #[arg(long, global = true)]
     json: bool,
+
+    #[arg(long, global = true)]
+    markdown: bool,
 
     #[command(subcommand)]
     command: Commands,
@@ -27,26 +26,31 @@ struct Cli {
 enum Commands {
     New(NewArgs),
     Init(InitArgs),
+    Home,
+    Guide,
     Status,
+    Current,
     Doctor(DoctorArgs),
     Codex(CodexArgs),
-    Capture(CaptureArgs),
-    Relate(RelateArgs),
-    Context(ContextArgs),
+    Thought(ThoughtArgs),
     Proposal(ProposalArgs),
     Review(ReviewArgs),
-    Approve(ApproveArgs),
+    Decide(DecideArgs),
     Reject(RejectArgs),
     Defer(DeferArgs),
-    Facet(FacetArgs),
-    Article(ArticleArgs),
-    History(HistoryArgs),
+    Cognition(CognitionArgs),
+    Read(ReadArgs),
+    Association(AssociationArgs),
+    App(AppArgs),
+    Run(RunArgs),
+    History,
     Diff(DiffArgs),
     Snapshot(SnapshotArgs),
     Index(IndexArgs),
     Fsck,
     Bundle(BundleArgs),
     Export(ExportArgs),
+    Migrate(MigrateArgs),
 }
 
 #[derive(Debug, Args)]
@@ -81,36 +85,37 @@ enum CodexCommand {
 }
 
 #[derive(Debug, Args)]
-struct CaptureArgs {
+struct ThoughtArgs {
+    #[command(subcommand)]
+    command: ThoughtCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ThoughtCommand {
+    Capture(ThoughtCaptureArgs),
+    List(ThoughtListArgs),
+    Show(IdArg),
+    Relate(ThoughtRelateArgs),
+    Context(ThoughtRelateArgs),
+}
+
+#[derive(Debug, Args)]
+struct ThoughtCaptureArgs {
     #[arg(long)]
     file: PathBuf,
     #[arg(long)]
     kind: String,
+}
+
+#[derive(Debug, Args)]
+struct ThoughtListArgs {
     #[arg(long)]
-    title: Option<String>,
+    state: Option<String>,
 }
 
 #[derive(Debug, Args)]
-struct RelateArgs {
-    source_id: String,
-    #[arg(long, default_value_t = 5)]
-    limit: usize,
-}
-
-#[derive(Debug, Args)]
-struct ContextArgs {
-    #[command(subcommand)]
-    command: ContextCommand,
-}
-
-#[derive(Debug, Subcommand)]
-enum ContextCommand {
-    Proposal(ContextProposalArgs),
-}
-
-#[derive(Debug, Args)]
-struct ContextProposalArgs {
-    source_id: String,
+struct ThoughtRelateArgs {
+    thought_id: String,
     #[arg(long, default_value_t = 5)]
     limit: usize,
 }
@@ -130,6 +135,12 @@ enum ProposalCommand {
 }
 
 #[derive(Debug, Args)]
+struct ProposalListArgs {
+    #[arg(long)]
+    status: Option<String>,
+}
+
+#[derive(Debug, Args)]
 struct FileArg {
     file: PathBuf,
 }
@@ -140,20 +151,12 @@ struct IdArg {
 }
 
 #[derive(Debug, Args)]
-struct ProposalListArgs {
-    #[arg(long)]
-    status: Option<String>,
-}
-
-#[derive(Debug, Args)]
 struct ReviewArgs {
     proposal_id: String,
-    #[arg(long, default_value = "text")]
-    format: String,
 }
 
 #[derive(Debug, Args)]
-struct ApproveArgs {
+struct DecideArgs {
     proposal_id: String,
     #[arg(long)]
     decision: PathBuf,
@@ -174,59 +177,148 @@ struct DeferArgs {
 }
 
 #[derive(Debug, Args)]
-struct FacetArgs {
+struct CognitionArgs {
     #[command(subcommand)]
-    command: FacetCommand,
+    command: CognitionCommand,
 }
 
 #[derive(Debug, Subcommand)]
-enum FacetCommand {
-    List,
-    Show(FacetShowArgs),
+enum CognitionCommand {
+    List(CognitionListArgs),
+    Show(IdArg),
+    Retire(CognitionStateArgs),
+    Reactivate(CognitionStateArgs),
+    Synthesize(SynthesizeArgs),
 }
 
 #[derive(Debug, Args)]
-struct FacetShowArgs {
-    facet_id: String,
+struct CognitionListArgs {
     #[arg(long)]
-    revision: Option<u64>,
+    state: Option<String>,
 }
 
 #[derive(Debug, Args)]
-struct ArticleArgs {
+struct CognitionStateArgs {
+    cognition_id: String,
+    #[arg(long)]
+    decision: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct SynthesizeArgs {
+    #[arg(long)]
+    spec: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct ReadArgs {
+    #[arg(long)]
+    about: String,
+    #[arg(long, default_value_t = 5)]
+    limit: usize,
+}
+
+#[derive(Debug, Args)]
+struct AssociationArgs {
     #[command(subcommand)]
-    command: ArticleCommand,
+    command: AssociationCommand,
 }
 
 #[derive(Debug, Subcommand)]
-enum ArticleCommand {
+enum AssociationCommand {
+    Infer(AssociationInferArgs),
+    List(AssociationListArgs),
+    Confirm(AssociationConfirmArgs),
+    Remove(AssociationRemoveArgs),
+}
+
+#[derive(Debug, Args)]
+struct AssociationInferArgs {
+    #[arg(long)]
+    cognition: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct AssociationListArgs {
+    #[arg(long)]
+    kind: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct AssociationConfirmArgs {
+    #[arg(long)]
+    spec: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct AssociationRemoveArgs {
+    association_id: String,
+    #[arg(long)]
+    decision: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct AppArgs {
+    #[command(subcommand)]
+    command: AppCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum AppCommand {
     List,
-    Show(ArticleShowArgs),
+    Show(AppShowArgs),
+    Validate(AppDirectoryArgs),
+    Install(AppDirectoryArgs),
+    Run(AppRunArgs),
+    SaveRun(FileArg),
 }
 
 #[derive(Debug, Args)]
-struct ArticleShowArgs {
-    article_id: String,
-    #[arg(long)]
-    edition: Option<u64>,
-    #[arg(long, default_value = "markdown")]
-    format: String,
+struct AppShowArgs {
+    app_id: String,
 }
 
 #[derive(Debug, Args)]
-struct HistoryArgs {
+struct AppDirectoryArgs {
+    app_directory: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct AppRunArgs {
+    app_id: String,
     #[arg(long)]
-    facet: Option<String>,
+    task: PathBuf,
     #[arg(long)]
-    article: Option<String>,
+    context_only: bool,
+}
+
+#[derive(Debug, Args)]
+struct RunArgs {
+    #[command(subcommand)]
+    command: RunCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum RunCommand {
+    List(RunListArgs),
+    Show(RunShowArgs),
+}
+
+#[derive(Debug, Args)]
+struct RunListArgs {
+    #[arg(long)]
+    app: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct RunShowArgs {
+    run_id: String,
 }
 
 #[derive(Debug, Args)]
 struct DiffArgs {
     snapshot_a: String,
     snapshot_b: String,
-    #[arg(long, default_value = "text")]
-    format: String,
 }
 
 #[derive(Debug, Args)]
@@ -292,17 +384,7 @@ struct ExportArgs {
 
 #[derive(Debug, Subcommand)]
 enum ExportCommand {
-    Article(ExportArticleArgs),
     Workspace(ExportWorkspaceArgs),
-}
-
-#[derive(Debug, Args)]
-struct ExportArticleArgs {
-    article_id: String,
-    #[arg(long, default_value = "markdown")]
-    format: String,
-    #[arg(long)]
-    output: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -313,13 +395,17 @@ struct ExportWorkspaceArgs {
     output: PathBuf,
 }
 
+#[derive(Debug, Args)]
+struct MigrateArgs {
+    #[arg(long = "from-my-model")]
+    from_my_model: PathBuf,
+}
+
 fn main() {
     let cli = Cli::parse();
     let (command, result) = dispatch(&cli);
     match result {
-        Ok(data) => {
-            print_success(command, &data, cli.json);
-        }
+        Ok(data) => print_success(command, &data, cli.json || cli.markdown),
         Err(err) => {
             print_error(command, &err, cli.json);
             process::exit(err.exit_code());
@@ -327,7 +413,7 @@ fn main() {
     }
 }
 
-fn dispatch(cli: &Cli) -> (&'static str, Result<Value, HoneError>) {
+fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
     match &cli.command {
         Commands::New(args) => ("new", Workspace::new_workspace(&args.path, args.demo)),
         Commands::Init(args) => {
@@ -338,20 +424,31 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, HoneError>) {
                 .unwrap_or_else(|| env::current_dir().expect("current directory"));
             ("init", Workspace::init(path, args.demo))
         }
+        Commands::Home => with_workspace(cli, "home", |ws| {
+            ws.home(if cli.markdown { "markdown" } else { "json" })
+        }),
+        Commands::Guide => with_workspace(cli, "guide", |ws| ws.guide()),
         Commands::Status => with_workspace(cli, "status", |ws| ws.status()),
+        Commands::Current => with_workspace(cli, "current", |ws| ws.current()),
         Commands::Doctor(args) => with_workspace(cli, "doctor", |ws| ws.doctor(args.repair)),
         Commands::Codex(args) => match args.command {
             CodexCommand::Sync => with_workspace(cli, "codex sync", |ws| ws.codex_sync()),
         },
-        Commands::Capture(args) => with_workspace(cli, "capture", |ws| {
-            ws.capture(&args.file, &args.kind, args.title.clone())
-        }),
-        Commands::Relate(args) => {
-            with_workspace(cli, "relate", |ws| ws.relate(&args.source_id, args.limit))
-        }
-        Commands::Context(args) => match &args.command {
-            ContextCommand::Proposal(inner) => with_workspace(cli, "context proposal", |ws| {
-                ws.proposal_context(&inner.source_id, inner.limit)
+        Commands::Thought(args) => match &args.command {
+            ThoughtCommand::Capture(inner) => with_workspace(cli, "thought capture", |ws| {
+                ws.thought_capture(&inner.file, &inner.kind)
+            }),
+            ThoughtCommand::List(inner) => with_workspace(cli, "thought list", |ws| {
+                ws.thought_list(inner.state.clone())
+            }),
+            ThoughtCommand::Show(inner) => {
+                with_workspace(cli, "thought show", |ws| ws.thought_show(&inner.id))
+            }
+            ThoughtCommand::Relate(inner) => with_workspace(cli, "thought relate", |ws| {
+                ws.thought_relate(&inner.thought_id, inner.limit)
+            }),
+            ThoughtCommand::Context(inner) => with_workspace(cli, "thought context", |ws| {
+                ws.thought_context(&inner.thought_id, inner.limit)
             }),
         },
         Commands::Proposal(args) => match &args.command {
@@ -369,10 +466,13 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, HoneError>) {
             }),
         },
         Commands::Review(args) => with_workspace(cli, "review", |ws| {
-            ws.review(&args.proposal_id, &args.format)
+            ws.review(
+                &args.proposal_id,
+                if cli.markdown { "markdown" } else { "json" },
+            )
         }),
-        Commands::Approve(args) => with_workspace(cli, "approve", |ws| {
-            ws.approve(&args.proposal_id, &args.decision)
+        Commands::Decide(args) => with_workspace(cli, "decide", |ws| {
+            ws.decide(&args.proposal_id, &args.decision)
         }),
         Commands::Reject(args) => with_workspace(cli, "reject", |ws| {
             ws.reject_or_defer(&args.proposal_id, "reject", args.note.clone())
@@ -380,23 +480,80 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, HoneError>) {
         Commands::Defer(args) => with_workspace(cli, "defer", |ws| {
             ws.reject_or_defer(&args.proposal_id, "defer", args.note.clone())
         }),
-        Commands::Facet(args) => match &args.command {
-            FacetCommand::List => with_workspace(cli, "facet list", |ws| ws.facet_list()),
-            FacetCommand::Show(inner) => with_workspace(cli, "facet show", |ws| {
-                ws.facet_show(&inner.facet_id, inner.revision)
+        Commands::Cognition(args) => match &args.command {
+            CognitionCommand::List(inner) => with_workspace(cli, "cognition list", |ws| {
+                ws.cognition_list(inner.state.clone())
+            }),
+            CognitionCommand::Show(inner) => {
+                with_workspace(cli, "cognition show", |ws| ws.cognition_show(&inner.id))
+            }
+            CognitionCommand::Retire(inner) => with_workspace(cli, "cognition retire", |ws| {
+                ws.cognition_retire(&inner.cognition_id, &inner.decision)
+            }),
+            CognitionCommand::Reactivate(inner) => {
+                with_workspace(cli, "cognition reactivate", |ws| {
+                    ws.cognition_reactivate(&inner.cognition_id, &inner.decision)
+                })
+            }
+            CognitionCommand::Synthesize(inner) => {
+                with_workspace(cli, "cognition synthesize", |ws| {
+                    ws.cognition_synthesize(&inner.spec)
+                })
+            }
+        },
+        Commands::Read(args) => with_workspace(cli, "read", |ws| ws.read(&args.about, args.limit)),
+        Commands::Association(args) => match &args.command {
+            AssociationCommand::Infer(inner) => with_workspace(cli, "association infer", |ws| {
+                ws.association_infer(inner.cognition.clone())
+            }),
+            AssociationCommand::List(inner) => with_workspace(cli, "association list", |ws| {
+                ws.association_list(inner.kind.clone())
+            }),
+            AssociationCommand::Confirm(inner) => {
+                with_workspace(cli, "association confirm", |ws| {
+                    ws.association_confirm(&inner.spec)
+                })
+            }
+            AssociationCommand::Remove(inner) => with_workspace(cli, "association remove", |ws| {
+                ws.association_remove(&inner.association_id, &inner.decision)
             }),
         },
-        Commands::Article(args) => match &args.command {
-            ArticleCommand::List => with_workspace(cli, "article list", |ws| ws.article_list()),
-            ArticleCommand::Show(inner) => with_workspace(cli, "article show", |ws| {
-                ws.article_show(&inner.article_id, inner.edition, &inner.format)
+        Commands::App(args) => match &args.command {
+            AppCommand::List => with_workspace(cli, "app list", |ws| ws.app_list()),
+            AppCommand::Show(inner) => {
+                with_workspace(cli, "app show", |ws| ws.app_show(&inner.app_id))
+            }
+            AppCommand::Validate(inner) => with_workspace(cli, "app validate", |ws| {
+                ws.app_validate(&inner.app_directory)
+            }),
+            AppCommand::Install(inner) => with_workspace(cli, "app install", |ws| {
+                ws.app_install(&inner.app_directory)
+            }),
+            AppCommand::Run(inner) => with_workspace(cli, "app run", |ws| {
+                ws.app_run(&inner.app_id, &inner.task, inner.context_only)
+            }),
+            AppCommand::SaveRun(inner) => {
+                with_workspace(cli, "app save-run", |ws| ws.app_save_run(&inner.file))
+            }
+        },
+        Commands::Run(args) => match &args.command {
+            RunCommand::List(inner) => {
+                with_workspace(cli, "run list", |ws| ws.run_list(inner.app.clone()))
+            }
+            RunCommand::Show(inner) => with_workspace(cli, "run show", |ws| {
+                ws.run_show(
+                    &inner.run_id,
+                    if cli.markdown { "markdown" } else { "json" },
+                )
             }),
         },
-        Commands::History(args) => with_workspace(cli, "history", |ws| {
-            ws.history(args.facet.clone(), args.article.clone())
-        }),
+        Commands::History => with_workspace(cli, "history", |ws| ws.history()),
         Commands::Diff(args) => with_workspace(cli, "diff", |ws| {
-            ws.diff(&args.snapshot_a, &args.snapshot_b, &args.format)
+            ws.diff(
+                &args.snapshot_a,
+                &args.snapshot_b,
+                if cli.markdown { "markdown" } else { "json" },
+            )
         }),
         Commands::Snapshot(args) => match &args.command {
             SnapshotCommand::List => with_workspace(cli, "snapshot list", |ws| ws.snapshot_list()),
@@ -424,14 +581,11 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, HoneError>) {
             ),
         },
         Commands::Export(args) => match &args.command {
-            ExportCommand::Article(inner) => with_workspace(cli, "export article", |ws| {
-                ws.export_article(&inner.article_id, &inner.format, &inner.output)
-            }),
             ExportCommand::Workspace(inner) => {
                 if inner.format != "json" {
                     return (
                         "export workspace",
-                        Err(HoneError::InvalidInput {
+                        Err(MeError::InvalidInput {
                             code: "INVALID_INPUT",
                             message: "Only JSON workspace export is supported".to_string(),
                             details: json!({ "format": inner.format }),
@@ -443,14 +597,18 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, HoneError>) {
                 })
             }
         },
+        Commands::Migrate(args) => (
+            "migrate from-my-model",
+            Workspace::migrate_from_my_model(&args.from_my_model),
+        ),
     }
 }
 
 fn with_workspace(
     cli: &Cli,
     command: &'static str,
-    f: impl FnOnce(&Workspace) -> Result<Value, HoneError>,
-) -> (&'static str, Result<Value, HoneError>) {
+    f: impl FnOnce(&Workspace) -> Result<Value, MeError>,
+) -> (&'static str, Result<Value, MeError>) {
     let root = cli
         .workspace
         .clone()
@@ -459,8 +617,8 @@ fn with_workspace(
     (command, result)
 }
 
-fn print_success(command: &str, data: &Value, json_output: bool) {
-    if json_output {
+fn print_success(command: &str, data: &Value, structured_output: bool) {
+    if structured_output {
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
@@ -485,7 +643,7 @@ fn print_success(command: &str, data: &Value, json_output: bool) {
     }
 }
 
-fn print_error(command: &str, err: &HoneError, json_output: bool) {
+fn print_error(command: &str, err: &MeError, json_output: bool) {
     if json_output {
         println!(
             "{}",

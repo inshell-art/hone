@@ -1,0 +1,25 @@
+class Me < Formula
+  desc "Local Meaning Environment"
+  homepage "https://github.com/inshell-art/me"
+  url "https://github.com/inshell-art/me/archive/refs/tags/v0.3.0.tar.gz"
+  sha256 "<release-sha256>"
+  license "MIT"
+
+  depends_on "rust" => :build
+
+  def install
+    system "cargo", "install", *std_cargo_args(path: "crates/me-cli")
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/me --version")
+    workspace = testpath/"workspace"
+    system bin/"me", "new", workspace
+    assert_path_exists workspace/"me.toml"
+    assert_path_exists workspace/"AGENTS.md"
+    assert_path_exists workspace/".agents/skills/me/SKILL.md"
+    assert_path_exists workspace/".me/refs/current"
+    system bin/"me", "--workspace", workspace, "home"
+    system bin/"me", "--workspace", workspace, "fsck"
+  end
+end

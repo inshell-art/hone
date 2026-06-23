@@ -1,12 +1,18 @@
 [package]
-name = "hone-core"
+name = "me-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "me"
+path = "src/main.rs"
+
 [dependencies]
-serde.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+me-core = { path = "../me-core" }
+me-store = { path = "../me-store" }
 serde_json.workspace = true
 thiserror.workspace = true
-time.workspace = true

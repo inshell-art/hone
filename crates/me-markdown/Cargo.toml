@@ -1,5 +1,5 @@
 [package]
-name = "hone-markdown"
+name = "me-markdown"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

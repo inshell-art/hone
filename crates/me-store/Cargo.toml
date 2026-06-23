@@ -1,5 +1,5 @@
 [package]
-name = "hone-store"
+name = "me-store"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,9 +8,9 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 fs2.workspace = true
-hone-core = { path = "../hone-core" }
-hone-index = { path = "../hone-index" }
-hone-markdown = { path = "../hone-markdown" }
+me-core = { path = "../me-core" }
+me-index = { path = "../me-index" }
+me-markdown = { path = "../me-markdown" }
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true

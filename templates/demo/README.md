@@ -1,3 +1,3 @@
 # Demo
 
-`hone new <path> --demo` creates the Generative Art demo scenario seed.
+`me new <path> --demo` creates the ME generative-art demo Cognition Library.

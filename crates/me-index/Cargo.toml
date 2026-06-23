@@ -1,5 +1,5 @@
 [package]
-name = "hone-index"
+name = "me-index"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
