@@ -16,5 +16,5 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
-      - run: cargo run -p hone-cli -- new /tmp/hone-demo --demo
-      - run: cargo run -p hone-cli -- --workspace /tmp/hone-demo fsck --json
+      - run: cargo run -p me-cli -- new /tmp/me-demo --demo
+      - run: cargo run -p me-cli -- --workspace /tmp/me-demo fsck --json
