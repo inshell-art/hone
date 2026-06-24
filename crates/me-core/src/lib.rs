@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const SCHEMA_VERSION: u32 = 3;
-pub const WORKSPACE_VERSION: &str = "0.3.0";
+pub const SCHEMA_VERSION: u32 = 5;
+pub const WORKSPACE_VERSION: &str = "0.5.0";
 
 pub const THOUGHT_KINDS: &[&str] = &[
     "idea",
@@ -15,18 +15,43 @@ pub const THOUGHT_KINDS: &[&str] = &[
     "reaction",
     "recurrence",
     "doubt",
+    "repeated-realization",
     "document-excerpt",
     "chat-excerpt",
+    "external-excerpt",
+    "unfinished-statement",
     "other",
 ];
 
-pub const THOUGHT_STATES: &[&str] = &["captured", "pending", "added", "kept-only", "dismissed"];
+pub const THOUGHT_STATES: &[&str] = &["pending", "added", "kept-only", "dismissed"];
 
 pub const COGNITION_STATES: &[&str] = &["active", "retired"];
 
-pub const ASSOCIATION_RELATIONS: &[&str] = &[
+pub const COLLECTION_ACTIONS: &[&str] = &[
+    "add-cognition",
+    "keep-thought-only",
+    "dismiss-thought",
+    "retire-cognition",
+    "reactivate-cognition",
+];
+
+pub const OPERATIONS: &[&str] = &[
+    "init",
+    "capture-thought",
+    "add-cognition",
+    "keep-thought-only",
+    "dismiss-thought",
+    "retire-cognition",
+    "reactivate-cognition",
+    "restore-snapshot",
+    "demo-seed",
+    "migrate-from-my-model",
+    "migrate-from-v3",
+    "migrate-from-v4",
+];
+
+pub const APP_FINDING_LABELS: &[&str] = &[
     "similar",
-    "recurs",
     "supports",
     "extends",
     "qualifies",
@@ -34,21 +59,9 @@ pub const ASSOCIATION_RELATIONS: &[&str] = &[
     "contradicts",
     "depends-on",
     "exemplifies",
-    "derived-from",
-    "supersedes",
-    "other",
-];
-
-pub const OPERATIONS: &[&str] = &[
-    "add-cognition",
-    "add-cognition-and-confirm-associations",
-    "keep-thought-only",
-    "dismiss-thought",
-    "reject-proposal",
-    "retire-cognition",
-    "reactivate-cognition",
-    "save-synthesis-cognition",
-    "create-app-run",
+    "supersedes-for-this-task",
+    "irrelevant",
+    "unclear",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,46 +123,8 @@ pub struct CognitionPayload {
     pub body_text: String,
     pub display_title: Option<String>,
     pub origin_thought: String,
-    pub origin: CognitionOrigin,
     pub added_by_decision: String,
     pub added_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CognitionOrigin {
-    #[serde(rename = "type")]
-    pub origin_type: String,
-    #[serde(default)]
-    pub derived_from_cognitions: Vec<String>,
-}
-
-impl CognitionOrigin {
-    pub fn thought() -> Self {
-        Self {
-            origin_type: "thought".to_string(),
-            derived_from_cognitions: Vec::new(),
-        }
-    }
-
-    pub fn synthesis(derived_from_cognitions: Vec<String>) -> Self {
-        Self {
-            origin_type: "synthesis".to_string(),
-            derived_from_cognitions,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AssociationPayload {
-    pub association_id: String,
-    pub relation: String,
-    pub from_cognitions: Vec<String>,
-    pub to_cognitions: Vec<String>,
-    pub note_markdown: Option<String>,
-    pub confirmed_by_decision: String,
-    pub confirmed_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,20 +133,10 @@ pub struct RelatedCognition {
     pub cognition: String,
     pub cognition_id: String,
     pub score: f64,
-    pub relation_suggestion: Option<String>,
     pub status: String,
     #[serde(default)]
     pub matched_terms: Vec<String>,
     pub explanation: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProposedAssociation {
-    pub relation: String,
-    pub from_cognitions: Vec<String>,
-    pub to_cognitions: Vec<String>,
-    pub note_markdown: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,11 +150,13 @@ pub struct GeneratedBy {
 #[serde(rename_all = "camelCase")]
 pub struct ProposalPayload {
     pub proposal_id: String,
-    pub thought: String,
+    pub kind: String,
     pub base_snapshot: String,
     #[serde(default)]
-    pub related_cognitions: Vec<RelatedCognition>,
+    pub inputs: Value,
     pub recommendation: Value,
+    #[serde(default)]
+    pub related_cognitions: Vec<RelatedCognition>,
     #[serde(default)]
     pub alternatives: Vec<Value>,
     pub generated_by: GeneratedBy,
@@ -200,13 +167,12 @@ pub struct ProposalPayload {
 #[serde(rename_all = "camelCase")]
 pub struct DecisionPayload {
     pub decision_id: String,
-    pub proposal: String,
     pub base_snapshot: String,
     pub action: String,
     pub actor: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thought: Option<String>,
     pub final_body_markdown: Option<String>,
-    #[serde(default)]
-    pub confirmed_associations: Vec<ProposedAssociation>,
     pub note_markdown: Option<String>,
     pub decided_at: String,
 }
@@ -223,10 +189,53 @@ pub struct AppDefinitionPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AppPolicyPayload {
+    pub policy_id: String,
+    pub app_id: String,
+    pub app_version_range: String,
+    pub rule: Value,
+    pub created_by_decision: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SelectedCognition {
     pub cognition: String,
     pub cognition_id: String,
-    pub reason: String,
+    pub selection_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppFinding {
+    pub label: String,
+    #[serde(default)]
+    pub cognitions: Vec<String>,
+    #[serde(default)]
+    pub passages: Vec<String>,
+    pub reason_markdown: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_rule: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AppAnalysis {
+    #[serde(default)]
+    pub findings: Vec<AppFinding>,
+    #[serde(default)]
+    pub gaps: Vec<String>,
+    #[serde(default)]
+    pub conflicts: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppResolution {
+    pub scope: String,
+    pub decision: String,
+    pub instruction_markdown: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -248,13 +257,11 @@ pub struct AppRunPayload {
     #[serde(default)]
     pub selected_cognitions: Vec<SelectedCognition>,
     #[serde(default)]
-    pub confirmed_associations_used: Vec<String>,
+    pub analysis: AppAnalysis,
     #[serde(default)]
-    pub inferred_associations_used: Vec<Value>,
+    pub resolutions: Vec<AppResolution>,
     #[serde(default)]
-    pub conflicts: Vec<String>,
-    #[serde(default)]
-    pub gaps: Vec<String>,
+    pub app_policies_used: Vec<String>,
     pub output: AppRunOutput,
     pub created_at: String,
 }
@@ -266,10 +273,14 @@ pub struct MeTreePayload {
     pub thought_states: BTreeMap<String, String>,
     pub cognitions: BTreeMap<String, String>,
     pub cognition_states: BTreeMap<String, String>,
-    pub confirmed_associations: BTreeMap<String, String>,
-    pub proposals: BTreeMap<String, String>,
     pub decisions: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub proposals: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub apps: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub app_policies: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub app_runs: BTreeMap<String, String>,
 }
 
@@ -299,7 +310,6 @@ pub struct WorkspaceConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     pub preferred_host: String,
-    pub proposal_limit: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -322,7 +332,6 @@ impl WorkspaceConfig {
             default_actor: "local-user".to_string(),
             agent: AgentConfig {
                 preferred_host: "codex".to_string(),
-                proposal_limit: 5,
             },
             privacy: PrivacyConfig {
                 me_network_access: "forbidden".to_string(),
@@ -365,8 +374,12 @@ pub fn cognition_state_allowed(value: &str) -> bool {
     COGNITION_STATES.contains(&value)
 }
 
-pub fn association_relation_allowed(value: &str) -> bool {
-    ASSOCIATION_RELATIONS.contains(&value)
+pub fn collection_action_allowed(value: &str) -> bool {
+    COLLECTION_ACTIONS.contains(&value)
+}
+
+pub fn app_finding_label_allowed(value: &str) -> bool {
+    APP_FINDING_LABELS.contains(&value)
 }
 
 pub fn operation_allowed(value: &str) -> bool {

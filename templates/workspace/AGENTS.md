@@ -1,18 +1,19 @@
 # ME Workspace Rules
 
 - This directory is a ME workspace, not a software repository.
-- Use the ME skill for Thought capture and semantic changes.
+- ME is an authorized Cognition store.
 - Use `me ... --json` for deterministic operations.
 - Never edit `.me/**` directly.
 - Never edit `views/**` directly.
-- New material must first become a Thought.
-- Default to adding a Thought as its own Cognition after approval.
-- Compare new input with current Cognitions before proposing Associations.
-- Treat recurrence as meaningful, not redundant.
-- Model output is a Proposal, never authority.
-- Run `me decide` only after explicit user authorization.
-- Publishing or external sharing is outside ME.
-- Do not make network requests unless the user separately asks for unrelated research.
+- Use `me context --task <file> --json` or `me search ... --json` for read-only ME context.
+- Read commands must not create objects, append journal entries, or advance `.me/refs/current`.
+- New retained material must first become a Thought.
+- Add exact Thoughts as Cognitions only after explicit user authorization and a Decision file.
+- Do not bulk-import References as Cognitions.
+- Do not treat Procedures as Cognitions.
+- Do not save Codex Output into ME automatically.
+- Do not invent global relationship objects.
+- Publishing, external sharing, and network access are outside ME.
 
-<!-- MYMODEL:USER-BEGIN -->
-<!-- MYMODEL:USER-END -->
+<!-- ME:USER-BEGIN -->
+<!-- ME:USER-END -->

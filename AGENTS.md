@@ -5,4 +5,7 @@
 - User workspaces are not Git-backed. Do not use Git commits, branches, or worktrees as semantic state.
 - Canonical semantic state lives in `.me/objects/**` and `.me/refs/current`.
 - Generated workspace files under `views/**` are projections, not authority.
-- Model output is a Proposal, never authority. Approval requires an explicit Decision.
+- Model output is never authority. Canonical change requires a Thought and an explicit Decision.
+- `me search` and `me context` are read-only and must not create canonical objects or advance the current Snapshot.
+- References and Procedures are ordinary local files, not Cognitions.
+- App, Run, Association, Proposal, and Synthesis commands are legacy compatibility only in schema v5.

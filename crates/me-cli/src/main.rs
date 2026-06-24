@@ -3,11 +3,16 @@ use std::path::PathBuf;
 use std::process;
 
 use clap::{Args, Parser, Subcommand};
+use me_core::{SCHEMA_VERSION, WORKSPACE_VERSION};
 use me_store::{MeError, Workspace};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[derive(Debug, Parser)]
-#[command(name = "me", version, about = "Your local Meaning Environment")]
+#[command(
+    name = "me",
+    about = "ME — a local meaning environment",
+    disable_version_flag = true
+)]
 struct Cli {
     #[arg(long, global = true)]
     workspace: Option<PathBuf>,
@@ -24,6 +29,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    Version,
     New(NewArgs),
     Init(InitArgs),
     Home,
@@ -40,6 +46,8 @@ enum Commands {
     Defer(DeferArgs),
     Cognition(CognitionArgs),
     Read(ReadArgs),
+    Search(SearchArgs),
+    Context(ContextArgs),
     Association(AssociationArgs),
     App(AppArgs),
     Run(RunArgs),
@@ -95,6 +103,7 @@ enum ThoughtCommand {
     Capture(ThoughtCaptureArgs),
     List(ThoughtListArgs),
     Show(IdArg),
+    Similar(ThoughtRelateArgs),
     Relate(ThoughtRelateArgs),
     Context(ThoughtRelateArgs),
 }
@@ -184,11 +193,21 @@ struct CognitionArgs {
 
 #[derive(Debug, Subcommand)]
 enum CognitionCommand {
+    Add(CognitionAddArgs),
     List(CognitionListArgs),
     Show(IdArg),
+    History(IdArg),
     Retire(CognitionStateArgs),
     Reactivate(CognitionStateArgs),
     Synthesize(SynthesizeArgs),
+}
+
+#[derive(Debug, Args)]
+struct CognitionAddArgs {
+    #[arg(long)]
+    thought: String,
+    #[arg(long)]
+    decision: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -215,6 +234,23 @@ struct ReadArgs {
     #[arg(long)]
     about: String,
     #[arg(long, default_value_t = 5)]
+    limit: usize,
+}
+
+#[derive(Debug, Args)]
+struct SearchArgs {
+    query: String,
+    #[arg(long, default_value_t = 20)]
+    limit: usize,
+    #[arg(long)]
+    state: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct ContextArgs {
+    #[arg(long)]
+    task: PathBuf,
+    #[arg(long, default_value_t = 20)]
     limit: usize,
 }
 
@@ -270,6 +306,9 @@ enum AppCommand {
     Validate(AppDirectoryArgs),
     Install(AppDirectoryArgs),
     Run(AppRunArgs),
+    Prepare(AppRunArgs),
+    Analyze(AppAnalyzeArgs),
+    Resolve(AppResolveArgs),
     SaveRun(FileArg),
 }
 
@@ -290,6 +329,24 @@ struct AppRunArgs {
     task: PathBuf,
     #[arg(long)]
     context_only: bool,
+}
+
+#[derive(Debug, Args)]
+struct AppAnalyzeArgs {
+    app_id: String,
+    #[arg(long)]
+    context: PathBuf,
+    #[arg(long)]
+    analysis: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct AppResolveArgs {
+    run_id: String,
+    #[arg(long)]
+    decision: PathBuf,
+    #[arg(long)]
+    scope: String,
 }
 
 #[derive(Debug, Args)]
@@ -338,7 +395,7 @@ enum SnapshotCommand {
 struct SnapshotRestoreArgs {
     snapshot_id: String,
     #[arg(long)]
-    message: String,
+    decision: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -398,11 +455,26 @@ struct ExportWorkspaceArgs {
 #[derive(Debug, Args)]
 struct MigrateArgs {
     #[arg(long = "from-my-model")]
-    from_my_model: PathBuf,
+    from_my_model: Option<PathBuf>,
+    #[arg(long = "from-v3")]
+    from_v3: Option<PathBuf>,
+    #[arg(long = "from-v4")]
+    from_v4: Option<PathBuf>,
 }
 
 fn main() {
+    let raw_args: Vec<String> = env::args().collect();
+    if raw_args.len() == 2 && matches!(raw_args[1].as_str(), "--version" | "-V") {
+        println!("ME {WORKSPACE_VERSION}");
+        return;
+    }
+
     let cli = Cli::parse();
+    if matches!(cli.command, Commands::Version) {
+        print_version(cli.json);
+        return;
+    }
+
     let (command, result) = dispatch(&cli);
     match result {
         Ok(data) => print_success(command, &data, cli.json || cli.markdown),
@@ -415,6 +487,7 @@ fn main() {
 
 fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
     match &cli.command {
+        Commands::Version => ("version", Ok(version_info())),
         Commands::New(args) => ("new", Workspace::new_workspace(&args.path, args.demo)),
         Commands::Init(args) => {
             let path = args
@@ -444,6 +517,9 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
             ThoughtCommand::Show(inner) => {
                 with_workspace(cli, "thought show", |ws| ws.thought_show(&inner.id))
             }
+            ThoughtCommand::Similar(inner) => with_workspace(cli, "thought similar", |ws| {
+                ws.thought_relate(&inner.thought_id, inner.limit)
+            }),
             ThoughtCommand::Relate(inner) => with_workspace(cli, "thought relate", |ws| {
                 ws.thought_relate(&inner.thought_id, inner.limit)
             }),
@@ -481,12 +557,18 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
             ws.reject_or_defer(&args.proposal_id, "defer", args.note.clone())
         }),
         Commands::Cognition(args) => match &args.command {
+            CognitionCommand::Add(inner) => with_workspace(cli, "cognition add", |ws| {
+                ws.cognition_add(&inner.thought, &inner.decision)
+            }),
             CognitionCommand::List(inner) => with_workspace(cli, "cognition list", |ws| {
                 ws.cognition_list(inner.state.clone())
             }),
             CognitionCommand::Show(inner) => {
                 with_workspace(cli, "cognition show", |ws| ws.cognition_show(&inner.id))
             }
+            CognitionCommand::History(inner) => with_workspace(cli, "cognition history", |ws| {
+                ws.cognition_history(&inner.id)
+            }),
             CognitionCommand::Retire(inner) => with_workspace(cli, "cognition retire", |ws| {
                 ws.cognition_retire(&inner.cognition_id, &inner.decision)
             }),
@@ -502,6 +584,12 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
             }
         },
         Commands::Read(args) => with_workspace(cli, "read", |ws| ws.read(&args.about, args.limit)),
+        Commands::Search(args) => with_workspace(cli, "search", |ws| {
+            ws.search(&args.query, args.limit, args.state.clone())
+        }),
+        Commands::Context(args) => {
+            with_workspace(cli, "context", |ws| ws.context(&args.task, args.limit))
+        }
         Commands::Association(args) => match &args.command {
             AssociationCommand::Infer(inner) => with_workspace(cli, "association infer", |ws| {
                 ws.association_infer(inner.cognition.clone())
@@ -532,6 +620,15 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
             AppCommand::Run(inner) => with_workspace(cli, "app run", |ws| {
                 ws.app_run(&inner.app_id, &inner.task, inner.context_only)
             }),
+            AppCommand::Prepare(inner) => with_workspace(cli, "app prepare", |ws| {
+                ws.app_prepare(&inner.app_id, &inner.task)
+            }),
+            AppCommand::Analyze(inner) => with_workspace(cli, "app analyze", |ws| {
+                ws.app_analyze(&inner.app_id, &inner.context, &inner.analysis)
+            }),
+            AppCommand::Resolve(inner) => with_workspace(cli, "app resolve", |ws| {
+                ws.app_resolve(&inner.run_id, &inner.decision, &inner.scope)
+            }),
             AppCommand::SaveRun(inner) => {
                 with_workspace(cli, "app save-run", |ws| ws.app_save_run(&inner.file))
             }
@@ -561,7 +658,7 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
                 with_workspace(cli, "snapshot show", |ws| ws.snapshot_show(&inner.id))
             }
             SnapshotCommand::Restore(inner) => with_workspace(cli, "snapshot restore", |ws| {
-                ws.snapshot_restore(&inner.snapshot_id, &inner.message)
+                ws.snapshot_restore(&inner.snapshot_id, &inner.decision)
             }),
         },
         Commands::Index(args) => match args.command {
@@ -573,7 +670,7 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
                 with_workspace(cli, "bundle create", |ws| ws.bundle_create(&inner.output))
             }
             BundleCommand::Verify(inner) => {
-                with_workspace(cli, "bundle verify", |ws| ws.bundle_verify(&inner.file))
+                ("bundle verify", Workspace::bundle_verify_file(&inner.file))
             }
             BundleCommand::Restore(inner) => (
                 "bundle restore",
@@ -597,10 +694,50 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
                 })
             }
         },
-        Commands::Migrate(args) => (
-            "migrate from-my-model",
-            Workspace::migrate_from_my_model(&args.from_my_model),
-        ),
+        Commands::Migrate(args) => {
+            if let Some(path) = &args.from_my_model {
+                (
+                    "migrate from-my-model",
+                    Workspace::migrate_from_my_model(path),
+                )
+            } else if let Some(path) = &args.from_v3 {
+                ("migrate from-v3", Workspace::migrate_from_v3(path))
+            } else if let Some(path) = &args.from_v4 {
+                ("migrate from-v4", Workspace::migrate_from_v4(path))
+            } else {
+                (
+                    "migrate",
+                    Err(MeError::InvalidInput {
+                        code: "INVALID_INPUT",
+                        message: "migrate requires --from-my-model, --from-v3, or --from-v4"
+                            .to_string(),
+                        details: json!({}),
+                    }),
+                )
+            }
+        }
+    }
+}
+
+fn version_info() -> Value {
+    json!({
+        "product": "ME",
+        "descriptor": "a local meaning environment",
+        "version": WORKSPACE_VERSION,
+        "binary": "me",
+        "cargoPackage": "me-cli",
+        "workspaceSchema": SCHEMA_VERSION
+    })
+}
+
+fn print_version(json_output: bool) {
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&version_info()).expect("json")
+        );
+    } else {
+        println!("ME {WORKSPACE_VERSION}");
     }
 }
 

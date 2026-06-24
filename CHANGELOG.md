@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0
+
+- Move ME to schema v5 as an authorized Cognition store with a deterministic Thought -> Decision -> Cognition mutation boundary.
+- Add read-only `me search`, `me context`, and `me cognition history`.
+- Deprecate `me app *`, `me run *`, `me association *`, `me proposal *`, and `me cognition synthesize` with non-mutating compatibility guidance.
+- Replace built-in Inspect ME and Speak for Me Apps with ordinary Procedure files.
+- Add `references/` and `procedures/` to the workspace scaffold and remove Apps/Runs from generated v5 views and indexes.
+- Add `me migrate --from-v4 <workspace>` with a v4 App audit archive and App Run Markdown exports.
+- Update generated Codex skill instructions around General / Use ME / Change ME mode selection.
+
+## 0.4.0
+
+- Move ME to schema v4 with a minimal Cognition Library core: Thought to Decision to Cognition.
+- Remove canonical Associations from ME Core; compatibility association commands now return guidance to use ME Apps.
+- Add app-scoped analysis findings, run-scoped resolutions, and app-scoped policies.
+- Add `me cognition add --thought <id> --decision <file>` for direct collection without a Proposal.
+- Add `me migrate --from-v3 <workspace>` with a v3 Association audit archive.
+- Add the ME naming and distribution contract: `me-cli` Cargo package, `me` binary, disabled Cargo publishing, Homebrew tap install docs, naming audit tooling, and stable version output.
+
 ## 0.3.0
 
 - Rename the active product to ME, the explanatory expansion to Meaning Environment, and the primary binary to `me`.

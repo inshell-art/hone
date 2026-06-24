@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -5,24 +7,23 @@ use std::path::{Component, Path, PathBuf};
 
 use fs2::FileExt;
 use me_core::{
-    association_relation_allowed, cognition_state_allowed, is_sha_ref, operation_allowed, sha_ref,
-    strip_sha_prefix, thought_kind_allowed, AppDefinitionPayload, AppRunOutput, AppRunPayload,
-    AssociationPayload, CognitionOrigin, CognitionPayload, DecisionPayload, GeneratedBy,
-    MeSnapshotPayload, MeTreePayload, ObjectEnvelope, Origin, ProposedAssociation,
-    RelatedCognition, SelectedCognition, ThoughtPayload, SCHEMA_VERSION, THOUGHT_KINDS,
-    WORKSPACE_VERSION,
+    AppAnalysis, AppDefinitionPayload, AppFinding, AppRunOutput, AppRunPayload, CognitionPayload,
+    DecisionPayload, GeneratedBy, MeSnapshotPayload, MeTreePayload, ObjectEnvelope, Origin,
+    RelatedCognition, SCHEMA_VERSION, SelectedCognition, THOUGHT_KINDS, ThoughtPayload,
+    WORKSPACE_VERSION, cognition_state_allowed, is_sha_ref, operation_allowed, sha_ref,
+    strip_sha_prefix, thought_kind_allowed,
 };
-use me_index::{rank_cognitions, CognitionDoc, MatchResult};
+use me_index::{CognitionDoc, MatchResult, rank_cognitions};
 use me_markdown::markdown_to_text;
-use rusqlite::{params, Connection};
-use serde::de::DeserializeOwned;
+use rusqlite::{Connection, params};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tar::{Archive, Builder, Header};
 use tempfile::NamedTempFile;
 use thiserror::Error;
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use ulid::Ulid;
 use walkdir::WalkDir;
 
@@ -232,26 +233,24 @@ impl Workspace {
             },
             "product": {
                 "name": "ME",
-                "expansion": "Meaning Environment",
-                "line": "Tell ME a Thought."
+                "descriptor": "a local meaning environment",
+                "line": "ME stores what you chose to keep."
             },
             "cognitionLibrary": {
                 "activeCount": active_count,
                 "retiredCount": retired_count
             },
             "waiting": {
-                "pendingThoughtCount": pending_thoughts,
-                "pendingDecisionCount": self.pending_proposal_count()?
+                "pendingThoughtCount": pending_thoughts
             },
-            "associations": {
-                "confirmedCount": current.tree.confirmed_associations.len(),
-                "inferredAvailable": true
+            "localMaterial": {
+                "referencesDirectory": self.root.join("references"),
+                "proceduresDirectory": self.root.join("procedures")
             },
-            "apps": self.app_summaries(&current.tree)?,
             "starterActions": [
                 { "label": "Add Thought", "prompt": "Add this Thought:" },
-                { "label": "Inspect ME", "prompt": "Show ME what I have about ..." },
-                { "label": "Speak for Me", "prompt": "Use Speak for Me to draft ..." }
+                { "label": "Use ME", "prompt": "What do I have in ME about ..." },
+                { "label": "Draft With ME", "prompt": "Draft a reply using ME." }
             ],
             "health": { "status": "ok", "message": Value::Null }
         });
@@ -275,14 +274,14 @@ SUGGESTED EFFECT
 STATUS
   PENDING -- NOT IN ME
 
-RELATED COGNITIONS
-  ME may suggest loose inferred Associations.
+OPTIONAL SIMILAR COGNITIONS
+  ME may show derived similarity hints if asked.
 
 WHAT WILL CHANGE
   1 Cognition added.
   0 existing Cognitions changed.
 
-ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
+Ask Codex any task using ME. Codex reads bounded ME context; it does not change ME unless you bring output back as a new Thought.
 "#
         }))
     }
@@ -299,11 +298,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             "counts": {
                 "thoughts": current.tree.thoughts.len(),
                 "cognitions": current.tree.cognitions.len(),
-                "confirmedAssociations": current.tree.confirmed_associations.len(),
-                "proposals": current.tree.proposals.len(),
-                "decisions": current.tree.decisions.len(),
-                "apps": current.tree.apps.len(),
-                "appRuns": current.tree.app_runs.len()
+                "decisions": current.tree.decisions.len()
             }
         }))
     }
@@ -313,8 +308,14 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         Ok(json!({
             "statusLabel": "CURRENT ME -- user-authorized local state",
             "currentSnapshot": current.snapshot_hash,
-            "cognitions": self.current_cognition_summaries(&current.tree)?,
-            "confirmedAssociations": self.confirmed_association_summaries(&current.tree)?
+            "counts": {
+                "thoughts": current.tree.thoughts.len(),
+                "pendingThoughts": current.tree.thought_states.values().filter(|state| state.as_str() == "pending").count(),
+                "activeCognitions": current.tree.cognition_states.values().filter(|state| state.as_str() == "active").count(),
+                "retiredCognitions": current.tree.cognition_states.values().filter(|state| state.as_str() == "retired").count(),
+                "decisions": current.tree.decisions.len()
+            },
+            "cognitions": self.current_cognition_summaries(&current.tree)?
         }))
     }
 
@@ -366,11 +367,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             .thoughts
             .values()
             .chain(current.tree.cognitions.values())
-            .chain(current.tree.confirmed_associations.values())
-            .chain(current.tree.proposals.values())
             .chain(current.tree.decisions.values())
-            .chain(current.tree.apps.values())
-            .chain(current.tree.app_runs.values())
         {
             if !checked.contains(hash) {
                 return Err(integrity(format!(
@@ -394,10 +391,9 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 "AGENTS.md",
                 ".agents/skills/me/SKILL.md",
                 ".agents/skills/me/references/mental-model.md",
-                ".agents/skills/me/references/cognition-library.md",
-                ".agents/skills/me/references/associations.md",
-                ".agents/skills/me/references/apps.md",
-                ".agents/skills/me/references/authorization.md",
+                ".agents/skills/me/references/mutation-boundary.md",
+                ".agents/skills/me/references/read-context.md",
+                ".agents/skills/me/references/references-and-procedures.md",
                 ".agents/skills/me/references/cli-contract.md",
                 ".agents/skills/me/agents/openai.yaml"
             ]
@@ -463,7 +459,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 .thought_states
                 .get(thought_id)
                 .cloned()
-                .unwrap_or_else(|| "captured".to_string());
+                .unwrap_or_else(|| "pending".to_string());
             if state
                 .as_deref()
                 .is_some_and(|filter| filter != thought_state)
@@ -490,7 +486,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             .thought_states
             .get(&thought_id)
             .cloned()
-            .unwrap_or_else(|| "captured".to_string());
+            .unwrap_or_else(|| "pending".to_string());
         Ok(json!({
             "statusLabel": thought_status_label(&state),
             "thoughtId": thought_id,
@@ -519,7 +515,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             self.resolve_thought(&current.tree, thought_id_or_hash)?;
         let matches = self.match_thought(&current.tree, &thought.payload.body_markdown, limit)?;
         let related = self.related_from_matches(&matches, &thought.payload.body_text)?;
-        let proposal_id = new_id("proposal");
         Ok(json!({
             "thought": {
                 "thoughtId": thought_id,
@@ -529,155 +524,45 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 "statusLabel": "THOUGHT CAPTURED -- PENDING, NOT IN ME"
             },
             "currentSnapshot": current.snapshot_hash,
-            "relatedCognitions": related,
+            "optionalSimilarCognitions": related,
             "suggestedEffect": {
                 "operation": "add-cognition",
                 "bodyMarkdown": thought.payload.body_markdown,
                 "existingCognitionsChanged": 0,
                 "statusLabel": "PENDING -- NOT IN ME"
             },
-            "possibleAssociations": related,
-            "proposalObject": {
-                "schemaVersion": SCHEMA_VERSION,
-                "objectType": "proposal",
-                "payload": {
-                    "proposalId": proposal_id,
-                    "thought": thought_hash,
-                    "baseSnapshot": current.snapshot_hash,
-                    "relatedCognitions": related,
-                    "recommendation": {
-                        "operation": "add-cognition",
-                        "bodyMarkdown": thought.payload.body_markdown,
-                        "confirmAssociations": []
-                    },
-                    "alternatives": [
-                        { "operation": "keep-thought-only" },
-                        { "operation": "add-cognition-and-confirm-associations" }
-                    ],
-                    "generatedBy": { "host": "codex", "model": null },
-                    "createdAt": now_rfc3339()?
-                }
-            }
+            "directCommand": {
+                "command": "me cognition add",
+                "thought": thought_id,
+                "decision": { "action": "add-cognition" }
+            },
+            "note": "Similarity is derived retrieval only. ME Core will not create a global relationship."
         }))
     }
 
     pub fn validate_proposal_file(&self, file: impl AsRef<Path>) -> Result<Value> {
-        let proposal = self.parse_proposal_file(file.as_ref())?;
-        let current = self.load_current()?;
-        let hash = self.validate_proposal(&proposal, &current, false)?;
-        Ok(json!({ "proposalId": proposal.payload.proposal_id, "proposal": hash, "valid": true }))
+        let _ = file.as_ref();
+        Ok(legacy_command_message("proposal validate"))
     }
 
     pub fn save_proposal_file(&self, file: impl AsRef<Path>) -> Result<Value> {
-        self.with_lock(|| {
-            let proposal = self.parse_proposal_file(file.as_ref())?;
-            let current = self.load_current()?;
-            if self
-                .pending_proposal_ref(&proposal.payload.proposal_id)
-                .exists()
-                || current
-                    .tree
-                    .proposals
-                    .contains_key(&proposal.payload.proposal_id)
-            {
-                return Err(invalid(format!(
-                    "Proposal ID already exists: {}",
-                    proposal.payload.proposal_id
-                )));
-            }
-            let hash = self.validate_proposal(&proposal, &current, true)?;
-            fs::create_dir_all(self.pending_proposals_dir())
-                .map_err(|err| MeError::Internal(err.into()))?;
-            atomic_write(
-                &self.pending_proposal_ref(&proposal.payload.proposal_id),
-                format!("{hash}\n").as_bytes(),
-            )?;
-            fs::create_dir_all(self.root.join("drafts/proposals"))
-                .map_err(|err| MeError::Internal(err.into()))?;
-            atomic_write(
-                &self
-                    .root
-                    .join("drafts/proposals")
-                    .join(format!("{}.json", proposal.payload.proposal_id)),
-                &serde_json::to_vec_pretty(&proposal)
-                    .map_err(|err| MeError::Internal(err.into()))?,
-            )?;
-            Ok(json!({
-                "proposalId": proposal.payload.proposal_id,
-                "proposal": hash,
-                "statusLabel": "PENDING -- NOT IN ME",
-                "status": "pending"
-            }))
-        })
+        let _ = file.as_ref();
+        Ok(legacy_command_message("proposal save"))
     }
 
     pub fn show_proposal(&self, proposal_id_or_hash: &str) -> Result<Value> {
-        let (hash, proposal) = self.resolve_proposal(proposal_id_or_hash)?;
-        Ok(json!({
-            "statusLabel": "PENDING -- NOT IN ME",
-            "proposal": hash,
-            "payload": proposal.payload
-        }))
+        let _ = proposal_id_or_hash;
+        Ok(legacy_command_message("proposal show"))
     }
 
     pub fn list_proposals(&self, status: Option<String>) -> Result<Value> {
-        let mut proposals = Vec::new();
-        let pending_dir = self.pending_proposals_dir();
-        if pending_dir.exists() {
-            for entry in fs::read_dir(pending_dir).map_err(|err| MeError::Internal(err.into()))? {
-                let entry = entry.map_err(|err| MeError::Internal(err.into()))?;
-                if entry
-                    .file_type()
-                    .map_err(|err| MeError::Internal(err.into()))?
-                    .is_file()
-                {
-                    let hash = fs::read_to_string(entry.path())
-                        .map_err(|err| MeError::Internal(err.into()))?
-                        .trim()
-                        .to_string();
-                    let proposal =
-                        self.read_object::<me_core::ProposalPayload>(&hash, "proposal")?;
-                    proposals.push(json!({
-                        "proposalId": proposal.payload.proposal_id,
-                        "proposal": hash,
-                        "status": "pending",
-                        "statusLabel": "PENDING -- NOT IN ME",
-                        "baseSnapshot": proposal.payload.base_snapshot
-                    }));
-                }
-            }
-        }
-        if status.as_deref().is_some_and(|s| s != "pending") {
-            proposals.clear();
-        }
-        Ok(json!({ "proposals": proposals }))
+        let _ = status;
+        Ok(legacy_command_message("proposal list"))
     }
 
     pub fn review(&self, proposal_id_or_hash: &str, format: &str) -> Result<Value> {
-        let (proposal_hash, proposal) = self.resolve_proposal(proposal_id_or_hash)?;
-        let current = self.load_current()?;
-        let (_, _, thought) = self.resolve_thought(&current.tree, &proposal.payload.thought)?;
-        let text = format_review(
-            &proposal_hash,
-            &proposal.payload,
-            &thought.payload.body_markdown,
-        );
-        Ok(json!({
-            "format": format,
-            "statusLabel": "PENDING -- NOT IN ME",
-            "proposal": proposal_hash,
-            "review": text,
-            "thought": {
-                "bodyMarkdown": thought.payload.body_markdown,
-                "statusLabel": "THOUGHT CAPTURED -- PENDING, NOT IN ME"
-            },
-            "relatedCognitions": proposal.payload.related_cognitions,
-            "proposedEffect": proposal.payload.recommendation,
-            "resultingChanges": {
-                "cognitionsAdded": 1,
-                "existingCognitionsChanged": 0
-            }
-        }))
+        let _ = (proposal_id_or_hash, format);
+        Ok(legacy_command_message("review"))
     }
 
     pub fn decide(
@@ -685,46 +570,8 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         proposal_id_or_hash: &str,
         decision_file: impl AsRef<Path>,
     ) -> Result<Value> {
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let (proposal_hash, proposal) = self.resolve_proposal(proposal_id_or_hash)?;
-            if proposal.payload.base_snapshot != current.snapshot_hash {
-                return Err(MeError::StaleProposal {
-                    code: "STALE_PROPOSAL",
-                    message: format!(
-                        "Proposal was based on Snapshot {}, current is {}",
-                        proposal.payload.base_snapshot, current.snapshot_hash
-                    ),
-                    details: json!({
-                        "proposalBaseSnapshot": proposal.payload.base_snapshot,
-                        "currentSnapshot": current.snapshot_hash
-                    }),
-                });
-            }
-            self.validate_proposal(&proposal, &current, false)?;
-            let mut decision = self.parse_decision_file(
-                decision_file.as_ref(),
-                &proposal_hash,
-                &proposal.payload,
-            )?;
-            decision.decision_id = new_id("decision");
-            decision.proposal = proposal_hash.clone();
-            decision.base_snapshot = current.snapshot_hash.clone();
-            if decision.actor.is_empty() {
-                decision.actor = self.config()?.default_actor;
-            }
-            if decision.decided_at.is_empty() {
-                decision.decided_at = now_rfc3339()?;
-            }
-            let decision_hash = self.write_object("decision", &decision)?;
-            self.apply_decision(
-                &current,
-                &proposal_hash,
-                &proposal.payload,
-                &decision_hash,
-                &decision,
-            )
-        })
+        let _ = (proposal_id_or_hash, decision_file.as_ref());
+        Ok(legacy_command_message("decide"))
     }
 
     pub fn reject_or_defer(
@@ -733,33 +580,8 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         action: &str,
         note: Option<String>,
     ) -> Result<Value> {
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let (proposal_hash, proposal) = self.resolve_proposal(proposal_id_or_hash)?;
-            let decision = DecisionPayload {
-                decision_id: new_id("decision"),
-                proposal: proposal_hash.clone(),
-                base_snapshot: current.snapshot_hash.clone(),
-                action: if action == "defer" {
-                    "keep-thought-only".to_string()
-                } else {
-                    "reject-proposal".to_string()
-                },
-                actor: self.config()?.default_actor,
-                final_body_markdown: None,
-                confirmed_associations: Vec::new(),
-                note_markdown: note,
-                decided_at: now_rfc3339()?,
-            };
-            let decision_hash = self.write_object("decision", &decision)?;
-            self.apply_decision(
-                &current,
-                &proposal_hash,
-                &proposal.payload,
-                &decision_hash,
-                &decision,
-            )
-        })
+        let _ = (proposal_id_or_hash, action, note);
+        Ok(legacy_command_message("reject/defer"))
     }
 
     pub fn cognition_list(&self, state: Option<String>) -> Result<Value> {
@@ -790,11 +612,183 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             "state": state,
             "fromThought": cognition.payload.origin_thought,
             "addedAt": cognition.payload.added_at,
-            "possiblyRelated": self.inferred_for_cognition(&hash)?,
-            "confirmedRelations": self.confirmed_for_cognition(&current.tree, &hash)?,
+            "possiblyRelevant": self.retrieval_neighbors_for_cognition(&hash)?,
             "usedBy": self.runs_using_cognition(&current.tree, &hash)?,
             "payload": cognition.payload
         }))
+    }
+
+    pub fn cognition_history(&self, cognition_id_or_hash: &str) -> Result<Value> {
+        let current = self.load_current()?;
+        let (cognition_id, hash, cognition) =
+            self.resolve_cognition(&current.tree, cognition_id_or_hash)?;
+        let origin_thought_id =
+            self.thought_id_for_hash(&current.tree, &cognition.payload.origin_thought);
+        let adding_decision = self
+            .read_object::<DecisionPayload>(&cognition.payload.added_by_decision, "decision")
+            .ok()
+            .map(|decision| {
+                json!({
+                    "decision": cognition.payload.added_by_decision,
+                    "payload": decision.payload
+                })
+            });
+        let mut appearances = Vec::new();
+        let mut state_changes = Vec::new();
+        let mut previous_state: Option<String> = None;
+        for snapshot in self.snapshot_chain(&current.snapshot_hash)? {
+            let Some(snapshot_hash) = snapshot["meSnapshot"].as_str() else {
+                continue;
+            };
+            let tree = self.snapshot_tree(snapshot_hash)?;
+            if tree.cognitions.get(&cognition_id) != Some(&hash) {
+                continue;
+            }
+            let state = tree
+                .cognition_states
+                .get(&cognition_id)
+                .cloned()
+                .unwrap_or_else(|| "active".to_string());
+            if previous_state.as_deref() != Some(state.as_str()) {
+                state_changes.push(json!({
+                    "snapshot": snapshot_hash,
+                    "state": state,
+                    "operation": snapshot["operation"],
+                    "createdAt": snapshot["createdAt"]
+                }));
+            }
+            previous_state = Some(state.clone());
+            appearances.push(json!({
+                "snapshot": snapshot_hash,
+                "state": state,
+                "operation": snapshot["operation"],
+                "createdAt": snapshot["createdAt"]
+            }));
+        }
+        Ok(json!({
+            "cognitionId": cognition_id,
+            "cognition": hash,
+            "originThoughtId": origin_thought_id,
+            "originThought": cognition.payload.origin_thought,
+            "addedByDecision": adding_decision,
+            "stateChanges": state_changes,
+            "snapshotAppearances": appearances,
+            "currentSnapshot": current.snapshot_hash
+        }))
+    }
+
+    pub fn cognition_add(
+        &self,
+        thought_id_or_hash: &str,
+        decision_file: impl AsRef<Path>,
+    ) -> Result<Value> {
+        let raw = fs::read_to_string(decision_file.as_ref())
+            .map_err(|err| MeError::Internal(err.into()))?;
+        let value: Value = if raw.trim().is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?
+        };
+        let action = value
+            .get("action")
+            .and_then(Value::as_str)
+            .or_else(|| value.get("operation").and_then(Value::as_str))
+            .unwrap_or("add-cognition");
+        if action != "add-cognition" {
+            return Err(invalid(format!(
+                "cognition add requires add-cognition Decision, got {action}"
+            )));
+        }
+        self.with_lock(|| {
+            let current = self.load_current()?;
+            validate_base_snapshot(&value, &current.snapshot_hash)?;
+            let (thought_id, thought_hash, thought) =
+                self.resolve_thought(&current.tree, thought_id_or_hash)?;
+            if let Some(decision_thought) = value.get("thought").and_then(Value::as_str) {
+                if decision_thought != thought_hash && decision_thought != thought_id {
+                    return Err(invalid(format!(
+                        "Decision thought {decision_thought} does not match {thought_id}"
+                    )));
+                }
+            }
+            let state = current
+                .tree
+                .thought_states
+                .get(&thought_id)
+                .map(String::as_str)
+                .unwrap_or("pending");
+            if state == "added" {
+                return Err(invalid(format!(
+                    "Thought already added to ME: {thought_id}"
+                )));
+            }
+            let actor = value
+                .get("actor")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or(self.config()?.default_actor);
+            let final_body = value
+                .get("finalBodyMarkdown")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| thought.payload.body_markdown.clone());
+            let decision = DecisionPayload {
+                decision_id: new_id("decision"),
+                base_snapshot: current.snapshot_hash.clone(),
+                action: "add-cognition".to_string(),
+                actor: actor.clone(),
+                thought: Some(thought_hash.clone()),
+                final_body_markdown: Some(final_body.clone()),
+                note_markdown: value
+                    .get("noteMarkdown")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                decided_at: value
+                    .get("decidedAt")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or(now_rfc3339()?),
+            };
+            let decision_hash = self.write_object("decision", &decision)?;
+            let cognition = CognitionPayload {
+                cognition_id: new_id("cognition"),
+                body_markdown: final_body.clone(),
+                body_text: markdown_to_text(&final_body),
+                display_title: value
+                    .get("displayTitle")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                origin_thought: thought_hash.clone(),
+                added_by_decision: decision_hash.clone(),
+                added_at: now_rfc3339()?,
+            };
+            let cognition_hash = self.write_object("cognition", &cognition)?;
+            let mut tree = current.tree.clone();
+            tree.decisions
+                .insert(decision.decision_id.clone(), decision_hash.clone());
+            tree.cognitions
+                .insert(cognition.cognition_id.clone(), cognition_hash.clone());
+            tree.cognition_states
+                .insert(cognition.cognition_id.clone(), "active".to_string());
+            tree.thought_states.insert(thought_id, "added".to_string());
+            let snapshot = self.commit_tree(
+                &current,
+                tree,
+                "add-cognition",
+                &actor,
+                "Add Thought as Cognition".to_string(),
+            )?;
+            Ok(json!({
+                "statusLabel": "ADDED TO ME",
+                "decisionId": decision.decision_id,
+                "decision": decision_hash,
+                "cognitionId": cognition.cognition_id,
+                "cognition": cognition_hash,
+                "snapshot": snapshot,
+                "cognitionsAdded": 1,
+                "existingCognitionsChanged": 0
+            }))
+        })
     }
 
     pub fn cognition_retire(
@@ -824,90 +818,8 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
     }
 
     pub fn cognition_synthesize(&self, spec_file: impl AsRef<Path>) -> Result<Value> {
-        let raw =
-            fs::read_to_string(spec_file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
-        let spec: Value =
-            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?;
-        let body = spec
-            .get("bodyMarkdown")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid("Synthesis spec requires bodyMarkdown"))?;
-        let derived = string_array(spec.get("derivedFromCognitions")).unwrap_or_default();
-        if derived.len() < 2 {
-            return Err(invalid("Synthesis requires at least two source Cognitions"));
-        }
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let mut derived_hashes = Vec::new();
-            for item in &derived {
-                let (_, hash, _) = self.resolve_cognition(&current.tree, item)?;
-                derived_hashes.push(hash);
-            }
-            let thought = ThoughtPayload {
-                thought_id: new_id("thought"),
-                kind: "idea".to_string(),
-                body_markdown: body.to_string(),
-                body_text: markdown_to_text(body),
-                origin: Origin::local_input(),
-                captured_at: now_rfc3339()?,
-                captured_by: self.config()?.default_actor,
-            };
-            let thought_hash = self.write_object("thought", &thought)?;
-            let decision = DecisionPayload {
-                decision_id: new_id("decision"),
-                proposal: "direct-synthesis".to_string(),
-                base_snapshot: current.snapshot_hash.clone(),
-                action: "save-synthesis-cognition".to_string(),
-                actor: self.config()?.default_actor,
-                final_body_markdown: Some(body.to_string()),
-                confirmed_associations: Vec::new(),
-                note_markdown: spec
-                    .get("noteMarkdown")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
-                decided_at: now_rfc3339()?,
-            };
-            let decision_hash = self.write_object("decision", &decision)?;
-            let cognition = CognitionPayload {
-                cognition_id: new_id("cognition"),
-                body_markdown: body.to_string(),
-                body_text: markdown_to_text(body),
-                display_title: spec
-                    .get("displayTitle")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
-                origin_thought: thought_hash.clone(),
-                origin: CognitionOrigin::synthesis(derived_hashes.clone()),
-                added_by_decision: decision_hash.clone(),
-                added_at: now_rfc3339()?,
-            };
-            let cognition_hash = self.write_object("cognition", &cognition)?;
-            let mut tree = current.tree.clone();
-            tree.thoughts
-                .insert(thought.thought_id.clone(), thought_hash);
-            tree.thought_states
-                .insert(thought.thought_id, "added".to_string());
-            tree.decisions.insert(decision.decision_id, decision_hash);
-            tree.cognitions
-                .insert(cognition.cognition_id.clone(), cognition_hash.clone());
-            tree.cognition_states
-                .insert(cognition.cognition_id.clone(), "active".to_string());
-            let snapshot = self.commit_tree(
-                &current,
-                tree,
-                "save-synthesis-cognition",
-                "local-user",
-                "Save Synthesis Cognition".to_string(),
-            )?;
-            Ok(json!({
-                "statusLabel": "COGNITION ADDED -- synthesis",
-                "cognitionId": cognition.cognition_id,
-                "cognition": cognition_hash,
-                "derivedFromCognitions": derived_hashes,
-                "snapshot": snapshot,
-                "existingCognitionsChanged": 0
-            }))
-        })
+        let _ = spec_file.as_ref();
+        Ok(legacy_command_message("cognition synthesize"))
     }
 
     pub fn read(&self, about: &str, limit: usize) -> Result<Value> {
@@ -923,7 +835,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 "displayTitle": cognition.payload.display_title,
                 "score": matched.score,
                 "matchedTerms": matched.matched_terms,
-                "associationStatus": "inferred"
+                "selectionStatus": "derived"
             }));
         }
         Ok(json!({
@@ -931,203 +843,116 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             "about": about,
             "currentSnapshot": current.snapshot_hash,
             "cognitions": cognitions,
-            "confirmedAssociations": self.confirmed_association_summaries(&current.tree)?,
             "note": "Inspect ME preserves contradictions and does not synthesize a single position unless asked."
         }))
     }
 
-    pub fn association_infer(&self, cognition: Option<String>) -> Result<Value> {
+    pub fn search(&self, query: &str, limit: usize, state: Option<String>) -> Result<Value> {
         let current = self.load_current()?;
-        self.rebuild_index()?;
-        let inferred = self.compute_inferred_associations(&current.tree, cognition.as_deref())?;
-        self.write_inferred_associations(&inferred)?;
+        let state_filter = state.as_deref().or(Some("active"));
+        let matches = self.match_cognitions(&current.tree, query, limit, state_filter)?;
+        let mut cognitions = Vec::new();
+        for matched in matches {
+            let (_, _, cognition) = self.resolve_cognition(&current.tree, &matched.cognition)?;
+            let cognition_state = current
+                .tree
+                .cognition_states
+                .get(&matched.cognition_id)
+                .cloned()
+                .unwrap_or_else(|| "active".to_string());
+            cognitions.push(json!({
+                "cognitionId": matched.cognition_id,
+                "objectHash": matched.cognition,
+                "bodyMarkdown": cognition.payload.body_markdown,
+                "displayTitle": cognition.payload.display_title,
+                "state": cognition_state,
+                "score": matched.score,
+                "matchedTerms": matched.matched_terms,
+                "originThoughtId": self.thought_id_for_hash(&current.tree, &cognition.payload.origin_thought),
+                "originThought": cognition.payload.origin_thought,
+                "addedAt": cognition.payload.added_at
+            }));
+        }
         Ok(json!({
-            "kind": "inferred",
-            "count": inferred.len(),
-            "snapshotUnchanged": current.snapshot_hash,
-            "associations": inferred
+            "baseSnapshot": current.snapshot_hash,
+            "query": query,
+            "limit": limit,
+            "state": state.unwrap_or_else(|| "active".to_string()),
+            "cognitions": cognitions
         }))
     }
 
-    pub fn association_list(&self, kind: Option<String>) -> Result<Value> {
+    pub fn context(&self, task_file: impl AsRef<Path>, limit: usize) -> Result<Value> {
+        let task =
+            fs::read_to_string(task_file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
         let current = self.load_current()?;
-        match kind.as_deref().unwrap_or("confirmed") {
-            "confirmed" => Ok(json!({
-                "kind": "confirmed",
-                "associations": self.confirmed_association_summaries(&current.tree)?
-            })),
-            "inferred" => Ok(json!({
-                "kind": "inferred",
-                "associations": self.read_inferred_associations()?
-            })),
-            other => Err(invalid(format!("Unsupported Association kind: {other}"))),
+        let matches = self.match_cognitions(&current.tree, &task, limit, Some("active"))?;
+        let mut selected = Vec::new();
+        for matched in matches {
+            let (_, _, cognition) = self.resolve_cognition(&current.tree, &matched.cognition)?;
+            selected.push(json!({
+                "cognitionId": matched.cognition_id,
+                "objectHash": matched.cognition,
+                "bodyMarkdown": cognition.payload.body_markdown,
+                "displayTitle": cognition.payload.display_title,
+                "score": matched.score,
+                "matchedTerms": matched.matched_terms,
+                "selectionReason": if matched.matched_terms.is_empty() {
+                    "Selected by local lexical retrieval".to_string()
+                } else {
+                    format!("Lexical match: {}", matched.matched_terms.join(", "))
+                }
+            }));
         }
+        Ok(json!({
+            "baseSnapshot": current.snapshot_hash,
+            "taskMarkdown": task,
+            "selectedCognitions": selected,
+            "coverage": {
+                "selectedCount": selected.len(),
+                "limit": limit
+            },
+            "cognitionLibraryChanged": false
+        }))
     }
 
-    pub fn association_confirm(&self, spec_file: impl AsRef<Path>) -> Result<Value> {
-        let raw =
-            fs::read_to_string(spec_file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
-        let spec: Value =
-            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?;
-        let relation = spec
-            .get("relation")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid("Association spec requires relation"))?;
-        if !association_relation_allowed(relation) {
-            return Err(invalid(format!(
-                "Unsupported Association relation: {relation}"
-            )));
-        }
-        let from = string_array(spec.get("fromCognitions"))
-            .ok_or_else(|| invalid("Association spec requires fromCognitions"))?;
-        let to = string_array(spec.get("toCognitions"))
-            .ok_or_else(|| invalid("Association spec requires toCognitions"))?;
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let from_hashes = self.resolve_cognition_list(&current.tree, &from)?;
-            let to_hashes = self.resolve_cognition_list(&current.tree, &to)?;
-            let decision = DecisionPayload {
-                decision_id: new_id("decision"),
-                proposal: "direct-association-confirmation".to_string(),
-                base_snapshot: current.snapshot_hash.clone(),
-                action: "add-cognition-and-confirm-associations".to_string(),
-                actor: self.config()?.default_actor,
-                final_body_markdown: None,
-                confirmed_associations: Vec::new(),
-                note_markdown: spec
-                    .get("noteMarkdown")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
-                decided_at: now_rfc3339()?,
-            };
-            let decision_hash = self.write_object("decision", &decision)?;
-            let association = AssociationPayload {
-                association_id: new_id("association"),
-                relation: relation.to_string(),
-                from_cognitions: from_hashes,
-                to_cognitions: to_hashes,
-                note_markdown: spec
-                    .get("noteMarkdown")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
-                confirmed_by_decision: decision_hash.clone(),
-                confirmed_at: now_rfc3339()?,
-            };
-            let association_hash = self.write_object("association", &association)?;
-            let mut tree = current.tree.clone();
-            tree.decisions.insert(decision.decision_id, decision_hash);
-            tree.confirmed_associations
-                .insert(association.association_id.clone(), association_hash.clone());
-            let snapshot = self.commit_tree(
-                &current,
-                tree,
-                "confirm-association",
-                "local-user",
-                format!("Confirm Association {}", association.association_id),
-            )?;
-            Ok(json!({
-                "statusLabel": "ASSOCIATION -- confirmed",
-                "associationId": association.association_id,
-                "association": association_hash,
-                "snapshot": snapshot
-            }))
-        })
+    pub fn association_infer(&self, _cognition: Option<String>) -> Result<Value> {
+        Ok(association_removed_message())
+    }
+
+    pub fn association_list(&self, _kind: Option<String>) -> Result<Value> {
+        Ok(association_removed_message())
+    }
+
+    pub fn association_confirm(&self, _spec_file: impl AsRef<Path>) -> Result<Value> {
+        Ok(association_removed_message())
     }
 
     pub fn association_remove(
         &self,
-        association_id: &str,
-        decision_file: impl AsRef<Path>,
+        _association_id: &str,
+        _decision_file: impl AsRef<Path>,
     ) -> Result<Value> {
-        let _ = fs::read_to_string(decision_file.as_ref())
-            .map_err(|err| MeError::Internal(err.into()))?;
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let mut tree = current.tree.clone();
-            let removed = tree
-                .confirmed_associations
-                .remove(association_id)
-                .ok_or_else(|| not_found(format!("Association not found: {association_id}")))?;
-            let snapshot = self.commit_tree(
-                &current,
-                tree,
-                "remove-association",
-                "local-user",
-                format!("Remove Association {association_id}"),
-            )?;
-            Ok(json!({ "associationId": association_id, "removed": removed, "snapshot": snapshot }))
-        })
+        Ok(association_removed_message())
     }
 
     pub fn app_list(&self) -> Result<Value> {
-        let current = self.load_current()?;
-        Ok(json!({ "apps": self.app_summaries(&current.tree)? }))
+        Ok(legacy_command_message("app list"))
     }
 
     pub fn app_show(&self, app_id: &str) -> Result<Value> {
-        let current = self.load_current()?;
-        let hash = current
-            .tree
-            .apps
-            .get(app_id)
-            .ok_or_else(|| not_found(format!("ME App not found: {app_id}")))?;
-        let app = self.read_object::<AppDefinitionPayload>(hash, "app-definition")?;
-        Ok(json!({
-            "statusLabel": "ME APP -- local",
-            "app": hash,
-            "payload": app.payload,
-            "manifest": self.app_manifest_json(app_id)?
-        }))
+        let _ = app_id;
+        Ok(legacy_command_message("app show"))
     }
 
     pub fn app_validate(&self, app_directory: impl AsRef<Path>) -> Result<Value> {
-        let manifest = read_app_manifest(app_directory.as_ref())?;
-        validate_app_manifest(&manifest)?;
-        Ok(json!({
-            "valid": true,
-            "appId": manifest.get("app_id").and_then(Value::as_str),
-            "externalActionsAllowed": false
-        }))
+        let _ = app_directory.as_ref();
+        Ok(legacy_command_message("app validate"))
     }
 
     pub fn app_install(&self, app_directory: impl AsRef<Path>) -> Result<Value> {
-        let manifest = read_app_manifest(app_directory.as_ref())?;
-        validate_app_manifest(&manifest)?;
-        let app_id = manifest
-            .get("app_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid("App manifest missing app_id"))?;
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let dest = self.root.join("apps").join(app_id);
-            copy_dir_replace(app_directory.as_ref(), &dest)?;
-            let app = AppDefinitionPayload {
-                app_id: app_id.to_string(),
-                name: manifest
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .unwrap_or(app_id)
-                    .to_string(),
-                version: manifest
-                    .get("version")
-                    .and_then(Value::as_str)
-                    .unwrap_or("0.1.0")
-                    .to_string(),
-                manifest_hash: file_hash(&dest.join("app.toml"))?,
-                installed_at: now_rfc3339()?,
-            };
-            let app_hash = self.write_object("app-definition", &app)?;
-            let mut tree = current.tree.clone();
-            tree.apps.insert(app.app_id.clone(), app_hash.clone());
-            let snapshot = self.commit_tree(
-                &current,
-                tree,
-                "install-app",
-                "local-user",
-                format!("Install ME App {}", app.app_id),
-            )?;
-            Ok(json!({ "appId": app.app_id, "app": app_hash, "snapshot": snapshot }))
-        })
+        let _ = app_directory.as_ref();
+        Ok(legacy_command_message("app install"))
     }
 
     pub fn app_run(
@@ -1136,141 +961,48 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         task_file: impl AsRef<Path>,
         context_only: bool,
     ) -> Result<Value> {
-        let task =
-            fs::read_to_string(task_file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
-        let current = self.load_current()?;
-        let app = self.app_definition(&current.tree, app_id)?;
-        let selected = self.select_cognitions_for_task(&current.tree, &task, 20)?;
-        let conflicts = infer_conflicts_from_selected(&selected);
-        let gaps = if selected.is_empty() {
-            vec!["No directly relevant Cognitions found.".to_string()]
-        } else {
-            Vec::new()
-        };
-        let output = build_app_output(app_id, &task, &selected, &conflicts, &gaps);
-        let run = AppRunPayload {
-            run_id: new_id("run"),
-            app_id: app.payload.app_id.clone(),
-            app_version: app.payload.version.clone(),
-            base_snapshot: current.snapshot_hash.clone(),
-            task_markdown: task,
-            selected_cognitions: selected,
-            confirmed_associations_used: Vec::new(),
-            inferred_associations_used: Vec::new(),
-            conflicts,
-            gaps,
-            output,
-            created_at: now_rfc3339()?,
-        };
-        if context_only {
-            return Ok(json!({
-                "statusLabel": "ME APP CONTEXT -- not saved",
-                "contextOnly": true,
-                "appRun": run,
-                "cognitionLibraryChanged": false
-            }));
-        }
-        self.with_lock(|| {
-            let refreshed = self.load_current()?;
-            let run_hash = self.write_object("app-run", &run)?;
-            let mut tree = refreshed.tree.clone();
-            tree.app_runs.insert(run.run_id.clone(), run_hash.clone());
-            let snapshot = self.commit_tree(
-                &refreshed,
-                tree,
-                "create-app-run",
-                "local-user",
-                format!("Run ME App {}", app_id),
-            )?;
-            Ok(json!({
-                "statusLabel": "ME APP RUN -- LOCAL OUTPUT, NOT SENT",
-                "runId": run.run_id,
-                "run": run_hash,
-                "snapshot": snapshot,
-                "externalAction": false,
-                "cognitionLibraryChanged": false
-            }))
-        })
+        let _ = (app_id, task_file.as_ref(), context_only);
+        Ok(legacy_command_message("app run"))
+    }
+
+    pub fn app_prepare(&self, app_id: &str, task_file: impl AsRef<Path>) -> Result<Value> {
+        let _ = (app_id, task_file.as_ref());
+        Ok(legacy_command_message("app prepare"))
+    }
+
+    pub fn app_analyze(
+        &self,
+        app_id: &str,
+        context_file: impl AsRef<Path>,
+        analysis_file: impl AsRef<Path>,
+    ) -> Result<Value> {
+        let _ = (app_id, context_file.as_ref(), analysis_file.as_ref());
+        Ok(legacy_command_message("app analyze"))
+    }
+
+    pub fn app_resolve(
+        &self,
+        run_id_or_hash: &str,
+        decision_file: impl AsRef<Path>,
+        scope: &str,
+    ) -> Result<Value> {
+        let _ = (run_id_or_hash, decision_file.as_ref(), scope);
+        Ok(legacy_command_message("app resolve"))
     }
 
     pub fn app_save_run(&self, file: impl AsRef<Path>) -> Result<Value> {
-        let raw = fs::read_to_string(file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
-        let value: Value =
-            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?;
-        let run: AppRunPayload =
-            if value.get("objectType").and_then(Value::as_str) == Some("app-run") {
-                serde_json::from_value::<ObjectEnvelope<AppRunPayload>>(value)
-                    .map_err(|err| MeError::Internal(err.into()))?
-                    .payload
-            } else {
-                serde_json::from_value(value).map_err(|err| MeError::Internal(err.into()))?
-            };
-        if run.output.external_action {
-            return Err(invalid(
-                "ME App Run output cannot record an external action in v0.3",
-            ));
-        }
-        self.with_lock(|| {
-            let current = self.load_current()?;
-            let run_hash = self.write_object("app-run", &run)?;
-            let mut tree = current.tree.clone();
-            tree.app_runs.insert(run.run_id.clone(), run_hash.clone());
-            let snapshot = self.commit_tree(
-                &current,
-                tree,
-                "save-app-run",
-                "local-user",
-                format!("Save App Run {}", run.run_id),
-            )?;
-            Ok(json!({ "runId": run.run_id, "run": run_hash, "snapshot": snapshot }))
-        })
+        let _ = file.as_ref();
+        Ok(legacy_command_message("app save-run"))
     }
 
     pub fn run_list(&self, app_id: Option<String>) -> Result<Value> {
-        let current = self.load_current()?;
-        let mut runs = Vec::new();
-        for (run_id, hash) in &current.tree.app_runs {
-            let run = self.read_object::<AppRunPayload>(hash, "app-run")?;
-            if app_id
-                .as_deref()
-                .is_some_and(|filter| filter != run.payload.app_id)
-            {
-                continue;
-            }
-            runs.push(json!({
-                "runId": run_id,
-                "run": hash,
-                "appId": run.payload.app_id,
-                "appVersion": run.payload.app_version,
-                "outputKind": run.payload.output.kind,
-                "externalAction": run.payload.output.external_action,
-                "createdAt": run.payload.created_at
-            }));
-        }
-        Ok(json!({ "runs": runs }))
+        let _ = app_id;
+        Ok(legacy_command_message("run list"))
     }
 
     pub fn run_show(&self, run_id_or_hash: &str, format: &str) -> Result<Value> {
-        let current = self.load_current()?;
-        let hash = if is_sha_ref(run_id_or_hash) {
-            run_id_or_hash.to_string()
-        } else {
-            current
-                .tree
-                .app_runs
-                .get(run_id_or_hash)
-                .ok_or_else(|| not_found(format!("App Run not found: {run_id_or_hash}")))?
-                .clone()
-        };
-        let run = self.read_object::<AppRunPayload>(&hash, "app-run")?;
-        let markdown = app_run_markdown(&run.payload);
-        Ok(json!({
-            "format": format,
-            "statusLabel": "ME APP RUN -- LOCAL OUTPUT, NOT SENT",
-            "run": hash,
-            "payload": run.payload,
-            "markdown": markdown
-        }))
+        let _ = (run_id_or_hash, format);
+        Ok(legacy_command_message("run show"))
     }
 
     pub fn history(&self) -> Result<Value> {
@@ -1291,17 +1023,10 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             .filter(|key| !a.thoughts.contains_key(*key))
             .cloned()
             .collect();
-        let added_associations: Vec<_> = b
-            .confirmed_associations
-            .keys()
-            .filter(|key| !a.confirmed_associations.contains_key(*key))
-            .cloned()
-            .collect();
         let text = format!(
-            "Thoughts added: {}\nCognitions changed: {}\nConfirmed Associations added: {}",
+            "Thoughts added: {}\nCognitions changed: {}",
             added_thoughts.len(),
-            changed_cognitions.len(),
-            added_associations.len()
+            changed_cognitions.len()
         );
         Ok(json!({
             "format": format,
@@ -1309,8 +1034,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             "snapshotB": snapshot_b,
             "text": text,
             "addedThoughts": added_thoughts,
-            "changedCognitions": changed_cognitions,
-            "addedConfirmedAssociations": added_associations
+            "changedCognitions": changed_cognitions
         }))
     }
 
@@ -1327,18 +1051,71 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         )
     }
 
-    pub fn snapshot_restore(&self, snapshot_id: &str, message: &str) -> Result<Value> {
+    pub fn snapshot_restore(
+        &self,
+        snapshot_id: &str,
+        decision_file: impl AsRef<Path>,
+    ) -> Result<Value> {
+        let raw = fs::read_to_string(decision_file.as_ref())
+            .map_err(|err| MeError::Internal(err.into()))?;
+        let value: Value = if raw.trim().is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?
+        };
+        let action = value
+            .get("action")
+            .and_then(Value::as_str)
+            .or_else(|| value.get("operation").and_then(Value::as_str))
+            .unwrap_or("restore-snapshot");
+        if action != "restore-snapshot" {
+            return Err(invalid(format!(
+                "snapshot restore requires restore-snapshot Decision, got {action}"
+            )));
+        }
         self.with_lock(|| {
             let current = self.load_current()?;
-            let restored_tree = self.snapshot_tree(snapshot_id)?;
+            validate_base_snapshot(&value, &current.snapshot_hash)?;
+            let actor = value
+                .get("actor")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or(self.config()?.default_actor);
+            let decision = DecisionPayload {
+                decision_id: new_id("decision"),
+                base_snapshot: current.snapshot_hash.clone(),
+                action: "restore-snapshot".to_string(),
+                actor: actor.clone(),
+                thought: None,
+                final_body_markdown: None,
+                note_markdown: value
+                    .get("noteMarkdown")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                decided_at: value
+                    .get("decidedAt")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or(now_rfc3339()?),
+            };
+            let decision_hash = self.write_object("decision", &decision)?;
+            let mut restored_tree = self.snapshot_tree(snapshot_id)?;
+            restored_tree
+                .decisions
+                .insert(decision.decision_id.clone(), decision_hash.clone());
             let snapshot_hash = self.commit_tree(
                 &current,
                 restored_tree,
-                "restore",
-                "local-user",
-                message.to_string(),
+                "restore-snapshot",
+                &actor,
+                format!("Restore Snapshot {snapshot_id}"),
             )?;
-            Ok(json!({ "restoredFrom": snapshot_id, "snapshot": snapshot_hash }))
+            Ok(json!({
+                "restoredFrom": snapshot_id,
+                "decisionId": decision.decision_id,
+                "decision": decision_hash,
+                "snapshot": snapshot_hash
+            }))
         })
     }
 
@@ -1394,6 +1171,10 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
     }
 
     pub fn bundle_verify(&self, file: impl AsRef<Path>) -> Result<Value> {
+        Self::bundle_verify_file(file)
+    }
+
+    pub fn bundle_verify_file(file: impl AsRef<Path>) -> Result<Value> {
         let verified = verify_bundle(file.as_ref())?;
         Ok(json!({
             "bundle": file.as_ref(),
@@ -1501,12 +1282,11 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         let mut tree = MeTreePayload::default();
         let migration_decision = DecisionPayload {
             decision_id: new_id("decision"),
-            proposal: "my-model-v2-migration".to_string(),
             base_snapshot: old_current.clone(),
             action: "add-cognition".to_string(),
             actor: "local-user".to_string(),
+            thought: None,
             final_body_markdown: None,
-            confirmed_associations: Vec::new(),
             note_markdown: Some("Migration from My Model v0.2".to_string()),
             decided_at: migrated_at.clone(),
         };
@@ -1560,7 +1340,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                     continue;
                 };
                 let chain = legacy_cognition_chain(&root, current_revision_hash)?;
-                let mut previous_new: Option<String> = None;
                 for (old_hash, rev) in chain {
                     let revision = rev["revision"].as_u64().unwrap_or(1);
                     let active = old_hash == current_revision_hash;
@@ -1594,7 +1373,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                             .unwrap_or_else(|| markdown_to_text(&body)),
                         display_title: rev["title"].as_str().map(str::to_string),
                         origin_thought,
-                        origin: CognitionOrigin::thought(),
                         added_by_decision: migration_decision_hash.clone(),
                         added_at: rev["createdAt"]
                             .as_str()
@@ -1609,33 +1387,16 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                         if active { "active" } else { "retired" }.to_string(),
                     );
                     mappings.push(json!({ "kind": "cognition", "old": old_hash, "new": new_hash, "state": if active { "active" } else { "retired" } }));
-                    if let Some(previous_hash) = previous_new {
-                        let association = AssociationPayload {
-                            association_id: new_id("association"),
-                            relation: "supersedes".to_string(),
-                            from_cognitions: vec![new_hash.clone()],
-                            to_cognitions: vec![previous_hash],
-                            note_markdown: Some("Migrated My Model revision edge.".to_string()),
-                            confirmed_by_decision: migration_decision_hash.clone(),
-                            confirmed_at: migrated_at.clone(),
-                        };
-                        let association_hash = ws.write_object("association", &association)?;
-                        tree.confirmed_associations
-                            .insert(association.association_id, association_hash.clone());
-                        mappings.push(json!({ "kind": "association", "relation": "supersedes", "new": association_hash }));
-                    }
-                    previous_new = Some(new_hash);
                 }
             }
         }
-        let app_hashes = ws.write_builtin_app_definitions(&mut tree)?;
         let tree_hash = ws.write_object("me-tree", &tree)?;
         let snapshot = MeSnapshotPayload {
             parent: None,
             tree: tree_hash,
             operation: "migrate-from-my-model".to_string(),
             actor: "local-user".to_string(),
-            message: "Migrate My Model v0.2 workspace to ME v0.3".to_string(),
+            message: "Migrate My Model v0.2 workspace to ME v0.5".to_string(),
             created_at: migrated_at.clone(),
         };
         let new_current = ws.write_object("me-snapshot", &snapshot)?;
@@ -1647,7 +1408,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             None,
             &new_current,
             "migrate-from-my-model",
-            "Migrate My Model v0.2 workspace to ME v0.3",
+            "Migrate My Model v0.2 workspace to ME v0.5",
         )?;
         ws.regenerate_views()?;
         ws.rebuild_index()?;
@@ -1657,15 +1418,14 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             "sourceSystem": "my-model",
             "sourceWorkspaceVersion": 2,
             "targetSystem": "me",
-            "targetWorkspaceVersion": 3,
+            "targetWorkspaceVersion": 5,
             "migratedAt": migrated_at,
             "oldCurrentSnapshot": old_current,
             "newCurrentSnapshot": new_current,
             "objects": mappings,
-            "apps": app_hashes,
             "oldMyModelPreserved": true
         });
-        let manifest_path = root.join(".me/migrations/my-model-v2-to-me-v3-manifest.json");
+        let manifest_path = root.join(".me/migrations/my-model-v2-to-me-v5-manifest.json");
         atomic_write(
             &manifest_path,
             &serde_json::to_vec_pretty(&manifest).map_err(|err| MeError::Internal(err.into()))?,
@@ -1677,6 +1437,837 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             "oldCurrentSnapshot": manifest["oldCurrentSnapshot"],
             "newCurrentSnapshot": manifest["newCurrentSnapshot"],
             "oldMyModelPreserved": true
+        }))
+    }
+
+    pub fn migrate_from_v3(path: impl AsRef<Path>) -> Result<Value> {
+        let root = path.as_ref().to_path_buf();
+        if !root.join(".me/refs/current").exists() {
+            return Err(not_found(format!(
+                "Not a ME v3 workspace: {}",
+                root.display()
+            )));
+        }
+        let raw_config = fs::read_to_string(root.join("me.toml"))
+            .map_err(|err| MeError::Internal(err.into()))?;
+        let mut config: me_core::WorkspaceConfig =
+            toml::from_str(&raw_config).map_err(|err| MeError::Internal(err.into()))?;
+        if config.schema_version == SCHEMA_VERSION {
+            return Err(invalid("ME workspace is already schema v5"));
+        }
+        if config.schema_version != 3 {
+            return Err(invalid(format!(
+                "migrate --from-v3 requires schemaVersion 3, got {}",
+                config.schema_version
+            )));
+        }
+        let _lock = lock_file(&root.join(".me/lock"), "ME v3")?;
+        let ws = Workspace { root: root.clone() };
+        ws.create_layout()?;
+        ws.sync_workspace_docs()?;
+        let migrated_at = now_rfc3339()?;
+        let old_current = fs::read_to_string(root.join(".me/refs/current"))
+            .map_err(|err| MeError::Internal(err.into()))?
+            .trim()
+            .to_string();
+        let old_snapshot = me_object_raw(&root, &old_current, "me-snapshot")?;
+        let old_tree_hash = old_snapshot["payload"]["tree"]
+            .as_str()
+            .ok_or_else(|| integrity("v3 snapshot missing tree"))?;
+        let old_tree = me_object_raw(&root, old_tree_hash, "me-tree")?;
+        let payload = &old_tree["payload"];
+        let mut tree = MeTreePayload::default();
+        let mut mappings = Vec::new();
+        let mut hash_map: BTreeMap<String, String> = BTreeMap::new();
+
+        let migration_decision = DecisionPayload {
+            decision_id: new_id("decision"),
+            base_snapshot: old_current.clone(),
+            action: "add-cognition".to_string(),
+            actor: "local-user".to_string(),
+            thought: None,
+            final_body_markdown: None,
+            note_markdown: Some("Migration from ME v0.3 to ME v0.5".to_string()),
+            decided_at: migrated_at.clone(),
+        };
+        let migration_decision_hash = ws.write_object("decision", &migration_decision)?;
+        tree.decisions.insert(
+            migration_decision.decision_id.clone(),
+            migration_decision_hash.clone(),
+        );
+
+        if let Some(thoughts) = payload["thoughts"].as_object() {
+            for (thought_id, old_hash_value) in thoughts {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "thought")?;
+                let body = old["payload"]["bodyMarkdown"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+                let thought = ThoughtPayload {
+                    thought_id: thought_id.clone(),
+                    kind: old["payload"]["kind"]
+                        .as_str()
+                        .unwrap_or("other")
+                        .to_string(),
+                    body_markdown: body.clone(),
+                    body_text: old["payload"]["bodyText"]
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| markdown_to_text(&body)),
+                    origin: Origin::local_input(),
+                    captured_at: old["payload"]["capturedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                    captured_by: old["payload"]["capturedBy"]
+                        .as_str()
+                        .unwrap_or("local-user")
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("thought", &thought)?;
+                tree.thoughts.insert(thought_id.clone(), new_hash.clone());
+                let state = payload["thoughtStates"][thought_id]
+                    .as_str()
+                    .unwrap_or("pending")
+                    .to_string();
+                tree.thought_states.insert(thought_id.clone(), state);
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "thought", "id": thought_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        if let Some(decisions) = payload["decisions"].as_object() {
+            for (decision_id, old_hash_value) in decisions {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "decision")?;
+                let old_payload = &old["payload"];
+                let decision = DecisionPayload {
+                    decision_id: decision_id.clone(),
+                    base_snapshot: old_payload["baseSnapshot"]
+                        .as_str()
+                        .unwrap_or(&old_current)
+                        .to_string(),
+                    action: old_payload["action"]
+                        .as_str()
+                        .unwrap_or("add-cognition")
+                        .to_string(),
+                    actor: old_payload["actor"]
+                        .as_str()
+                        .unwrap_or("local-user")
+                        .to_string(),
+                    thought: old_payload["thought"].as_str().map(str::to_string),
+                    final_body_markdown: old_payload["finalBodyMarkdown"]
+                        .as_str()
+                        .map(str::to_string),
+                    note_markdown: old_payload["noteMarkdown"].as_str().map(str::to_string),
+                    decided_at: old_payload["decidedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("decision", &decision)?;
+                tree.decisions.insert(decision_id.clone(), new_hash.clone());
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "decision", "id": decision_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        if let Some(cognitions) = payload["cognitions"].as_object() {
+            for (cognition_id, old_hash_value) in cognitions {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "cognition")?;
+                let old_payload = &old["payload"];
+                let origin_thought = old_payload["originThought"]
+                    .as_str()
+                    .and_then(|hash| hash_map.get(hash).cloned())
+                    .or_else(|| old_payload["originThought"].as_str().map(str::to_string))
+                    .unwrap_or_default();
+                let added_by_decision = old_payload["addedByDecision"]
+                    .as_str()
+                    .and_then(|hash| hash_map.get(hash).cloned())
+                    .unwrap_or_else(|| migration_decision_hash.clone());
+                let body = old_payload["bodyMarkdown"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+                let cognition = CognitionPayload {
+                    cognition_id: cognition_id.clone(),
+                    body_markdown: body.clone(),
+                    body_text: old_payload["bodyText"]
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| markdown_to_text(&body)),
+                    display_title: old_payload["displayTitle"].as_str().map(str::to_string),
+                    origin_thought,
+                    added_by_decision,
+                    added_at: old_payload["addedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("cognition", &cognition)?;
+                tree.cognitions
+                    .insert(cognition_id.clone(), new_hash.clone());
+                let state = payload["cognitionStates"][cognition_id]
+                    .as_str()
+                    .unwrap_or("active")
+                    .to_string();
+                tree.cognition_states.insert(cognition_id.clone(), state);
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "cognition", "id": cognition_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        if let Some(proposals) = payload["proposals"].as_object() {
+            for (proposal_id, old_hash_value) in proposals {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "proposal")?;
+                let old_payload = &old["payload"];
+                let proposal = me_core::ProposalPayload {
+                    proposal_id: proposal_id.clone(),
+                    kind: old_payload["kind"]
+                        .as_str()
+                        .unwrap_or("migration-history")
+                        .to_string(),
+                    base_snapshot: old_payload["baseSnapshot"]
+                        .as_str()
+                        .unwrap_or(&old_current)
+                        .to_string(),
+                    inputs: json!({
+                        "thought": old_payload["thought"].as_str().and_then(|hash| hash_map.get(hash).cloned())
+                    }),
+                    recommendation: old_payload["recommendation"].clone(),
+                    related_cognitions: Vec::new(),
+                    alternatives: old_payload["alternatives"]
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default(),
+                    generated_by: GeneratedBy {
+                        host: "migration".to_string(),
+                        model: None,
+                    },
+                    created_at: old_payload["createdAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("proposal", &proposal)?;
+                tree.proposals.insert(proposal_id.clone(), new_hash.clone());
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "proposal", "id": proposal_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        if let Some(apps) = payload["apps"].as_object() {
+            for (app_id, old_hash_value) in apps {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "app-definition")?;
+                let old_payload = &old["payload"];
+                let app = AppDefinitionPayload {
+                    app_id: app_id.clone(),
+                    name: old_payload["name"].as_str().unwrap_or(app_id).to_string(),
+                    version: old_payload["version"]
+                        .as_str()
+                        .unwrap_or("0.2.0")
+                        .to_string(),
+                    manifest_hash: old_payload["manifestHash"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                    installed_at: old_payload["installedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("app-definition", &app)?;
+                tree.apps.insert(app_id.clone(), new_hash.clone());
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "app-definition", "id": app_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        if let Some(runs) = payload["appRuns"].as_object() {
+            for (run_id, old_hash_value) in runs {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "app-run")?;
+                let old_payload = &old["payload"];
+                let mut selected = Vec::new();
+                if let Some(items) = old_payload["selectedCognitions"].as_array() {
+                    for item in items {
+                        let Some(old_cognition) = item["cognition"].as_str() else {
+                            continue;
+                        };
+                        selected.push(SelectedCognition {
+                            cognition: hash_map
+                                .get(old_cognition)
+                                .cloned()
+                                .unwrap_or_else(|| old_cognition.to_string()),
+                            cognition_id: item["cognitionId"]
+                                .as_str()
+                                .unwrap_or("cognition")
+                                .to_string(),
+                            selection_reason: item["selectionReason"]
+                                .as_str()
+                                .or_else(|| item["reason"].as_str())
+                                .unwrap_or("Migrated v3 App Run selection.")
+                                .to_string(),
+                        });
+                    }
+                }
+                let conflicts = old_payload["conflicts"]
+                    .as_array()
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .map(str::to_string)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let gaps = old_payload["gaps"]
+                    .as_array()
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .map(str::to_string)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let findings = if old_payload["confirmedAssociationsUsed"]
+                    .as_array()
+                    .is_some_and(|items| !items.is_empty())
+                    || old_payload["inferredAssociationsUsed"]
+                        .as_array()
+                        .is_some_and(|items| !items.is_empty())
+                {
+                    vec![AppFinding {
+                        label: "unclear".to_string(),
+                        cognitions: selected.iter().map(|item| item.cognition.clone()).collect(),
+                        passages: Vec::new(),
+                        reason_markdown:
+                            "Migrated v3 App Run relation context as task-scoped analysis."
+                                .to_string(),
+                        app_rule: Some("migration-from-v3".to_string()),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                let output = AppRunOutput {
+                    kind: old_payload["output"]["kind"]
+                        .as_str()
+                        .unwrap_or("analysis")
+                        .to_string(),
+                    body_markdown: old_payload["output"]["bodyMarkdown"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                    external_action: old_payload["output"]["externalAction"]
+                        .as_bool()
+                        .unwrap_or(false),
+                };
+                let run = AppRunPayload {
+                    run_id: run_id.clone(),
+                    app_id: old_payload["appId"]
+                        .as_str()
+                        .unwrap_or("unknown-app")
+                        .to_string(),
+                    app_version: old_payload["appVersion"]
+                        .as_str()
+                        .unwrap_or("0.1.0")
+                        .to_string(),
+                    base_snapshot: old_payload["baseSnapshot"]
+                        .as_str()
+                        .unwrap_or(&old_current)
+                        .to_string(),
+                    task_markdown: old_payload["taskMarkdown"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                    selected_cognitions: selected,
+                    analysis: AppAnalysis {
+                        findings,
+                        gaps,
+                        conflicts,
+                    },
+                    resolutions: Vec::new(),
+                    app_policies_used: Vec::new(),
+                    output,
+                    created_at: old_payload["createdAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("app-run", &run)?;
+                tree.app_runs.insert(run_id.clone(), new_hash.clone());
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(
+                    json!({ "kind": "app-run", "id": run_id, "old": old_hash, "new": new_hash }),
+                );
+            }
+        }
+
+        let mut archived_associations = Vec::new();
+        if let Some(associations) = payload["confirmedAssociations"].as_object() {
+            for (association_id, old_hash_value) in associations {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "association")?;
+                let old_payload = &old["payload"];
+                archived_associations.push(json!({
+                    "associationId": association_id,
+                    "oldObjectHash": old_hash,
+                    "relation": old_payload["relation"],
+                    "fromCognitions": old_payload["fromCognitions"],
+                    "toCognitions": old_payload["toCognitions"],
+                    "confirmationDecision": old_payload["confirmedByDecision"],
+                    "confirmedAt": old_payload["confirmedAt"]
+                }));
+            }
+        }
+        let association_archive = json!({
+            "schemaVersion": 1,
+            "note": "v3 global Associations are preserved for audit but are not active in ME v5.",
+            "records": archived_associations
+        });
+        let association_archive_path = root.join(".me/migrations/v3-associations.json");
+        atomic_write(
+            &association_archive_path,
+            &serde_json::to_vec_pretty(&association_archive)
+                .map_err(|err| MeError::Internal(err.into()))?,
+        )?;
+
+        tree.proposals.clear();
+        tree.apps.clear();
+        tree.app_policies.clear();
+        tree.app_runs.clear();
+
+        let tree_hash = ws.write_object("me-tree", &tree)?;
+        let snapshot = MeSnapshotPayload {
+            parent: None,
+            tree: tree_hash,
+            operation: "migrate-from-v3".to_string(),
+            actor: "local-user".to_string(),
+            message: "Migrate ME v0.3 workspace to ME v0.5".to_string(),
+            created_at: migrated_at.clone(),
+        };
+        let new_current = ws.write_object("me-snapshot", &snapshot)?;
+        atomic_write(
+            &root.join(".me/refs/current"),
+            format!("{new_current}\n").as_bytes(),
+        )?;
+        ws.append_journal(
+            None,
+            &new_current,
+            "migrate-from-v3",
+            "Migrate ME v0.3 workspace to ME v0.5",
+        )?;
+        config.schema_version = SCHEMA_VERSION;
+        let toml = toml::to_string_pretty(&config).map_err(|err| MeError::Internal(err.into()))?;
+        atomic_write(&root.join("me.toml"), toml.as_bytes())?;
+        ws.regenerate_views()?;
+        ws.rebuild_index()?;
+        ws.fsck()?;
+        let manifest = json!({
+            "schemaVersion": 1,
+            "sourceSystem": "me",
+            "sourceWorkspaceVersion": 3,
+            "targetSystem": "me",
+            "targetWorkspaceVersion": 5,
+            "migratedAt": migrated_at,
+            "oldCurrentSnapshot": old_current,
+            "newCurrentSnapshot": new_current,
+            "objects": mappings,
+            "confirmedAssociationArchive": association_archive_path,
+            "confirmedAssociationArchiveCount": association_archive["records"].as_array().map_or(0, Vec::len),
+            "oldObjectsPreserved": true
+        });
+        let manifest_path = root.join(".me/migrations/me-v3-to-me-v5-manifest.json");
+        atomic_write(
+            &manifest_path,
+            &serde_json::to_vec_pretty(&manifest).map_err(|err| MeError::Internal(err.into()))?,
+        )?;
+        Ok(json!({
+            "workspace": root,
+            "manifest": manifest_path,
+            "associationArchive": association_archive_path,
+            "confirmedAssociationArchiveCount": manifest["confirmedAssociationArchiveCount"],
+            "oldCurrentSnapshot": manifest["oldCurrentSnapshot"],
+            "newCurrentSnapshot": manifest["newCurrentSnapshot"],
+            "oldObjectsPreserved": true
+        }))
+    }
+
+    pub fn migrate_from_v4(path: impl AsRef<Path>) -> Result<Value> {
+        let root = path.as_ref().to_path_buf();
+        if !root.join(".me/refs/current").exists() {
+            return Err(not_found(format!(
+                "Not a ME v4 workspace: {}",
+                root.display()
+            )));
+        }
+        let raw_config = fs::read_to_string(root.join("me.toml"))
+            .map_err(|err| MeError::Internal(err.into()))?;
+        let mut config: me_core::WorkspaceConfig =
+            toml::from_str(&raw_config).map_err(|err| MeError::Internal(err.into()))?;
+        if config.schema_version == SCHEMA_VERSION {
+            return Err(invalid("ME workspace is already schema v5"));
+        }
+        if config.schema_version != 4 {
+            return Err(invalid(format!(
+                "migrate --from-v4 requires schemaVersion 4, got {}",
+                config.schema_version
+            )));
+        }
+        let _lock = lock_file(&root.join(".me/lock"), "ME v4")?;
+        let ws = Workspace { root: root.clone() };
+        ws.create_layout()?;
+        ws.sync_workspace_docs()?;
+        let migrated_at = now_rfc3339()?;
+        let old_current = fs::read_to_string(root.join(".me/refs/current"))
+            .map_err(|err| MeError::Internal(err.into()))?
+            .trim()
+            .to_string();
+        let old_snapshot = me_object_raw(&root, &old_current, "me-snapshot")?;
+        let old_tree_hash = old_snapshot["payload"]["tree"]
+            .as_str()
+            .ok_or_else(|| integrity("v4 snapshot missing tree"))?;
+        let old_tree = me_object_raw(&root, old_tree_hash, "me-tree")?;
+        let payload = &old_tree["payload"];
+        let mut tree = MeTreePayload::default();
+        let mut mappings = Vec::new();
+        let mut hash_map: BTreeMap<String, String> = BTreeMap::new();
+        let fallback_decision = DecisionPayload {
+            decision_id: new_id("decision"),
+            base_snapshot: old_current.clone(),
+            action: "add-cognition".to_string(),
+            actor: "local-user".to_string(),
+            thought: None,
+            final_body_markdown: None,
+            note_markdown: Some("Migration fallback Decision from ME v0.4 to ME v0.5".to_string()),
+            decided_at: migrated_at.clone(),
+        };
+        let fallback_decision_hash = ws.write_object("decision", &fallback_decision)?;
+
+        if let Some(thoughts) = payload["thoughts"].as_object() {
+            for (thought_id, old_hash_value) in thoughts {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "thought")?;
+                let old_payload = &old["payload"];
+                let body = old_payload["bodyMarkdown"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+                let origin: Origin = serde_json::from_value(old_payload["origin"].clone())
+                    .unwrap_or_else(|_| Origin::local_input());
+                let thought = ThoughtPayload {
+                    thought_id: thought_id.clone(),
+                    kind: old_payload["kind"].as_str().unwrap_or("other").to_string(),
+                    body_markdown: body.clone(),
+                    body_text: old_payload["bodyText"]
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| markdown_to_text(&body)),
+                    origin,
+                    captured_at: old_payload["capturedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                    captured_by: old_payload["capturedBy"]
+                        .as_str()
+                        .unwrap_or("local-user")
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("thought", &thought)?;
+                tree.thoughts.insert(thought_id.clone(), new_hash.clone());
+                let state = payload["thoughtStates"][thought_id]
+                    .as_str()
+                    .unwrap_or("pending");
+                tree.thought_states.insert(
+                    thought_id.clone(),
+                    if state == "captured" {
+                        "pending"
+                    } else {
+                        state
+                    }
+                    .to_string(),
+                );
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "thought", "id": thought_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        let mut app_decision_archive = Vec::new();
+        if let Some(decisions) = payload["decisions"].as_object() {
+            for (decision_id, old_hash_value) in decisions {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "decision")?;
+                let old_payload = &old["payload"];
+                let old_action = old_payload["action"].as_str().unwrap_or("add-cognition");
+                let old_kind = old_payload["kind"].as_str().unwrap_or("collection");
+                if old_kind == "app-resolution"
+                    || matches!(old_action, "create-app-policy" | "save-app-run")
+                {
+                    app_decision_archive.push(json!({
+                        "decisionId": decision_id,
+                        "oldObjectHash": old_hash,
+                        "action": old_action,
+                        "payload": old_payload
+                    }));
+                    continue;
+                }
+                let action = match old_action {
+                    "reject-proposal" => "dismiss-thought",
+                    "save-synthesis-cognition" => "add-cognition",
+                    other => other,
+                };
+                if !matches!(
+                    action,
+                    "add-cognition"
+                        | "keep-thought-only"
+                        | "dismiss-thought"
+                        | "retire-cognition"
+                        | "reactivate-cognition"
+                        | "restore-snapshot"
+                ) {
+                    app_decision_archive.push(json!({
+                        "decisionId": decision_id,
+                        "oldObjectHash": old_hash,
+                        "action": old_action,
+                        "payload": old_payload
+                    }));
+                    continue;
+                }
+                let thought = old_payload["thought"]
+                    .as_str()
+                    .and_then(|hash| hash_map.get(hash).cloned())
+                    .or_else(|| old_payload["thought"].as_str().map(str::to_string));
+                let decision = DecisionPayload {
+                    decision_id: decision_id.clone(),
+                    base_snapshot: old_payload["baseSnapshot"]
+                        .as_str()
+                        .unwrap_or(&old_current)
+                        .to_string(),
+                    action: action.to_string(),
+                    actor: old_payload["actor"]
+                        .as_str()
+                        .unwrap_or("local-user")
+                        .to_string(),
+                    thought,
+                    final_body_markdown: old_payload["finalBodyMarkdown"]
+                        .as_str()
+                        .map(str::to_string),
+                    note_markdown: old_payload["noteMarkdown"].as_str().map(str::to_string),
+                    decided_at: old_payload["decidedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("decision", &decision)?;
+                tree.decisions.insert(decision_id.clone(), new_hash.clone());
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "decision", "id": decision_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        if let Some(cognitions) = payload["cognitions"].as_object() {
+            for (cognition_id, old_hash_value) in cognitions {
+                let Some(old_hash) = old_hash_value.as_str() else {
+                    continue;
+                };
+                let old = me_object_raw(&root, old_hash, "cognition")?;
+                let old_payload = &old["payload"];
+                let body = old_payload["bodyMarkdown"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+                let origin_thought = old_payload["originThought"]
+                    .as_str()
+                    .and_then(|hash| hash_map.get(hash).cloned())
+                    .or_else(|| old_payload["originThought"].as_str().map(str::to_string))
+                    .unwrap_or_default();
+                let added_by_decision = old_payload["addedByDecision"]
+                    .as_str()
+                    .and_then(|hash| hash_map.get(hash).cloned())
+                    .unwrap_or_else(|| fallback_decision_hash.clone());
+                if added_by_decision == fallback_decision_hash
+                    && !tree.decisions.contains_key(&fallback_decision.decision_id)
+                {
+                    tree.decisions.insert(
+                        fallback_decision.decision_id.clone(),
+                        fallback_decision_hash.clone(),
+                    );
+                }
+                let cognition = CognitionPayload {
+                    cognition_id: cognition_id.clone(),
+                    body_markdown: body.clone(),
+                    body_text: old_payload["bodyText"]
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| markdown_to_text(&body)),
+                    display_title: old_payload["displayTitle"].as_str().map(str::to_string),
+                    origin_thought,
+                    added_by_decision,
+                    added_at: old_payload["addedAt"]
+                        .as_str()
+                        .unwrap_or(&migrated_at)
+                        .to_string(),
+                };
+                let new_hash = ws.write_object("cognition", &cognition)?;
+                tree.cognitions
+                    .insert(cognition_id.clone(), new_hash.clone());
+                let state = payload["cognitionStates"][cognition_id]
+                    .as_str()
+                    .unwrap_or("active")
+                    .to_string();
+                tree.cognition_states.insert(cognition_id.clone(), state);
+                hash_map.insert(old_hash.to_string(), new_hash.clone());
+                mappings.push(json!({ "kind": "cognition", "id": cognition_id, "old": old_hash, "new": new_hash }));
+            }
+        }
+
+        let export_dir = root.join("exports/migration/v4-app-runs");
+        fs::create_dir_all(&export_dir).map_err(|err| MeError::Internal(err.into()))?;
+        let mut app_records = Vec::new();
+        for (field, object_type) in [
+            ("apps", "app-definition"),
+            ("appPolicies", "app-policy"),
+            ("appRuns", "app-run"),
+            ("proposals", "proposal"),
+        ] {
+            if let Some(items) = payload[field].as_object() {
+                for (id, old_hash_value) in items {
+                    let Some(old_hash) = old_hash_value.as_str() else {
+                        continue;
+                    };
+                    let old = me_object_raw(&root, old_hash, object_type)?;
+                    let old_payload = &old["payload"];
+                    let mut record = json!({
+                        "id": id,
+                        "oldObjectHash": old_hash,
+                        "objectType": object_type,
+                        "appId": old_payload["appId"].as_str().or_else(|| old_payload["app_id"].as_str()),
+                        "appVersion": old_payload["appVersion"].as_str().or_else(|| old_payload["version"].as_str()),
+                        "referencedCognitions": old_payload["selectedCognitions"],
+                        "task": old_payload["taskMarkdown"],
+                        "outputHash": old_payload["outputHash"],
+                        "policyScope": old_payload["scope"],
+                        "time": old_payload["createdAt"].as_str().or_else(|| old_payload["installedAt"].as_str()).or_else(|| old_payload["created_at"].as_str()),
+                        "payload": old_payload
+                    });
+                    if object_type == "app-run" {
+                        let body = old_payload["output"]["bodyMarkdown"].as_str().unwrap_or("");
+                        let export_path = export_dir.join(format!("{}.md", safe_file_stem(id)));
+                        atomic_write(&export_path, body.as_bytes())?;
+                        record["exportPath"] = json!(export_path);
+                    }
+                    app_records.push(record);
+                }
+            }
+        }
+        for record in app_decision_archive {
+            app_records.push(json!({
+                "objectType": "decision",
+                "oldObjectHash": record["oldObjectHash"],
+                "decisionId": record["decisionId"],
+                "action": record["action"],
+                "payload": record["payload"]
+            }));
+        }
+        let app_archive = json!({
+            "schemaVersion": 1,
+            "sourceSchemaVersion": 4,
+            "targetSchemaVersion": SCHEMA_VERSION,
+            "migratedAt": migrated_at,
+            "suggestedProcedures": {
+                "inspect-me": "procedures/inspect-me.md",
+                "speak-for-me": "procedures/speak-from-me.md",
+                "other": "manual review required"
+            },
+            "records": app_records
+        });
+        let app_archive_path = root.join(".me/migrations/v4-apps.json");
+        atomic_write(
+            &app_archive_path,
+            &serde_json::to_vec_pretty(&app_archive)
+                .map_err(|err| MeError::Internal(err.into()))?,
+        )?;
+
+        let tree_hash = ws.write_object("me-tree", &tree)?;
+        let snapshot = MeSnapshotPayload {
+            parent: None,
+            tree: tree_hash,
+            operation: "migrate-from-v4".to_string(),
+            actor: "local-user".to_string(),
+            message: "Migrate ME v0.4 workspace to ME v0.5".to_string(),
+            created_at: migrated_at.clone(),
+        };
+        let new_current = ws.write_object("me-snapshot", &snapshot)?;
+        atomic_write(
+            &root.join(".me/refs/current"),
+            format!("{new_current}\n").as_bytes(),
+        )?;
+        ws.append_journal(
+            None,
+            &new_current,
+            "migrate-from-v4",
+            "Migrate ME v0.4 workspace to ME v0.5",
+        )?;
+        config.schema_version = SCHEMA_VERSION;
+        let toml = toml::to_string_pretty(&config).map_err(|err| MeError::Internal(err.into()))?;
+        atomic_write(&root.join("me.toml"), toml.as_bytes())?;
+        ws.regenerate_views()?;
+        ws.rebuild_index()?;
+        ws.fsck()?;
+        let manifest = json!({
+            "schemaVersion": 1,
+            "sourceSystem": "me",
+            "sourceWorkspaceVersion": 4,
+            "targetSystem": "me",
+            "targetWorkspaceVersion": 5,
+            "migratedAt": migrated_at,
+            "oldCurrentSnapshot": old_current,
+            "newCurrentSnapshot": new_current,
+            "objects": mappings,
+            "appAuditArchive": app_archive_path,
+            "appAuditArchiveCount": app_archive["records"].as_array().map_or(0, Vec::len),
+            "appRunExportDirectory": export_dir,
+            "appRunExportCount": payload["appRuns"].as_object().map_or(0, |items| items.len()),
+            "oldObjectsPreserved": true
+        });
+        let manifest_path = root.join(".me/migrations/me-v4-to-me-v5-manifest.json");
+        atomic_write(
+            &manifest_path,
+            &serde_json::to_vec_pretty(&manifest).map_err(|err| MeError::Internal(err.into()))?,
+        )?;
+        Ok(json!({
+            "workspace": root,
+            "manifest": manifest_path,
+            "appAuditArchive": manifest["appAuditArchive"],
+            "appAuditArchiveCount": manifest["appAuditArchiveCount"],
+            "appRunExportDirectory": manifest["appRunExportDirectory"],
+            "appRunExportCount": manifest["appRunExportCount"],
+            "oldCurrentSnapshot": manifest["oldCurrentSnapshot"],
+            "newCurrentSnapshot": manifest["newCurrentSnapshot"],
+            "oldObjectsPreserved": true
         }))
     }
 
@@ -1711,22 +2302,17 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
     fn create_layout(&self) -> Result<()> {
         for dir in [
             "inbox",
-            "drafts/proposals",
-            "drafts/app-runs",
-            "apps/inspect-me",
-            "apps/speak-for-me",
+            "references",
+            "procedures",
             "views/thoughts",
             "views/cognitions",
-            "views/associations",
-            "views/apps",
-            "views/runs",
+            "views/history",
             "exports",
             ".me/objects",
             ".me/refs",
             ".me/journal",
             ".me/migrations",
             ".me/tmp",
-            ".me/pending/proposals",
             ".agents/skills/me/references",
             ".agents/skills/me/agents",
         ] {
@@ -1740,7 +2326,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             File::create(self.root.join(".me/lock"))
                 .map_err(|err| MeError::Internal(err.into()))?;
         }
-        self.write_builtin_app_packages()?;
+        self.write_builtin_procedures()?;
         Ok(())
     }
 
@@ -1757,8 +2343,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
     }
 
     fn write_initial_snapshot(&self) -> Result<()> {
-        let mut tree = MeTreePayload::default();
-        self.write_builtin_app_definitions(&mut tree)?;
+        let tree = MeTreePayload::default();
         let tree_hash = self.write_object("me-tree", &tree)?;
         let snapshot = MeSnapshotPayload {
             parent: None,
@@ -1808,32 +2393,13 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                     captured_by: "local-user".to_string(),
                 };
                 let thought_hash = self.write_object("thought", &thought)?;
-                let proposal = me_core::ProposalPayload {
-                    proposal_id: new_id("proposal"),
-                    thought: thought_hash.clone(),
-                    base_snapshot: current.snapshot_hash.clone(),
-                    related_cognitions: Vec::new(),
-                    recommendation: json!({
-                        "operation": "add-cognition",
-                        "bodyMarkdown": body,
-                        "confirmAssociations": []
-                    }),
-                    alternatives: Vec::new(),
-                    generated_by: GeneratedBy {
-                        host: "me-demo".to_string(),
-                        model: None,
-                    },
-                    created_at: now_rfc3339()?,
-                };
-                let proposal_hash = self.write_object("proposal", &proposal)?;
                 let decision = DecisionPayload {
                     decision_id: new_id("decision"),
-                    proposal: proposal_hash.clone(),
                     base_snapshot: current.snapshot_hash.clone(),
                     action: "add-cognition".to_string(),
                     actor: "local-user".to_string(),
+                    thought: Some(thought_hash.clone()),
                     final_body_markdown: Some(body.to_string()),
-                    confirmed_associations: Vec::new(),
                     note_markdown: Some("Demo seed".to_string()),
                     decided_at: now_rfc3339()?,
                 };
@@ -1844,7 +2410,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                     body_text: markdown_to_text(body),
                     display_title: Some(title.to_string()),
                     origin_thought: thought_hash.clone(),
-                    origin: CognitionOrigin::thought(),
                     added_by_decision: decision_hash.clone(),
                     added_at: now_rfc3339()?,
                 };
@@ -1853,8 +2418,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                     .insert(thought.thought_id.clone(), thought_hash.clone());
                 tree.thought_states
                     .insert(thought.thought_id.clone(), "added".to_string());
-                tree.proposals
-                    .insert(proposal.proposal_id.clone(), proposal_hash.clone());
                 tree.decisions
                     .insert(decision.decision_id.clone(), decision_hash.clone());
                 tree.cognitions
@@ -1892,7 +2455,9 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             .insert(proposal.proposal_id.clone(), proposal_hash.to_string());
         tree.decisions
             .insert(decision.decision_id.clone(), decision_hash.to_string());
-        let (thought_id, thought_hash, thought) = self.resolve_thought(&tree, &proposal.thought)?;
+        let proposal_thought = proposal_thought_hash(proposal)
+            .ok_or_else(|| invalid("Proposal requires inputs.thought"))?;
+        let (thought_id, thought_hash, thought) = self.resolve_thought(&tree, proposal_thought)?;
         let action = decision.action.as_str();
         let mut result = json!({
             "proposalId": proposal.proposal_id,
@@ -1904,9 +2469,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         });
 
         match action {
-            "add-cognition"
-            | "add-cognition-and-confirm-associations"
-            | "save-synthesis-cognition" => {
+            "add-cognition" | "save-synthesis-cognition" => {
                 let body = decision
                     .final_body_markdown
                     .clone()
@@ -1928,7 +2491,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                         .and_then(Value::as_str)
                         .map(str::to_string),
                     origin_thought: thought_hash.clone(),
-                    origin: CognitionOrigin::thought(),
                     added_by_decision: decision_hash.to_string(),
                     added_at: now_rfc3339()?,
                 };
@@ -1938,17 +2500,11 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 tree.cognition_states
                     .insert(cognition.cognition_id.clone(), "active".to_string());
                 tree.thought_states.insert(thought_id, "added".to_string());
-                let mut association_hashes = Vec::new();
-                for association in &decision.confirmed_associations {
-                    let association_hash =
-                        self.write_confirmed_association(&mut tree, association, decision_hash)?;
-                    association_hashes.push(association_hash);
-                }
                 result["statusLabel"] = json!("ADDED TO ME");
                 result["cognitionId"] = json!(cognition.cognition_id);
                 result["cognition"] = json!(cognition_hash);
                 result["cognitionsAdded"] = json!(1);
-                result["confirmedAssociationsAdded"] = json!(association_hashes.len());
+                result["existingCognitionsChanged"] = json!(0);
             }
             "keep-thought-only" => {
                 tree.thought_states
@@ -1986,25 +2542,68 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         if !cognition_state_allowed(state) {
             return Err(invalid(format!("Unsupported Cognition state: {state}")));
         }
-        let _ = fs::read_to_string(decision_file.as_ref())
+        let raw = fs::read_to_string(decision_file.as_ref())
             .map_err(|err| MeError::Internal(err.into()))?;
+        let value: Value = if raw.trim().is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?
+        };
+        let action = value
+            .get("action")
+            .and_then(Value::as_str)
+            .or_else(|| value.get("operation").and_then(Value::as_str))
+            .unwrap_or(operation);
+        if action != operation {
+            return Err(invalid(format!(
+                "{operation} requires {operation} Decision, got {action}"
+            )));
+        }
         self.with_lock(|| {
             let current = self.load_current()?;
+            validate_base_snapshot(&value, &current.snapshot_hash)?;
             let (cognition_id, cognition_hash, _) =
                 self.resolve_cognition(&current.tree, cognition_id_or_hash)?;
+            let actor = value
+                .get("actor")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or(self.config()?.default_actor);
+            let decision = DecisionPayload {
+                decision_id: new_id("decision"),
+                base_snapshot: current.snapshot_hash.clone(),
+                action: operation.to_string(),
+                actor: actor.clone(),
+                thought: None,
+                final_body_markdown: None,
+                note_markdown: value
+                    .get("noteMarkdown")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                decided_at: value
+                    .get("decidedAt")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or(now_rfc3339()?),
+            };
+            let decision_hash = self.write_object("decision", &decision)?;
             let mut tree = current.tree.clone();
+            tree.decisions
+                .insert(decision.decision_id.clone(), decision_hash.clone());
             tree.cognition_states
                 .insert(cognition_id.clone(), state.to_string());
             let snapshot = self.commit_tree(
                 &current,
                 tree,
                 operation,
-                "local-user",
+                &actor,
                 format!("{operation} {cognition_id}"),
             )?;
             Ok(json!({
                 "cognitionId": cognition_id,
                 "cognition": cognition_hash,
+                "decisionId": decision.decision_id,
+                "decision": decision_hash,
                 "state": state,
                 "snapshot": snapshot
             }))
@@ -2242,7 +2841,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
     fn parse_decision_file(
         &self,
         file: &Path,
-        proposal_hash: &str,
         proposal: &me_core::ProposalPayload,
     ) -> Result<DecisionPayload> {
         let raw = fs::read_to_string(file).map_err(|err| MeError::Internal(err.into()))?;
@@ -2258,11 +2856,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                     .get("decisionId")
                     .and_then(Value::as_str)
                     .unwrap_or("")
-                    .to_string(),
-                proposal: value
-                    .get("proposal")
-                    .and_then(Value::as_str)
-                    .unwrap_or(proposal_hash)
                     .to_string(),
                 base_snapshot: value
                     .get("baseSnapshot")
@@ -2280,13 +2873,15 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .to_string(),
+                thought: value
+                    .get("thought")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .or_else(|| proposal_thought_hash(proposal).map(str::to_string)),
                 final_body_markdown: value
                     .get("finalBodyMarkdown")
                     .and_then(Value::as_str)
                     .map(str::to_string),
-                confirmed_associations: parse_proposed_associations(
-                    value.get("confirmedAssociations"),
-                )?,
                 note_markdown: value
                     .get("noteMarkdown")
                     .and_then(Value::as_str)
@@ -2307,9 +2902,9 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         write_object: bool,
     ) -> Result<String> {
         if proposal.schema_version != SCHEMA_VERSION || proposal.object_type != "proposal" {
-            return Err(invalid(
-                "Proposal must be a schemaVersion 3 proposal object",
-            ));
+            return Err(invalid(format!(
+                "Proposal must be a schemaVersion {SCHEMA_VERSION} proposal object"
+            )));
         }
         if proposal.payload.proposal_id.trim().is_empty() {
             return Err(invalid("Proposal ID is required"));
@@ -2325,7 +2920,9 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             });
         }
         self.read_object::<MeSnapshotPayload>(&proposal.payload.base_snapshot, "me-snapshot")?;
-        self.resolve_thought(&current.tree, &proposal.payload.thought)?;
+        let thought_hash = proposal_thought_hash(&proposal.payload)
+            .ok_or_else(|| invalid("Proposal requires inputs.thought"))?;
+        self.resolve_thought(&current.tree, thought_hash)?;
         let operation = string_field(&proposal.payload.recommendation, "operation")?;
         if !operation_allowed(operation) {
             return Err(invalid(format!(
@@ -2396,6 +2993,29 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         Ok((cognition_id_or_hash.to_string(), hash, cognition))
     }
 
+    fn resolve_run(
+        &self,
+        tree: &MeTreePayload,
+        run_id_or_hash: &str,
+    ) -> Result<(String, String, ObjectEnvelope<AppRunPayload>)> {
+        if is_sha_ref(run_id_or_hash) {
+            let run = self.read_object::<AppRunPayload>(run_id_or_hash, "app-run")?;
+            let run_id = tree
+                .app_runs
+                .iter()
+                .find_map(|(id, hash)| (hash == run_id_or_hash).then(|| id.clone()))
+                .unwrap_or_else(|| run.payload.run_id.clone());
+            return Ok((run_id, run_id_or_hash.to_string(), run));
+        }
+        let hash = tree
+            .app_runs
+            .get(run_id_or_hash)
+            .ok_or_else(|| not_found(format!("App Run not found: {run_id_or_hash}")))?
+            .clone();
+        let run = self.read_object::<AppRunPayload>(&hash, "app-run")?;
+        Ok((run_id_or_hash.to_string(), hash, run))
+    }
+
     fn resolve_proposal(
         &self,
         proposal_id_or_hash: &str,
@@ -2449,6 +3069,16 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         body: &str,
         limit: usize,
     ) -> Result<Vec<MatchResult>> {
+        self.match_cognitions(tree, body, limit, Some("active"))
+    }
+
+    fn match_cognitions(
+        &self,
+        tree: &MeTreePayload,
+        body: &str,
+        limit: usize,
+        state_filter: Option<&str>,
+    ) -> Result<Vec<MatchResult>> {
         let mut cognitions = Vec::new();
         for (cognition_id, hash) in &tree.cognitions {
             let state = tree
@@ -2456,7 +3086,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 .get(cognition_id)
                 .cloned()
                 .unwrap_or_else(|| "active".to_string());
-            if state != "active" {
+            if !state_filter.is_none_or(|filter| filter == "all" || filter == state) {
                 continue;
             }
             let cognition = self.read_object::<CognitionPayload>(hash, "cognition")?;
@@ -2471,26 +3101,29 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         Ok(rank_cognitions(body, &cognitions, limit))
     }
 
+    fn thought_id_for_hash(&self, tree: &MeTreePayload, thought_hash: &str) -> Option<String> {
+        tree.thoughts
+            .iter()
+            .find_map(|(thought_id, hash)| (hash == thought_hash).then(|| thought_id.clone()))
+    }
+
     fn related_from_matches(
         &self,
         matches: &[MatchResult],
-        thought_text: &str,
+        _thought_text: &str,
     ) -> Result<Vec<RelatedCognition>> {
-        let current = self.load_current()?;
         let mut related = Vec::new();
         for matched in matches {
-            let (_, _, cognition) = self.resolve_cognition(&current.tree, &matched.cognition)?;
             related.push(RelatedCognition {
                 cognition: matched.cognition.clone(),
                 cognition_id: matched.cognition_id.clone(),
                 score: matched.score,
-                relation_suggestion: Some(suggest_relation(
-                    thought_text,
-                    &cognition.payload.body_text,
-                )),
-                status: "inferred".to_string(),
+                status: "derived".to_string(),
                 matched_terms: matched.matched_terms.clone(),
-                explanation: Some("Deterministic lexical match; not authoritative.".to_string()),
+                explanation: Some(
+                    "Deterministic lexical match; derived retrieval only, not authoritative."
+                        .to_string(),
+                ),
             });
         }
         Ok(related)
@@ -2519,23 +3152,6 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         Ok(out)
     }
 
-    fn confirmed_association_summaries(&self, tree: &MeTreePayload) -> Result<Vec<Value>> {
-        let mut out = Vec::new();
-        for (association_id, hash) in &tree.confirmed_associations {
-            let association = self.read_object::<AssociationPayload>(hash, "association")?;
-            out.push(json!({
-                "statusLabel": "ASSOCIATION -- confirmed",
-                "associationId": association_id,
-                "association": hash,
-                "relation": association.payload.relation,
-                "fromCognitions": association.payload.from_cognitions,
-                "toCognitions": association.payload.to_cognitions,
-                "confirmedAt": association.payload.confirmed_at
-            }));
-        }
-        Ok(out)
-    }
-
     fn app_summaries(&self, tree: &MeTreePayload) -> Result<Vec<Value>> {
         let mut out = Vec::new();
         for (app_id, hash) in &tree.apps {
@@ -2554,7 +3170,13 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
         let current = self.load_current()?;
         let views = self.root.join("views");
         fs::create_dir_all(&views).map_err(|err| MeError::Internal(err.into()))?;
-        for child in ["thoughts", "cognitions", "associations", "apps", "runs"] {
+        for child in ["app-policies", "apps", "runs"] {
+            let path = views.join(child);
+            if path.exists() {
+                fs::remove_dir_all(&path).map_err(|err| MeError::Internal(err.into()))?;
+            }
+        }
+        for child in ["thoughts", "cognitions", "history"] {
             let path = views.join(child);
             if path.exists() {
                 fs::remove_dir_all(&path).map_err(|err| MeError::Internal(err.into()))?;
@@ -2572,10 +3194,16 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 .thought_states
                 .get(thought_id)
                 .cloned()
-                .unwrap_or_else(|| "captured".to_string());
+                .unwrap_or_else(|| "pending".to_string());
             let body = format!(
                 "---\ngeneratedBy: me\nsnapshot: {}\nthoughtId: {}\nobject: {}\nstate: {}\n---\n\nGenerated by ME from snapshot {}.\nDo not edit directly.\n\n# Thought {}\n\n{}\n",
-                current.snapshot_hash, thought_id, hash, state, current.snapshot_hash, thought_id, thought.payload.body_markdown
+                current.snapshot_hash,
+                thought_id,
+                hash,
+                state,
+                current.snapshot_hash,
+                thought_id,
+                thought.payload.body_markdown
             );
             atomic_write(
                 &views.join("thoughts").join(format!("{thought_id}.md")),
@@ -2598,35 +3226,15 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 .unwrap_or_else(|| cognition_id.to_string());
             let body = format!(
                 "---\ngeneratedBy: me\nsnapshot: {}\ncognitionId: {}\nobject: {}\nstate: {}\n---\n\nGenerated by ME from snapshot {}.\nDo not edit directly.\n\n# {}\n\n{}\n",
-                current.snapshot_hash, cognition_id, hash, state, current.snapshot_hash, title, cognition.payload.body_markdown
+                current.snapshot_hash,
+                cognition_id,
+                hash,
+                state,
+                current.snapshot_hash,
+                title,
+                cognition.payload.body_markdown
             );
             atomic_write(&views.join("cognitions").join(file_name), body.as_bytes())?;
-        }
-        for (association_id, hash) in &current.tree.confirmed_associations {
-            let association = self.read_object::<AssociationPayload>(hash, "association")?;
-            let body = format!(
-                "---\ngeneratedBy: me\nsnapshot: {}\nassociationId: {}\nobject: {}\nkind: confirmed\n---\n\n# Confirmed Association {}\n\nrelation: {}\n\nfrom: {:?}\n\nto: {:?}\n",
-                current.snapshot_hash,
-                association_id,
-                hash,
-                association_id,
-                association.payload.relation,
-                association.payload.from_cognitions,
-                association.payload.to_cognitions
-            );
-            atomic_write(
-                &views
-                    .join("associations")
-                    .join(format!("{association_id}.md")),
-                body.as_bytes(),
-            )?;
-        }
-        for (run_id, hash) in &current.tree.app_runs {
-            let run = self.read_object::<AppRunPayload>(hash, "app-run")?;
-            atomic_write(
-                &views.join("runs").join(format!("{run_id}.md")),
-                app_run_markdown(&run.payload).as_bytes(),
-            )?;
         }
         Ok(())
     }
@@ -2643,11 +3251,8 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE TABLE thoughts (thought_id TEXT PRIMARY KEY, object TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL, body_markdown TEXT NOT NULL, body_text TEXT NOT NULL);
             CREATE TABLE cognitions (cognition_id TEXT PRIMARY KEY, object TEXT NOT NULL, state TEXT NOT NULL, display_title TEXT, body_markdown TEXT NOT NULL, body_text TEXT NOT NULL);
-            CREATE TABLE confirmed_associations (association_id TEXT PRIMARY KEY, object TEXT NOT NULL, relation TEXT NOT NULL, from_cognitions TEXT NOT NULL, to_cognitions TEXT NOT NULL);
-            CREATE TABLE inferred_associations (from_cognition TEXT NOT NULL, to_cognition TEXT NOT NULL, relation TEXT NOT NULL, score REAL NOT NULL, matched_terms TEXT NOT NULL, generated_at TEXT NOT NULL, PRIMARY KEY (from_cognition, to_cognition, relation));
-            CREATE TABLE app_runs (run_id TEXT PRIMARY KEY, object TEXT NOT NULL, app_id TEXT NOT NULL, output_kind TEXT NOT NULL, external_action INTEGER NOT NULL);
-            CREATE TABLE proposals (proposal_id TEXT PRIMARY KEY, object TEXT NOT NULL, base_snapshot TEXT NOT NULL);
-            CREATE TABLE decisions (decision_id TEXT PRIMARY KEY, object TEXT NOT NULL, proposal TEXT NOT NULL, action TEXT NOT NULL);
+            CREATE TABLE retrieval_neighbors (source_cognition TEXT NOT NULL, target_cognition TEXT NOT NULL, score REAL NOT NULL, matched_terms TEXT NOT NULL, generated_at TEXT NOT NULL, PRIMARY KEY (source_cognition, target_cognition));
+            CREATE TABLE decisions (decision_id TEXT PRIMARY KEY, object TEXT NOT NULL, action TEXT NOT NULL);
             CREATE TABLE snapshots (snapshot TEXT PRIMARY KEY, parent TEXT, tree_hash TEXT NOT NULL, operation TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL);
             CREATE VIRTUAL TABLE thought_fts USING fts5(thought_id, body_markdown, body_text);
             CREATE VIRTUAL TABLE cognition_fts USING fts5(cognition_id, display_title, body_text);
@@ -2666,7 +3271,7 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
                 .thought_states
                 .get(thought_id)
                 .cloned()
-                .unwrap_or_else(|| "captured".to_string());
+                .unwrap_or_else(|| "pending".to_string());
             conn.execute(
                 "INSERT INTO thoughts VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
@@ -2711,52 +3316,11 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             )
             .map_err(|err| MeError::Internal(err.into()))?;
         }
-        for (association_id, hash) in &current.tree.confirmed_associations {
-            let association = self.read_object::<AssociationPayload>(hash, "association")?;
-            conn.execute(
-                "INSERT INTO confirmed_associations VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    association_id,
-                    hash,
-                    association.payload.relation,
-                    serde_json::to_string(&association.payload.from_cognitions).unwrap(),
-                    serde_json::to_string(&association.payload.to_cognitions).unwrap()
-                ],
-            )
-            .map_err(|err| MeError::Internal(err.into()))?;
-        }
-        for (proposal_id, hash) in &current.tree.proposals {
-            let proposal = self.read_object::<me_core::ProposalPayload>(hash, "proposal")?;
-            conn.execute(
-                "INSERT INTO proposals VALUES (?1, ?2, ?3)",
-                params![proposal_id, hash, proposal.payload.base_snapshot],
-            )
-            .map_err(|err| MeError::Internal(err.into()))?;
-        }
         for (decision_id, hash) in &current.tree.decisions {
             let decision = self.read_object::<DecisionPayload>(hash, "decision")?;
             conn.execute(
-                "INSERT INTO decisions VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    decision_id,
-                    hash,
-                    decision.payload.proposal,
-                    decision.payload.action
-                ],
-            )
-            .map_err(|err| MeError::Internal(err.into()))?;
-        }
-        for (run_id, hash) in &current.tree.app_runs {
-            let run = self.read_object::<AppRunPayload>(hash, "app-run")?;
-            conn.execute(
-                "INSERT INTO app_runs VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    run_id,
-                    hash,
-                    run.payload.app_id,
-                    run.payload.output.kind,
-                    run.payload.output.external_action as i32
-                ],
+                "INSERT INTO decisions VALUES (?1, ?2, ?3)",
+                params![decision_id, hash, decision.payload.action],
             )
             .map_err(|err| MeError::Internal(err.into()))?;
         }
@@ -2774,23 +3338,28 @@ ME keeps Cognitions loosely. ME Apps apply explicit rules when you use them.
             )
             .map_err(|err| MeError::Internal(err.into()))?;
         }
-        let inferred = self.compute_inferred_associations(&current.tree, None)?;
-        self.write_inferred_associations_to_conn(&conn, &inferred)?;
+        let neighbors = self.compute_retrieval_neighbors(&current.tree, None)?;
+        self.write_retrieval_neighbors_to_conn(&conn, &neighbors)?;
         Ok(())
     }
 
     fn sync_workspace_docs(&self) -> Result<()> {
         let readme = r#"# ME
 
-ME is your local Meaning Environment.
+ME is a local meaning environment.
 
-Tell ME a Thought. It becomes a Cognition only when you choose to add it. ME keeps Cognitions loosely: they may overlap, recur, qualify, or contradict one another without being forced into one canonical statement.
+ME stores what you chose to keep.
 
-ME Apps apply explicit domain rules when you use those Cognitions for a task. App Outputs never become Cognitions automatically.
+A Thought is an immutable input occurrence. A Cognition is a Thought
+you explicitly chose to keep. ME commits canonical state only through
+validated Decisions.
 
-ME stores its Cognition Library and history in your local workspace. The `me` engine itself does not use the network.
+Use ME through Codex by retrieving bounded Cognition context with
+`me context` or `me search`. References and Procedures are ordinary
+local files. They are not Cognitions.
 
-ME is not a digital clone, a complete identity, or an agent authorized to act as you.
+ME stores its Cognition Library and history locally. The `me` engine
+itself does not use the network.
 "#;
         atomic_write_preserving_user_section(&self.root.join("README.md"), readme.as_bytes())?;
         atomic_write_preserving_user_section(
@@ -2811,25 +3380,33 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
             workspace_mental_model_md().as_bytes(),
         )?;
         atomic_write(
-            &skill_dir.join("references/cognition-library.md"),
-            workspace_cognition_library_md().as_bytes(),
+            &skill_dir.join("references/mutation-boundary.md"),
+            workspace_mutation_boundary_md().as_bytes(),
         )?;
         atomic_write(
-            &skill_dir.join("references/associations.md"),
-            workspace_associations_md().as_bytes(),
+            &skill_dir.join("references/read-context.md"),
+            workspace_read_context_md().as_bytes(),
         )?;
         atomic_write(
-            &skill_dir.join("references/apps.md"),
-            workspace_apps_md().as_bytes(),
-        )?;
-        atomic_write(
-            &skill_dir.join("references/authorization.md"),
-            workspace_authorization_md().as_bytes(),
+            &skill_dir.join("references/references-and-procedures.md"),
+            workspace_references_and_procedures_md().as_bytes(),
         )?;
         atomic_write(
             &skill_dir.join("references/cli-contract.md"),
             workspace_cli_contract_md().as_bytes(),
         )?;
+        for old in [
+            "references/cognition-library.md",
+            "references/app-analysis.md",
+            "references/apps.md",
+            "references/authorization.md",
+            "references/associations.md",
+        ] {
+            let old_path = skill_dir.join(old);
+            if old_path.exists() {
+                fs::remove_file(old_path).map_err(|err| MeError::Internal(err.into()))?;
+            }
+        }
         atomic_write(
             &skill_dir.join("agents/openai.yaml"),
             b"interface:\n  display_name: \"ME\"\n  short_description: \"Capture Thoughts and add Cognitions.\"\n  default_prompt: \"Add this Thought to ME.\"\n\npolicy:\n  allow_implicit_invocation: true\n",
@@ -2896,84 +3473,6 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
         Ok(chain)
     }
 
-    fn write_confirmed_association(
-        &self,
-        tree: &mut MeTreePayload,
-        association: &ProposedAssociation,
-        decision_hash: &str,
-    ) -> Result<String> {
-        if !association_relation_allowed(&association.relation) {
-            return Err(invalid(format!(
-                "Unsupported Association relation: {}",
-                association.relation
-            )));
-        }
-        let from = self.resolve_cognition_list(tree, &association.from_cognitions)?;
-        let to = self.resolve_cognition_list(tree, &association.to_cognitions)?;
-        let payload = AssociationPayload {
-            association_id: new_id("association"),
-            relation: association.relation.clone(),
-            from_cognitions: from,
-            to_cognitions: to,
-            note_markdown: association.note_markdown.clone(),
-            confirmed_by_decision: decision_hash.to_string(),
-            confirmed_at: now_rfc3339()?,
-        };
-        let hash = self.write_object("association", &payload)?;
-        tree.confirmed_associations
-            .insert(payload.association_id, hash.clone());
-        Ok(hash)
-    }
-
-    fn resolve_cognition_list(
-        &self,
-        tree: &MeTreePayload,
-        items: &[String],
-    ) -> Result<Vec<String>> {
-        let mut hashes = Vec::new();
-        for item in items {
-            let (_, hash, _) = self.resolve_cognition(tree, item)?;
-            hashes.push(hash);
-        }
-        Ok(hashes)
-    }
-
-    fn confirmed_for_cognition(
-        &self,
-        tree: &MeTreePayload,
-        cognition_hash: &str,
-    ) -> Result<Vec<Value>> {
-        Ok(self
-            .confirmed_association_summaries(tree)?
-            .into_iter()
-            .filter(|association| {
-                association["fromCognitions"]
-                    .as_array()
-                    .is_some_and(|items| {
-                        items
-                            .iter()
-                            .any(|item| item.as_str() == Some(cognition_hash))
-                    })
-                    || association["toCognitions"].as_array().is_some_and(|items| {
-                        items
-                            .iter()
-                            .any(|item| item.as_str() == Some(cognition_hash))
-                    })
-            })
-            .collect())
-    }
-
-    fn inferred_for_cognition(&self, cognition_hash: &str) -> Result<Vec<Value>> {
-        Ok(self
-            .read_inferred_associations()?
-            .into_iter()
-            .filter(|item| {
-                item["fromCognition"].as_str() == Some(cognition_hash)
-                    || item["toCognition"].as_str() == Some(cognition_hash)
-            })
-            .collect())
-    }
-
     fn runs_using_cognition(
         &self,
         tree: &MeTreePayload,
@@ -2999,7 +3498,7 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
         Ok(out)
     }
 
-    fn compute_inferred_associations(
+    fn compute_retrieval_neighbors(
         &self,
         tree: &MeTreePayload,
         only: Option<&str>,
@@ -3018,8 +3517,8 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
             let cognition = self.read_object::<CognitionPayload>(hash, "cognition")?;
             cognitions.push((id.clone(), hash.clone(), cognition.payload));
         }
-        for (id, hash, cognition) in &cognitions {
-            if only.is_some_and(|target| target != id && target != hash) {
+        for (_id, hash, cognition) in &cognitions {
+            if only.is_some_and(|target| target != hash) {
                 continue;
             }
             let docs: Vec<_> = cognitions
@@ -3038,51 +3537,42 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
                     continue;
                 }
                 out.push(json!({
-                    "fromCognition": hash,
-                    "toCognition": matched.cognition,
-                    "relation": suggest_relation(&cognition.body_text, &matched.title),
+                    "sourceCognition": hash,
+                    "targetCognition": matched.cognition,
                     "score": matched.score,
                     "matchedTerms": matched.matched_terms,
-                    "status": "inferred"
+                    "status": "derived",
+                    "label": "possibly relevant"
                 }));
             }
         }
         out.sort_by(|a, b| {
-            a["fromCognition"]
+            a["sourceCognition"]
                 .as_str()
                 .unwrap_or("")
-                .cmp(b["fromCognition"].as_str().unwrap_or(""))
+                .cmp(b["sourceCognition"].as_str().unwrap_or(""))
                 .then_with(|| {
-                    a["toCognition"]
+                    a["targetCognition"]
                         .as_str()
                         .unwrap_or("")
-                        .cmp(b["toCognition"].as_str().unwrap_or(""))
+                        .cmp(b["targetCognition"].as_str().unwrap_or(""))
                 })
         });
         Ok(out)
     }
 
-    fn write_inferred_associations(&self, associations: &[Value]) -> Result<()> {
-        let conn = Connection::open(self.root.join(".me/index.sqlite"))
-            .map_err(|err| MeError::Internal(err.into()))?;
-        conn.execute("DELETE FROM inferred_associations", [])
-            .map_err(|err| MeError::Internal(err.into()))?;
-        self.write_inferred_associations_to_conn(&conn, associations)
-    }
-
-    fn write_inferred_associations_to_conn(
+    fn write_retrieval_neighbors_to_conn(
         &self,
         conn: &Connection,
-        associations: &[Value],
+        neighbors: &[Value],
     ) -> Result<()> {
         let generated_at = now_rfc3339()?;
-        for item in associations {
+        for item in neighbors {
             conn.execute(
-                "INSERT OR REPLACE INTO inferred_associations VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT OR REPLACE INTO retrieval_neighbors VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![
-                    item["fromCognition"].as_str(),
-                    item["toCognition"].as_str(),
-                    item["relation"].as_str(),
+                    item["sourceCognition"].as_str(),
+                    item["targetCognition"].as_str(),
                     item["score"].as_f64().unwrap_or_default(),
                     serde_json::to_string(item["matchedTerms"].as_array().unwrap_or(&Vec::new()))
                         .unwrap(),
@@ -3094,26 +3584,26 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
         Ok(())
     }
 
-    fn read_inferred_associations(&self) -> Result<Vec<Value>> {
+    fn read_retrieval_neighbors(&self) -> Result<Vec<Value>> {
         let path = self.root.join(".me/index.sqlite");
         if !path.exists() {
             return Ok(Vec::new());
         }
         let conn = Connection::open(path).map_err(|err| MeError::Internal(err.into()))?;
         let mut stmt = conn
-            .prepare("SELECT from_cognition, to_cognition, relation, score, matched_terms, generated_at FROM inferred_associations ORDER BY from_cognition, to_cognition")
+            .prepare("SELECT source_cognition, target_cognition, score, matched_terms, generated_at FROM retrieval_neighbors ORDER BY source_cognition, target_cognition")
             .map_err(|err| MeError::Internal(err.into()))?;
         let rows = stmt
             .query_map([], |row| {
-                let matched_terms: String = row.get(4)?;
+                let matched_terms: String = row.get(3)?;
                 Ok(json!({
-                    "fromCognition": row.get::<_, String>(0)?,
-                    "toCognition": row.get::<_, String>(1)?,
-                    "relation": row.get::<_, String>(2)?,
-                    "score": row.get::<_, f64>(3)?,
+                    "sourceCognition": row.get::<_, String>(0)?,
+                    "targetCognition": row.get::<_, String>(1)?,
+                    "score": row.get::<_, f64>(2)?,
                     "matchedTerms": serde_json::from_str::<Value>(&matched_terms).unwrap_or_else(|_| json!([])),
-                    "generatedAt": row.get::<_, String>(5)?,
-                    "status": "inferred"
+                    "generatedAt": row.get::<_, String>(4)?,
+                    "status": "derived",
+                    "label": "possibly relevant"
                 }))
             })
             .map_err(|err| MeError::Internal(err.into()))?;
@@ -3122,6 +3612,17 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
             out.push(row.map_err(|err| MeError::Internal(err.into()))?);
         }
         Ok(out)
+    }
+
+    fn retrieval_neighbors_for_cognition(&self, cognition_hash: &str) -> Result<Vec<Value>> {
+        Ok(self
+            .read_retrieval_neighbors()?
+            .into_iter()
+            .filter(|item| {
+                item["sourceCognition"].as_str() == Some(cognition_hash)
+                    || item["targetCognition"].as_str() == Some(cognition_hash)
+            })
+            .collect())
     }
 
     fn write_builtin_app_packages(&self) -> Result<()> {
@@ -3139,6 +3640,26 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
             "Draft communication grounded in selected Cognitions.",
             "draft",
         )?;
+        Ok(())
+    }
+
+    fn write_builtin_procedures(&self) -> Result<()> {
+        let procedures = [
+            (
+                "inspect-me.md",
+                "# Inspect ME\n\nUse `me search`, `me context`, and `me cognition list/show/history` to inspect authorized Cognitions. Treat retrieval as bounded context, not a complete model of the user.\n",
+            ),
+            (
+                "speak-from-me.md",
+                "# Speak From ME\n\n1. Put the task in a temporary UTF-8 Markdown file.\n2. Run `me context --task <file> --json`.\n3. Draft with the selected Cognitions as user-authorized context.\n4. Clearly separate ME Cognitions from Codex inference.\n5. Do not save the draft into ME unless the user brings an exact excerpt back as a Thought and approves a Decision.\n",
+            ),
+        ];
+        for (name, body) in procedures {
+            atomic_write_preserving_user_section(
+                &self.root.join("procedures").join(name),
+                body.as_bytes(),
+            )?;
+        }
         Ok(())
     }
 
@@ -3196,10 +3717,51 @@ ME is not a digital clone, a complete identity, or an agent authorized to act as
             selected.push(SelectedCognition {
                 cognition: matched.cognition,
                 cognition_id: matched.cognition_id,
-                reason: format!("Matched task terms: {}", matched.matched_terms.join(", ")),
+                selection_reason: format!(
+                    "Matched task terms: {}",
+                    matched.matched_terms.join(", ")
+                ),
             });
         }
         Ok(selected)
+    }
+
+    fn build_app_findings(
+        &self,
+        tree: &MeTreePayload,
+        app_id: &str,
+        task: &str,
+        selected: &[SelectedCognition],
+    ) -> Result<Vec<AppFinding>> {
+        let mut findings = Vec::new();
+        for item in selected {
+            let (_, _, cognition) = self.resolve_cognition(tree, &item.cognition)?;
+            findings.push(AppFinding {
+                label: if app_id == "inspect-me" {
+                    "similar".to_string()
+                } else {
+                    "supports".to_string()
+                },
+                cognitions: vec![item.cognition.clone()],
+                passages: vec![cognition.payload.body_markdown.clone()],
+                reason_markdown: format!(
+                    "For this task, this Cognition was selected because: {}. Task: {}",
+                    item.selection_reason,
+                    task.trim()
+                ),
+                app_rule: Some(format!("{app_id}: task-scoped retrieval")),
+            });
+        }
+        if selected.len() > 1 && task.to_ascii_lowercase().contains("artwork") {
+            findings.push(AppFinding {
+                label: "unclear".to_string(),
+                cognitions: selected.iter().map(|item| item.cognition.clone()).collect(),
+                passages: Vec::new(),
+                reason_markdown: "Multiple Cognitions are relevant for this task; ME does not synthesize one global position.".to_string(),
+                app_rule: Some(format!("{app_id}: preserve task-scoped uncertainty")),
+            });
+        }
+        Ok(findings)
     }
 }
 
@@ -3211,26 +3773,12 @@ fn home_markdown(data: &Value) -> String {
         .as_u64()
         .unwrap_or(0);
     let pending = data["waiting"]["pendingThoughtCount"].as_u64().unwrap_or(0);
-    let pending_decisions = data["waiting"]["pendingDecisionCount"]
-        .as_u64()
-        .unwrap_or(0);
-    let confirmed = data["associations"]["confirmedCount"].as_u64().unwrap_or(0);
-    let apps = data["apps"]
-        .as_array()
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(|item| item["name"].as_str())
-                .collect::<Vec<_>>()
-                .join("\n  ")
-        })
-        .unwrap_or_default();
     format!(
         r#"# ME
 
-Meaning Environment
+A local meaning environment.
 
-Tell ME a Thought.
+Tell ME a Thought. Keep it as a Cognition. Use ME through Codex.
 
 ## Cognition Library
 
@@ -3239,23 +3787,22 @@ Tell ME a Thought.
 
 ## Waiting
 
-  {pending} Thoughts waiting
-  {pending_decisions} pending decisions
+  {pending} Thoughts in Inbox
 
-## Associations
+## Use ME Through Codex
 
-  {confirmed} confirmed
-  inferred links available
+  "What do I have in ME about authorship?"
+  "Draft a reply using ME."
+  "Compare this decision with ME."
 
-## ME Apps
+## Change ME
 
-  {apps}
+  Add this Thought to ME: ...
 
-## Start
+## Local Material
 
-  Add this Thought: ...
-  Show ME what I have about ...
-  Use Speak for Me to draft ...
+  References and Procedures are available to Codex.
+  They are not Cognitions.
 "#
     )
 }
@@ -3274,11 +3821,10 @@ fn format_review(
             .enumerate()
             .map(|(idx, related)| {
                 format!(
-                    "{}. {} ({:.0}%) -- {} suggestion",
+                    "{}. {} ({:.0}%) -- derived retrieval hint",
                     idx + 1,
                     related.cognition_id,
-                    related.score * 100.0,
-                    related.relation_suggestion.as_deref().unwrap_or("similar")
+                    related.score * 100.0
                 )
             })
             .collect::<Vec<_>>()
@@ -3294,14 +3840,14 @@ Proposal ID: {}
 THOUGHT
 {}
 
-RELATED COGNITIONS
+OPTIONAL SIMILAR COGNITIONS
 {related}
 
 SUGGESTED EFFECT
 Add this Thought to ME as its own Cognition.
 
-POSSIBLE ASSOCIATIONS
-Inferred only. They are suggestions, not authority.
+DERIVED ONLY
+Similarity hints are not authorized facts and create no global relationship.
 
 WHAT WILL CHANGE
 1 Cognition added.
@@ -3322,24 +3868,10 @@ fn thought_status_label(state: &str) -> &'static str {
     }
 }
 
-fn suggest_relation(a: &str, b: &str) -> String {
-    let a = a.to_ascii_lowercase();
-    let b = b.to_ascii_lowercase();
-    if (a.contains("only") && a.contains("final") && b.contains("possibility"))
-        || (b.contains("only") && b.contains("final") && a.contains("possibility"))
-    {
-        "contradicts".to_string()
-    } else if a.contains("again") || a.contains("return") || a.contains("recurr") {
-        "recurs".to_string()
-    } else {
-        "similar".to_string()
-    }
-}
-
 fn infer_conflicts_from_selected(selected: &[SelectedCognition]) -> Vec<String> {
-    let has_final_only = selected
-        .iter()
-        .any(|item| item.reason.contains("final") || item.reason.contains("only"));
+    let has_final_only = selected.iter().any(|item| {
+        item.selection_reason.contains("final") || item.selection_reason.contains("only")
+    });
     if has_final_only && selected.len() > 1 {
         vec!["Selected Cognitions may contain tension; ME preserves it.".to_string()]
     } else {
@@ -3397,18 +3929,18 @@ fn app_run_markdown(run: &AppRunPayload) -> String {
     let used = run
         .selected_cognitions
         .iter()
-        .map(|item| format!("  {} -- {}", item.cognition_id, item.reason))
+        .map(|item| format!("  {} -- {}", item.cognition_id, item.selection_reason))
         .collect::<Vec<_>>()
         .join("\n");
-    let conflicts = if run.conflicts.is_empty() {
+    let conflicts = if run.analysis.conflicts.is_empty() {
         "None".to_string()
     } else {
-        run.conflicts.join("\n  ")
+        run.analysis.conflicts.join("\n  ")
     };
-    let gaps = if run.gaps.is_empty() {
+    let gaps = if run.analysis.gaps.is_empty() {
         "None".to_string()
     } else {
-        run.gaps.join("\n  ")
+        run.analysis.gaps.join("\n  ")
     };
     format!(
         r#"# ME App Run
@@ -3456,11 +3988,57 @@ fn changed_keys(a: &BTreeMap<String, String>, b: &BTreeMap<String, String>) -> V
         .collect()
 }
 
+fn proposal_thought_hash(proposal: &me_core::ProposalPayload) -> Option<&str> {
+    proposal.inputs.get("thought").and_then(Value::as_str)
+}
+
+fn association_removed_message() -> Value {
+    legacy_command_message("association")
+}
+
+fn legacy_command_message(command: &str) -> Value {
+    json!({
+        "statusLabel": "EARLIER ME COMMAND -- compatibility only",
+        "command": command,
+        "message": "This command belonged to an earlier experimental ME schema. ME now provides canonical Cognitions and read context. Use Codex directly for task-specific analysis and composition.",
+        "cognitionLibraryChanged": false,
+        "objectsCreated": 0
+    })
+}
+
 fn string_field<'a>(value: &'a Value, field: &str) -> Result<&'a str> {
     value
         .get(field)
         .and_then(Value::as_str)
         .ok_or_else(|| invalid(format!("Missing string field: {field}")))
+}
+
+fn validate_base_snapshot(value: &Value, current_snapshot: &str) -> Result<()> {
+    if let Some(base_snapshot) = value.get("baseSnapshot").and_then(Value::as_str) {
+        if base_snapshot != current_snapshot {
+            return Err(invalid(format!(
+                "Decision baseSnapshot {base_snapshot} does not match current Snapshot {current_snapshot}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn safe_file_stem(value: &str) -> String {
+    let mut out = String::new();
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+            out.push(ch);
+        } else if !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    let trimmed = out.trim_matches('-');
+    if trimmed.is_empty() {
+        "export".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 fn string_array(value: Option<&Value>) -> Option<Vec<String>> {
@@ -3471,33 +4049,6 @@ fn string_array(value: Option<&Value>) -> Option<Vec<String>> {
             .map(str::to_string)
             .collect()
     })
-}
-
-fn parse_proposed_associations(value: Option<&Value>) -> Result<Vec<ProposedAssociation>> {
-    let Some(values) = value.and_then(Value::as_array) else {
-        return Ok(Vec::new());
-    };
-    let mut out = Vec::new();
-    for value in values {
-        let relation = value
-            .get("relation")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid("Confirmed Association requires relation"))?;
-        let from = string_array(value.get("fromCognitions"))
-            .ok_or_else(|| invalid("Confirmed Association requires fromCognitions"))?;
-        let to = string_array(value.get("toCognitions"))
-            .ok_or_else(|| invalid("Confirmed Association requires toCognitions"))?;
-        out.push(ProposedAssociation {
-            relation: relation.to_string(),
-            from_cognitions: from,
-            to_cognitions: to,
-            note_markdown: value
-                .get("noteMarkdown")
-                .and_then(Value::as_str)
-                .map(str::to_string),
-        });
-    }
-    Ok(out)
 }
 
 fn canonical_json_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>> {
@@ -3555,19 +4106,27 @@ fn atomic_write_preserving_user_section(path: &Path, bytes: &[u8]) -> Result<()>
     let old = fs::read_to_string(path).unwrap_or_default();
     let user_section = extract_user_section(&old);
     let output = if let Some(section) = user_section {
-        format!("{new_text}\n<!-- MYMODEL:USER-BEGIN -->\n{section}\n<!-- MYMODEL:USER-END -->\n")
+        format!("{new_text}\n<!-- ME:USER-BEGIN -->\n{section}\n<!-- ME:USER-END -->\n")
     } else {
-        format!("{new_text}\n<!-- MYMODEL:USER-BEGIN -->\n<!-- MYMODEL:USER-END -->\n")
+        format!("{new_text}\n<!-- ME:USER-BEGIN -->\n<!-- ME:USER-END -->\n")
     };
     atomic_write(path, output.as_bytes())
 }
 
 fn extract_user_section(input: &str) -> Option<String> {
-    let start = "<!-- MYMODEL:USER-BEGIN -->";
-    let end = "<!-- MYMODEL:USER-END -->";
-    let start_idx = input.find(start)? + start.len();
-    let end_idx = input.find(end)?;
-    Some(input[start_idx..end_idx].trim().to_string())
+    for (start, end) in [
+        ("<!-- ME:USER-BEGIN -->", "<!-- ME:USER-END -->"),
+        ("<!-- MYMODEL:USER-BEGIN -->", "<!-- MYMODEL:USER-END -->"),
+    ] {
+        let Some(start_idx) = input.find(start).map(|idx| idx + start.len()) else {
+            continue;
+        };
+        let Some(end_idx) = input[start_idx..].find(end).map(|idx| start_idx + idx) else {
+            continue;
+        };
+        return Some(input[start_idx..end_idx].trim().to_string());
+    }
+    None
 }
 
 fn lock_file(path: &Path, label: &str) -> Result<File> {
@@ -3701,62 +4260,84 @@ fn workspace_agents_md() -> &'static str {
     r#"# ME Workspace Rules
 
 - This directory is a ME workspace, not a software repository.
-- Use the ME skill for Thought capture and semantic changes.
+- ME is an authorized Cognition store.
 - Use `me ... --json` for deterministic operations.
 - Never edit `.me/**` directly.
 - Never edit `views/**` directly.
-- New material must first become a Thought.
-- Default to adding a Thought as its own Cognition after approval.
-- Compare new input with current Cognitions before proposing Associations.
-- Treat recurrence as meaningful, not redundant.
-- Model output is a Proposal, never authority.
-- Run `me decide` only after explicit user authorization.
-- Publishing or external sharing is outside ME.
-- Do not make network requests unless the user separately asks for unrelated research.
+- Use `me context --task <file> --json` or `me search ... --json` for read-only ME context.
+- Read commands must not create objects, append journal entries, or advance `.me/refs/current`.
+- New retained material must first become a Thought.
+- Add exact Thoughts as Cognitions only after explicit user authorization and a Decision file.
+- Do not bulk-import References as Cognitions.
+- Do not treat Procedures as Cognitions.
+- Do not save Codex Output into ME automatically.
+- Do not invent global relationship objects.
+- Publishing, external sharing, and network access are outside ME.
 "#
 }
 
 fn workspace_skill_md() -> &'static str {
     r#"---
 name: me
-description: Capture a Thought, help the user decide whether to add it to ME as its own Cognition, suggest loose Associations without forcing merges, and use installed ME Apps for domain-specific tasks. Use when the user says "this is my thought," "add this to ME," asks what ME contains, or requests a task grounded in their Cognitions.
+description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit Thought-to-Cognition flow. Use when the user says "add this to ME," asks what ME contains, or wants a task grounded in their retained Cognitions.
 ---
 
 # ME Skill
 
-1. Confirm workspace with `me home --json`.
-2. Preserve exact user input as a Thought.
-3. Retrieve possibly related Cognitions.
-4. Propose adding the Thought as its own Cognition by default.
-5. Show inferred Associations as optional and non-authoritative.
-6. State that no existing Cognition will be rewritten.
-7. Wait for explicit authorization.
-8. Write the Decision.
-9. Run `me decide`.
-10. Report Cognitions added, Associations confirmed, and existing Cognitions changed.
+## Mode Selection
 
-Never publish, send, or externally share without a separate request.
+General task: do not use ME unless requested or clearly relevant.
+
+Use ME: call read-only ME commands.
+
+Change ME: use the Thought and Decision transaction flow.
+
+## Use ME
+
+1. Verify workspace with `me current --json`.
+2. Put the user's task in a temporary UTF-8 Markdown file.
+3. Call `me context --task <file> --json`.
+4. Use selected Cognitions as user-authorized context.
+5. Clearly distinguish ME Cognitions from Codex inference.
+6. Do not mutate ME.
+7. Do not claim the context is a complete representation of the user.
+
+## Change ME
+
+1. Preserve exact selected Thought text.
+2. Capture it with `me thought capture --file <file> --kind <kind> --json`.
+3. Show the exact text and intended action.
+4. Obtain explicit user Decision if not already explicit.
+5. Write a Decision file with `baseSnapshot`, `action`, `actor`, and exact final body.
+6. Call `me cognition add --thought <thought-id> --decision <file> --json`.
+7. Report Cognitions added, existing Cognitions changed, and the new Snapshot.
+
+## Forbidden
+
+Do not edit `.me/**` directly.
+Do not use Codex memory as Current ME.
+Do not bulk-import References as Cognitions.
+Do not treat Procedures as Cognitions.
+Do not save Codex Output into ME automatically.
+Do not invent relationship objects.
+Do not force synthesis.
 "#
 }
 
 fn workspace_mental_model_md() -> &'static str {
-    "A Thought is something I tell ME.\n\nA Cognition is a Thought I choose to keep.\n\nLoose at rest. Strict at use.\n"
+    "A Thought is something I tell ME.\n\nA Cognition is a Thought I choose to keep.\n\nME stores what I chose to keep. Codex can use it for anything.\n"
 }
 
-fn workspace_cognition_library_md() -> &'static str {
-    "ME tolerates overlapping, repeated, conditional, and contradictory Cognitions.\n"
+fn workspace_mutation_boundary_md() -> &'static str {
+    "ME Core validates and commits canonical state. Codex can suggest, draft, and prepare inputs, but model output is never authority. Approval requires an explicit Decision.\n"
 }
 
-fn workspace_associations_md() -> &'static str {
-    "An inferred Association is a suggestion. A confirmed Association is a relation the user chose to preserve.\n"
+fn workspace_read_context_md() -> &'static str {
+    "Use `me context --task <file> --json` to retrieve bounded Cognitions for an arbitrary task. Search and context are read-only and must not advance the current Snapshot.\n"
 }
 
-fn workspace_apps_md() -> &'static str {
-    "A ME App defines strict rules for using Cognitions in one domain. Outputs never become Cognitions automatically.\n"
-}
-
-fn workspace_authorization_md() -> &'static str {
-    "Codex must not run `me decide` merely because a Proposal exists. Wait for explicit user authorization.\n"
+fn workspace_references_and_procedures_md() -> &'static str {
+    "References and Procedures are ordinary local files available to Codex. They are not Cognitions, not Decisions, and not canonical ME state.\n"
 }
 
 fn workspace_cli_contract_md() -> &'static str {
@@ -3767,11 +4348,10 @@ Use `--json` for agent operations.
 ```bash
 me home --json
 me thought capture --file inbox/input.md --kind idea --json
-me thought context <thought-id> --json
-me proposal validate drafts/proposals/proposal.json --json
-me proposal save drafts/proposals/proposal.json --json
-me review <proposal-id> --json
-me decide <proposal-id> --decision drafts/proposals/decision.json --json
+me cognition add --thought <thought-id> --decision drafts/decisions/add.json --json
+me search "authorship" --limit 20 --json
+me context --task /tmp/me-task.md --limit 20 --json
+me cognition history <cognition-id> --json
 ```
 "#
 }
@@ -3795,8 +4375,8 @@ scope = "local cognition library"
 
 [retrieval]
 max_cognitions = 20
-include_inferred_associations = true
-include_confirmed_associations = true
+include_derived_neighbors = true
+include_task_findings = true
 include_retired = false
 include_conflicts = true
 
@@ -3858,7 +4438,7 @@ fn validate_app_manifest(manifest: &Value) -> Result<()> {
             .and_then(Value::as_bool)
             .unwrap_or(false)
     {
-        return Err(invalid("ME v0.3 Apps cannot send or publish"));
+        return Err(invalid("ME v0.4 Apps cannot send or publish"));
     }
     Ok(())
 }
@@ -3888,6 +4468,27 @@ fn copy_dir_replace(from: &Path, to: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn me_object_raw(root: &Path, hash: &str, expected_type: &str) -> Result<Value> {
+    let hex = strip_sha_prefix(hash).ok_or_else(|| invalid(format!("Invalid ME hash: {hash}")))?;
+    let path = root.join(".me/objects").join(&hex[0..2]).join(hex);
+    let mut bytes = fs::read(&path).map_err(|err| MeError::Internal(err.into()))?;
+    if bytes.ends_with(b"\n") {
+        bytes.pop();
+    }
+    let digest = sha_ref(&hex_digest(&bytes));
+    if digest != hash {
+        return Err(integrity(format!("ME object hash mismatch for {hash}")));
+    }
+    let value: Value =
+        serde_json::from_slice(&bytes).map_err(|err| MeError::Internal(err.into()))?;
+    if value["objectType"].as_str() != Some(expected_type) {
+        return Err(integrity(format!(
+            "ME object {hash} expected {expected_type}"
+        )));
+    }
+    Ok(value)
 }
 
 fn legacy_read_object(root: &Path, hash: &str, expected_type: &str) -> Result<Value> {
@@ -3940,6 +4541,159 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    fn write_schema4_object(root: &Path, object_type: &str, payload: Value) -> String {
+        let object = json!({
+            "schemaVersion": 4,
+            "objectType": object_type,
+            "payload": payload
+        });
+        let bytes = canonical_json_bytes(&object).unwrap();
+        let hash = sha_ref(&hex_digest(&bytes));
+        let hex = strip_sha_prefix(&hash).unwrap();
+        let path = root.join(".me/objects").join(&hex[0..2]).join(hex);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut bytes_with_newline = bytes;
+        bytes_with_newline.push(b'\n');
+        fs::write(path, bytes_with_newline).unwrap();
+        hash
+    }
+
+    fn write_schema4_fixture(root: &Path) -> (String, String) {
+        fs::create_dir_all(root.join(".me/objects")).unwrap();
+        fs::create_dir_all(root.join(".me/refs")).unwrap();
+        fs::create_dir_all(root.join(".me/journal")).unwrap();
+        fs::write(root.join(".me/lock"), "").unwrap();
+        fs::write(
+            root.join("me.toml"),
+            r#"schemaVersion = 4
+workspaceId = "mews_TEST"
+name = "ME"
+defaultActor = "local-user"
+
+[agent]
+preferred_host = "codex"
+proposal_limit = 5
+
+[privacy]
+me_network_access = "forbidden"
+
+[index]
+engine = "sqlite"
+rebuild_on_integrity_failure = true
+"#,
+        )
+        .unwrap();
+        let thought = write_schema4_object(
+            root,
+            "thought",
+            json!({
+                "thoughtId": "thought_test",
+                "kind": "idea",
+                "bodyMarkdown": "The possibility space is part of the artwork.",
+                "bodyText": "The possibility space is part of the artwork.",
+                "origin": { "type": "local-input", "uri": null, "attribution": null },
+                "capturedAt": "2026-06-24T00:00:00Z",
+                "capturedBy": "local-user"
+            }),
+        );
+        let decision = write_schema4_object(
+            root,
+            "decision",
+            json!({
+                "decisionId": "decision_test",
+                "kind": "collection",
+                "baseSnapshot": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "action": "add-cognition",
+                "actor": "local-user",
+                "thought": thought,
+                "proposal": null,
+                "finalBodyMarkdown": "The possibility space is part of the artwork.",
+                "noteMarkdown": null,
+                "decidedAt": "2026-06-24T00:01:00Z"
+            }),
+        );
+        let cognition = write_schema4_object(
+            root,
+            "cognition",
+            json!({
+                "cognitionId": "cognition_test",
+                "bodyMarkdown": "The possibility space is part of the artwork.",
+                "bodyText": "The possibility space is part of the artwork.",
+                "displayTitle": "Possibility Space",
+                "originThought": thought,
+                "addedByDecision": decision,
+                "addedAt": "2026-06-24T00:02:00Z"
+            }),
+        );
+        let app = write_schema4_object(
+            root,
+            "app-definition",
+            json!({
+                "appId": "speak-for-me",
+                "name": "Speak for Me",
+                "version": "0.1.0",
+                "manifestHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "installedAt": "2026-06-24T00:03:00Z"
+            }),
+        );
+        let run = write_schema4_object(
+            root,
+            "app-run",
+            json!({
+                "runId": "run_test",
+                "appId": "speak-for-me",
+                "appVersion": "0.1.0",
+                "baseSnapshot": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "taskMarkdown": "Draft using ME.",
+                "selectedCognitions": [
+                    {
+                        "cognition": cognition,
+                        "cognitionId": "cognition_test",
+                        "selectionReason": "fixture"
+                    }
+                ],
+                "analysis": { "findings": [], "gaps": [], "conflicts": [] },
+                "resolutions": [],
+                "appPoliciesUsed": [],
+                "output": {
+                    "kind": "draft",
+                    "bodyMarkdown": "A historical draft.",
+                    "externalAction": false
+                },
+                "createdAt": "2026-06-24T00:04:00Z"
+            }),
+        );
+        let tree = write_schema4_object(
+            root,
+            "me-tree",
+            json!({
+                "thoughts": { "thought_test": thought },
+                "thoughtStates": { "thought_test": "added" },
+                "cognitions": { "cognition_test": cognition },
+                "cognitionStates": { "cognition_test": "active" },
+                "decisions": { "decision_test": decision },
+                "proposals": {},
+                "apps": { "speak-for-me": app },
+                "appPolicies": {},
+                "appRuns": { "run_test": run }
+            }),
+        );
+        let snapshot = write_schema4_object(
+            root,
+            "me-snapshot",
+            json!({
+                "parent": null,
+                "tree": tree,
+                "operation": "demo-seed",
+                "actor": "local-user",
+                "message": "schema 4 fixture",
+                "createdAt": "2026-06-24T00:05:00Z"
+            }),
+        );
+        fs::write(root.join(".me/refs/current"), format!("{snapshot}\n")).unwrap();
+        (snapshot, run)
+    }
+
     #[test]
     fn empty_workspace_initializes_as_me() {
         let dir = tempdir().unwrap();
@@ -3966,20 +4720,9 @@ mod tests {
         let captured = ws.thought_capture(&input, "idea").unwrap();
         let thought_id = captured["thoughtId"].as_str().unwrap();
         let before = ws.current().unwrap();
-        let context = ws.thought_context(thought_id, 5).unwrap();
-        let proposal_path = dir.path().join("proposal.json");
-        fs::write(
-            &proposal_path,
-            serde_json::to_vec_pretty(&context["proposalObject"]).unwrap(),
-        )
-        .unwrap();
-        ws.save_proposal_file(&proposal_path).unwrap();
-        let proposal_id = context["proposalObject"]["payload"]["proposalId"]
-            .as_str()
-            .unwrap();
         let decision_path = dir.path().join("decision.json");
         fs::write(&decision_path, r#"{"action":"add-cognition"}"#).unwrap();
-        let result = ws.decide(proposal_id, &decision_path).unwrap();
+        let result = ws.cognition_add(thought_id, &decision_path).unwrap();
         assert_eq!(result["cognitionsAdded"], 1);
         assert_eq!(result["existingCognitionsChanged"], 0);
         let after = ws.current().unwrap();
@@ -3987,46 +4730,87 @@ mod tests {
             after["cognitions"].as_array().unwrap().len(),
             before["cognitions"].as_array().unwrap().len() + 1
         );
+        let tree_value = serde_json::to_value(ws.load_current().unwrap().tree).unwrap();
+        assert!(tree_value.get("confirmedAssociations").is_none());
+        assert!(tree_value.get("proposals").is_none());
+        assert!(tree_value.get("apps").is_none());
+        assert!(tree_value.get("appPolicies").is_none());
+        assert!(tree_value.get("appRuns").is_none());
     }
 
     #[test]
-    fn inferred_association_does_not_change_snapshot_but_confirmed_does() {
+    fn association_commands_are_non_mutating_compatibility_messages() {
         let dir = tempdir().unwrap();
         Workspace::init(dir.path(), true).unwrap();
         let ws = Workspace::open(dir.path()).unwrap();
         let before = ws.current_ref().unwrap();
         let inferred = ws.association_infer(None).unwrap();
-        assert_eq!(inferred["snapshotUnchanged"], before);
+        assert_eq!(inferred["objectsCreated"], 0);
         assert_eq!(ws.current_ref().unwrap(), before);
-        let cognitions = ws.cognition_list(Some("active".to_string())).unwrap();
-        let items = cognitions["cognitions"].as_array().unwrap();
         let spec = dir.path().join("association.json");
         fs::write(
             &spec,
-            format!(
-                r#"{{"relation":"recurs","fromCognitions":["{}"],"toCognitions":["{}"]}}"#,
-                items[0]["cognitionId"].as_str().unwrap(),
-                items[1]["cognitionId"].as_str().unwrap()
-            ),
+            r#"{"relation":"recurs","fromCognitions":[],"toCognitions":[]}"#,
         )
         .unwrap();
         let confirmed = ws.association_confirm(&spec).unwrap();
-        assert_ne!(confirmed["snapshot"], before);
+        assert_eq!(confirmed["objectsCreated"], 0);
+        assert_eq!(ws.current_ref().unwrap(), before);
     }
 
     #[test]
-    fn app_run_does_not_mutate_cognition_library() {
+    fn context_and_legacy_app_run_do_not_mutate_cognition_library() {
         let dir = tempdir().unwrap();
         Workspace::init(dir.path(), true).unwrap();
         let ws = Workspace::open(dir.path()).unwrap();
+        let before_ref = ws.current_ref().unwrap();
         let before = ws.cognition_list(Some("active".to_string())).unwrap();
         let task = dir.path().join("task.md");
         fs::write(&task, "Draft a reply about generative art and authorship.").unwrap();
+        let context = ws.context(&task, 2).unwrap();
+        assert_eq!(context["baseSnapshot"], before_ref);
+        assert_eq!(context["cognitionLibraryChanged"], false);
+        assert!(context["selectedCognitions"].as_array().unwrap().len() <= 2);
+        assert_eq!(ws.current_ref().unwrap(), before_ref);
+        let search = ws.search("generative art", 20, None).unwrap();
+        assert_eq!(search["baseSnapshot"], before_ref);
+        assert_eq!(ws.current_ref().unwrap(), before_ref);
         let run = ws.app_run("speak-for-me", &task, false).unwrap();
-        assert_eq!(run["externalAction"], false);
+        assert_eq!(run["objectsCreated"], 0);
         assert_eq!(run["cognitionLibraryChanged"], false);
+        assert!(
+            run["message"]
+                .as_str()
+                .unwrap()
+                .contains("earlier experimental ME schema")
+        );
+        assert_eq!(ws.current_ref().unwrap(), before_ref);
         let after = ws.cognition_list(Some("active".to_string())).unwrap();
         assert_eq!(before["cognitions"], after["cognitions"]);
+    }
+
+    #[test]
+    fn migrate_from_v4_preserves_cognitions_and_exports_app_runs() {
+        let dir = tempdir().unwrap();
+        let (old_snapshot, _run_hash) = write_schema4_fixture(dir.path());
+        let result = Workspace::migrate_from_v4(dir.path()).unwrap();
+        assert_eq!(result["oldCurrentSnapshot"], old_snapshot);
+        assert!(dir.path().join(".me/migrations/v4-apps.json").exists());
+        assert!(
+            dir.path()
+                .join("exports/migration/v4-app-runs/run_test.md")
+                .exists()
+        );
+        let ws = Workspace::open(dir.path()).unwrap();
+        ws.fsck().unwrap();
+        let current = ws.load_current().unwrap();
+        assert_eq!(current.tree.thoughts.len(), 1);
+        assert_eq!(current.tree.cognitions.len(), 1);
+        assert!(current.tree.apps.is_empty());
+        assert!(current.tree.app_runs.is_empty());
+        assert!(current.tree.app_policies.is_empty());
+        assert!(current.tree.proposals.is_empty());
+        assert_eq!(ws.config().unwrap().schema_version, SCHEMA_VERSION);
     }
 
     #[test]

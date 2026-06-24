@@ -1,11 +1,10 @@
-schema_version = 3
-workspace_id = "mews_TEMPLATE"
+schemaVersion = 5
+workspaceId = "mews_TEMPLATE"
 name = "ME"
-default_actor = "local-user"
+defaultActor = "local-user"
 
 [agent]
 preferred_host = "codex"
-proposal_limit = 5
 
 [privacy]
 me_network_access = "forbidden"

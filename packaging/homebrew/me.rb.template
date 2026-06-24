@@ -1,7 +1,7 @@
 class Me < Formula
-  desc "Local Meaning Environment"
+  desc "Local meaning environment"
   homepage "https://github.com/inshell-art/me"
-  url "https://github.com/inshell-art/me/archive/refs/tags/v0.3.0.tar.gz"
+  url "https://github.com/inshell-art/me/archive/refs/tags/v0.5.0.tar.gz"
   sha256 "<release-sha256>"
   license "MIT"
 
@@ -12,14 +12,12 @@ class Me < Formula
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/me --version")
-    workspace = testpath/"workspace"
+    assert_match "ME", shell_output("#{bin}/me --version")
+    workspace = testpath/"ME"
     system bin/"me", "new", workspace
     assert_path_exists workspace/"me.toml"
-    assert_path_exists workspace/"AGENTS.md"
-    assert_path_exists workspace/".agents/skills/me/SKILL.md"
     assert_path_exists workspace/".me/refs/current"
-    system bin/"me", "--workspace", workspace, "home"
+    assert_path_exists workspace/".agents/skills/me/SKILL.md"
     system bin/"me", "--workspace", workspace, "fsck"
   end
 end

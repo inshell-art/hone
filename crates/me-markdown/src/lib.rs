@@ -3,7 +3,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MarkdownError {
-    #[error("Cognition formulation contains heading level {level} at line {line}. Split this into another Cognition or rewrite it as non-heading prose.")]
+    #[error(
+        "Cognition formulation contains heading level {level} at line {line}. Split this into another Cognition or rewrite it as non-heading prose."
+    )]
     HeadingInCognition { level: u8, line: usize },
 }
 
