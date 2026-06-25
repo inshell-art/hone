@@ -5,6 +5,10 @@ check:
     cargo fmt --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
+    scripts/verify-install-channel.sh
+
+verify-install-channel:
+    scripts/verify-install-channel.sh
 
 install-dev:
     cargo install --path crates/me-cli --force

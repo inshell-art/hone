@@ -1,134 +1,192 @@
 # ME
 
-ME is a local meaning environment.
+## What ME is
 
-ME stores what you chose to keep. It is an authorized local Cognition
-store with a deterministic mutation boundary:
+ME is a local meaning environment designed to be used through Codex App.
 
-```text
-Thought -> Decision -> Cognition
-```
+When a thought occurs, tell Codex:
 
-Codex is the application layer. It can read bounded ME context, reason
-about it, compare it with ordinary local files, and draft output. ME
-itself decides only whether a validated user-authorized transaction can
-advance canonical state.
+> Add this Thought to ME: ...
 
-## What ME Stores
+ME captures the exact words. Once you approve keeping them, the Thought
+becomes a Cognition in your local library.
 
-- Thoughts: exact input occurrences.
-- Decisions: explicit user-authorized transaction inputs.
-- Cognitions: Thoughts the user chose to keep.
-- Trees and Snapshots: immutable canonical state history.
-- A current ref, journal, integrity checks, and a derived SQLite index.
+Later, Codex can use your Cognitions for any task:
 
-Canonical state lives in `.me/objects/**` and `.me/refs/current`.
-Generated files under `views/**` are readable projections, not
-authority.
+> What do I have in ME about authorship?
 
-## What ME Does Not Store
+> Draft a reply using ME.
 
-- Codex output automatically.
-- Global relationship graphs.
-- Formal Apps, App Runs, Associations, or Proposals in schema v5.
-- References or Procedures as Cognitions.
+> Compare this decision with what I have in ME.
 
-To keep a sentence from a draft, bring the exact sentence back as a new
-Thought and approve a Decision.
+Codex may read, analyze, and compose from your Cognitions. Only the
+`me` engine changes the canonical Cognition Library, and it does so only
+from your explicit Decision.
 
-## Install
+## Install ME and open it in Codex
+
+Install the local ME engine:
 
 ```bash
 brew install inshell-art/tap/me
 ```
 
-For local development from this checkout:
+Start ME:
+
+```bash
+me start
+```
+
+ME opens a local Codex thread in your workspace.
+
+Press Enter on:
+
+```text
+Start ME
+```
+
+## A Thought occurs
+
+You are walking, writing, coding, or talking and something occurs to you:
+
+> Designing a generative system is part of authorship.
+
+Open your ME workspace in Codex and say:
+
+> Add this Thought to ME:
+> Designing a generative system is part of authorship.
+
+Codex shows the exact text and intended operation.
+
+After you approve it, ME stores it as a Cognition.
+
+No existing Cognition is rewritten.
+
+## Use what you have kept
+
+Ask:
+
+> What do I have in ME about artistic authorship?
+
+Codex retrieves relevant Cognitions and explains them.
+
+Or ask:
+
+> Draft a short reply using ME.
+
+Codex composes from the Cognition Library.
+
+Reading and composing do not change ME.
+
+## Keep something Codex produced
+
+Codex drafts:
+
+> Delegating execution does not necessarily delegate artistic judgment.
+
+You decide that this sentence expresses something worth retaining.
+
+Say:
+
+> This is my Thought. Add it to ME.
+
+It enters the same Thought -> approval -> Cognition flow.
+
+## The mental model
+
+```text
+COLLECT
+
+Something occurs to you
+        |
+        v
+      Thought
+        |
+        | you approve keeping it
+        v
+     Cognition
+```
+
+```text
+USE
+
+Your task
+  + Codex
+  + relevant Cognitions
+        |
+        v
+      Output
+```
+
+```text
+KEEP
+
+Useful Output
+        |
+        | "This is my Thought"
+        v
+      Thought
+        |
+        v
+     Cognition
+```
+
+## Cognitions, References, and Procedures
+
+Cognition:
+Something you explicitly chose to keep in ME.
+
+Reference:
+Local material Codex may consult for a task.
+
+Procedure:
+Optional instructions for a repeated workflow.
+
+References and Procedures are not Cognitions. Neither enters ME
+automatically.
+
+See [docs/references-and-procedures.md](docs/references-and-procedures.md).
+
+## Privacy and local storage
+
+ME stores canonical Cognition data locally.
+
+The `me` engine does not use the network.
+
+Codex's model may run remotely and receives the Cognitions that are
+selected for the task you ask it to perform.
+
+See [docs/privacy.md](docs/privacy.md).
+
+## Advanced CLI
+
+The intended v0.x product experience is ME with Codex App in Local mode.
+The CLI is the local engine, administrative interface, and automation
+contract.
+
+Common technical commands:
+
+```bash
+me start --no-open --json
+me welcome --json
+me home --json
+me status --json
+me fsck --json
+me context --stdin --json
+me bundle create /tmp/me.bundle.tar
+```
+
+See [docs/cli.md](docs/cli.md).
+
+## Development
+
+From this source checkout:
 
 ```bash
 cargo install --path crates/me-cli --force
 ```
 
-## Create A Workspace
-
-```bash
-me new ~/ME
-me new /tmp/me-demo --demo
-```
-
-Then open the workspace directory in Codex App and select Local mode.
-
-## Use ME
-
-Inspect current state:
-
-```bash
-me --workspace ~/ME current --json
-me --workspace ~/ME cognition list --json
-```
-
-Retrieve bounded context for Codex:
-
-```bash
-printf 'Draft a reply using ME.\n' > /tmp/me-task.md
-me --workspace ~/ME context --task /tmp/me-task.md --limit 20 --json
-me --workspace ~/ME search "authorship" --limit 20 --json
-```
-
-Read commands do not create canonical objects, append journal entries,
-or advance `.me/refs/current`.
-
-## Change ME
-
-Capture exact text as a Thought:
-
-```bash
-printf 'Delegating execution does not necessarily delegate artistic judgment.\n' > /tmp/thought.md
-me --workspace ~/ME thought capture --file /tmp/thought.md --kind idea --json
-```
-
-Then approve a Decision file and add the Thought as a Cognition:
-
-```json
-{
-  "baseSnapshot": "sha256:...",
-  "action": "add-cognition",
-  "actor": "local-user",
-  "finalBodyMarkdown": "Delegating execution does not necessarily delegate artistic judgment."
-}
-```
-
-```bash
-me --workspace ~/ME cognition add --thought <thought-id> --decision /tmp/decision.json --json
-```
-
-## Migrate
-
-Schema v4 workspaces migrate in place:
-
-```bash
-me migrate --from-v4 /path/to/workspace --json
-```
-
-The migration preserves old object files, writes a v5 current Snapshot,
-archives historical App material at `.me/migrations/v4-apps.json`, and
-exports historical App Run output under `exports/migration/v4-app-runs/`.
-
-## Privacy Boundary
-
-The `me` engine is local and performs no network requests. Codex's model
-may run remotely and may receive the Thought and Cognition content that
-the user asks it to analyze. ME minimizes default context but cannot
-make Codex inference local.
-
-## Naming
-
-ME is the product. `me` is the executable, `inshell-art/me` is the
-repository, and `me-cli` is the local Cargo package that builds the
-executable. Registry names are adapters; they do not rename the product.
-
-See [docs/naming.md](docs/naming.md) and [docs/install.md](docs/install.md).
-
-## Developer Checks
+Checks:
 
 ```bash
 cargo fmt --check
@@ -137,6 +195,14 @@ cargo test --workspace
 cargo run -p me-cli -- --help
 scripts/naming-contract-check.sh
 ```
+
+Naming and installation notes:
+
+- [docs/install.md](docs/install.md)
+- [docs/naming.md](docs/naming.md)
+- [docs/homebrew-core-submission.md](docs/homebrew-core-submission.md)
+- [docs/codex-experience.md](docs/codex-experience.md)
+- [docs/mental-model.md](docs/mental-model.md)
 
 The historical browser-based Hone implementation is preserved at
 `https://github.com/inshell-art/hone-legacy`.

@@ -17,3 +17,7 @@ me-core = { path = "../me-core" }
 me-store = { path = "../me-store" }
 serde_json.workspace = true
 thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

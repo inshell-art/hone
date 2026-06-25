@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0
+
+- Add `me start` for one-command workspace resolution, derived preflight repair, and Codex App deep-link launch.
+- Add `me welcome` as the canonical one-screen onboarding contract for `Start ME`.
+- Shorten empty-workspace onboarding to the first Thought flow.
+- Add stdin support for routine Thought capture, context retrieval, and Cognition add Decisions.
+- Add user-level default workspace commands.
+- Add explicit install-channel verification and Homebrew Core preparation artifacts.
+
+## 0.6.0
+
+- Reframe ME onboarding as a Codex-first product experience while keeping schema version 5.
+- Replace `me home` with scenario-based empty and established workspace contracts that hide technical hashes.
+- Replace `me guide` with a short Thought, Use, and Output-feedback tutorial.
+- Update `me new` completion output to direct users to Codex App Local mode and "What can I do here?".
+- Rewrite README, workspace README, AGENTS, Codex skill, and docs around the scenario-based product flow.
+- Update demo workspaces with three useful Cognitions and one pending Thought.
+
 ## 0.5.0
 
 - Move ME to schema v5 as an authorized Cognition store with a deterministic Thought -> Decision -> Cognition mutation boundary.

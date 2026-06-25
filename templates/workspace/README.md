@@ -1,9 +1,23 @@
-# ME Workspace
+# ME
 
-This directory is a local ME workspace. Open it in Codex App and use Local mode.
+ME is a local meaning environment designed to be used through Codex App.
 
-Tell ME a Thought. It becomes a Cognition only when you choose to add it.
+When a thought occurs, tell Codex:
 
-Use ME through Codex with `me context` or `me search`. References and Procedures are ordinary local files; they are not Cognitions.
+> Add this Thought to ME: ...
 
-Canonical state lives in `.me/objects/**` and `.me/refs/current`. Generated views under `views/**` are readable projections and may be overwritten.
+ME captures the exact words. Once you approve keeping them, the Thought
+becomes a Cognition in your local library.
+
+Later, Codex can inspect, compare, and compose from your Cognitions
+without changing them.
+
+Start in Codex by running:
+
+```bash
+me start
+```
+
+Canonical state lives in `.me/objects/**` and `.me/refs/current`.
+Generated views under `views/**` are readable projections and may be
+overwritten.

@@ -12,12 +12,11 @@ class Me < Formula
   end
 
   test do
-    assert_match "ME", shell_output("#{bin}/me --version")
+    assert_match "ME ", shell_output("#{bin}/me --version")
     workspace = testpath/"ME"
     system bin/"me", "new", workspace
-    assert_path_exists workspace/"me.toml"
-    assert_path_exists workspace/".me/refs/current"
-    assert_path_exists workspace/".agents/skills/me/SKILL.md"
     system bin/"me", "--workspace", workspace, "fsck"
+    output = shell_output("#{bin}/me --workspace #{workspace} welcome --json")
+    assert_match "me.welcome", output
   end
 end

@@ -1,6 +1,8 @@
 use std::env;
-use std::path::PathBuf;
-use std::process;
+use std::fs;
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
+use std::process::{self, Command};
 
 use clap::{Args, Parser, Subcommand};
 use me_core::{SCHEMA_VERSION, WORKSPACE_VERSION};
@@ -23,6 +25,9 @@ struct Cli {
     #[arg(long, global = true)]
     markdown: bool,
 
+    #[arg(long, global = true, default_value_t = 1_048_576)]
+    stdin_max_bytes: usize,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -30,10 +35,13 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Version,
+    Start(StartArgs),
     New(NewArgs),
     Init(InitArgs),
+    Welcome,
     Home,
     Guide,
+    Workspace(WorkspaceArgs),
     Status,
     Current,
     Doctor(DoctorArgs),
@@ -59,6 +67,18 @@ enum Commands {
     Bundle(BundleArgs),
     Export(ExportArgs),
     Migrate(MigrateArgs),
+}
+
+#[derive(Debug, Args)]
+struct StartArgs {
+    #[arg(long)]
+    workspace: Option<PathBuf>,
+    #[arg(long)]
+    no_open: bool,
+    #[arg(long)]
+    print_url: bool,
+    #[arg(long)]
+    prompt: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -111,7 +131,9 @@ enum ThoughtCommand {
 #[derive(Debug, Args)]
 struct ThoughtCaptureArgs {
     #[arg(long)]
-    file: PathBuf,
+    file: Option<PathBuf>,
+    #[arg(long)]
+    stdin: bool,
     #[arg(long)]
     kind: String,
 }
@@ -207,7 +229,9 @@ struct CognitionAddArgs {
     #[arg(long)]
     thought: String,
     #[arg(long)]
-    decision: PathBuf,
+    decision: Option<PathBuf>,
+    #[arg(long = "decision-stdin")]
+    decision_stdin: bool,
 }
 
 #[derive(Debug, Args)]
@@ -249,9 +273,29 @@ struct SearchArgs {
 #[derive(Debug, Args)]
 struct ContextArgs {
     #[arg(long)]
-    task: PathBuf,
+    task: Option<PathBuf>,
+    #[arg(long)]
+    stdin: bool,
     #[arg(long, default_value_t = 20)]
     limit: usize,
+}
+
+#[derive(Debug, Args)]
+struct WorkspaceArgs {
+    #[command(subcommand)]
+    command: WorkspaceCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum WorkspaceCommand {
+    Default,
+    SetDefault(WorkspaceSetDefaultArgs),
+    List,
+}
+
+#[derive(Debug, Args)]
+struct WorkspaceSetDefaultArgs {
+    path: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -477,7 +521,7 @@ fn main() {
 
     let (command, result) = dispatch(&cli);
     match result {
-        Ok(data) => print_success(command, &data, cli.json || cli.markdown),
+        Ok(data) => print_success(command, &data, cli.json),
         Err(err) => {
             print_error(command, &err, cli.json);
             process::exit(err.exit_code());
@@ -488,6 +532,7 @@ fn main() {
 fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
     match &cli.command {
         Commands::Version => ("version", Ok(version_info())),
+        Commands::Start(args) => ("start", start_me(cli, args)),
         Commands::New(args) => ("new", Workspace::new_workspace(&args.path, args.demo)),
         Commands::Init(args) => {
             let path = args
@@ -497,10 +542,12 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
                 .unwrap_or_else(|| env::current_dir().expect("current directory"));
             ("init", Workspace::init(path, args.demo))
         }
+        Commands::Welcome => with_workspace(cli, "welcome", |ws| ws.welcome()),
         Commands::Home => with_workspace(cli, "home", |ws| {
-            ws.home(if cli.markdown { "markdown" } else { "json" })
+            ws.home(if cli.json { "json" } else { "markdown" })
         }),
         Commands::Guide => with_workspace(cli, "guide", |ws| ws.guide()),
+        Commands::Workspace(args) => ("workspace", workspace_command(args)),
         Commands::Status => with_workspace(cli, "status", |ws| ws.status()),
         Commands::Current => with_workspace(cli, "current", |ws| ws.current()),
         Commands::Doctor(args) => with_workspace(cli, "doctor", |ws| ws.doctor(args.repair)),
@@ -509,7 +556,18 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
         },
         Commands::Thought(args) => match &args.command {
             ThoughtCommand::Capture(inner) => with_workspace(cli, "thought capture", |ws| {
-                ws.thought_capture(&inner.file, &inner.kind)
+                if inner.stdin && inner.file.is_some() {
+                    Err(invalid_cli(
+                        "thought capture accepts only one of --file or --stdin",
+                    ))
+                } else if inner.stdin {
+                    let body = read_stdin_utf8(cli.stdin_max_bytes)?;
+                    ws.thought_capture_body(body, &inner.kind)
+                } else if let Some(file) = &inner.file {
+                    ws.thought_capture(file, &inner.kind)
+                } else {
+                    Err(invalid_cli("thought capture requires --file or --stdin"))
+                }
             }),
             ThoughtCommand::List(inner) => with_workspace(cli, "thought list", |ws| {
                 ws.thought_list(inner.state.clone())
@@ -558,7 +616,21 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
         }),
         Commands::Cognition(args) => match &args.command {
             CognitionCommand::Add(inner) => with_workspace(cli, "cognition add", |ws| {
-                ws.cognition_add(&inner.thought, &inner.decision)
+                if inner.decision_stdin && inner.decision.is_some() {
+                    Err(invalid_cli(
+                        "cognition add accepts only one of --decision or --decision-stdin",
+                    ))
+                } else if inner.decision_stdin {
+                    let raw = read_stdin_utf8(cli.stdin_max_bytes)?;
+                    let value = Workspace::parse_decision_input(&raw)?;
+                    ws.cognition_add_value(&inner.thought, value)
+                } else if let Some(decision) = &inner.decision {
+                    ws.cognition_add(&inner.thought, decision)
+                } else {
+                    Err(invalid_cli(
+                        "cognition add requires --decision or --decision-stdin",
+                    ))
+                }
             }),
             CognitionCommand::List(inner) => with_workspace(cli, "cognition list", |ws| {
                 ws.cognition_list(inner.state.clone())
@@ -587,9 +659,18 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
         Commands::Search(args) => with_workspace(cli, "search", |ws| {
             ws.search(&args.query, args.limit, args.state.clone())
         }),
-        Commands::Context(args) => {
-            with_workspace(cli, "context", |ws| ws.context(&args.task, args.limit))
-        }
+        Commands::Context(args) => with_workspace(cli, "context", |ws| {
+            if args.stdin && args.task.is_some() {
+                Err(invalid_cli("context accepts only one of --task or --stdin"))
+            } else if args.stdin {
+                let task = read_stdin_utf8(cli.stdin_max_bytes)?;
+                ws.context_body(task, args.limit)
+            } else if let Some(task) = &args.task {
+                ws.context(task, args.limit)
+            } else {
+                Err(invalid_cli("context requires --task or --stdin"))
+            }
+        }),
         Commands::Association(args) => match &args.command {
             AssociationCommand::Infer(inner) => with_workspace(cli, "association infer", |ws| {
                 ws.association_infer(inner.cognition.clone())
@@ -754,22 +835,274 @@ fn with_workspace(
     (command, result)
 }
 
+fn invalid_cli(message: impl Into<String>) -> MeError {
+    MeError::InvalidInput {
+        code: "INVALID_INPUT",
+        message: message.into(),
+        details: json!({}),
+    }
+}
+
+fn read_stdin_utf8(max_bytes: usize) -> Result<String, MeError> {
+    let mut bytes = Vec::new();
+    let limit = max_bytes.saturating_add(1) as u64;
+    io::stdin()
+        .take(limit)
+        .read_to_end(&mut bytes)
+        .map_err(|err| MeError::Internal(err.into()))?;
+    if bytes.len() > max_bytes {
+        return Err(invalid_cli(format!(
+            "stdin input exceeds maximum size of {max_bytes} bytes"
+        )));
+    }
+    String::from_utf8(bytes).map_err(|_| invalid_cli("stdin input must be valid UTF-8"))
+}
+
+fn start_me(cli: &Cli, args: &StartArgs) -> Result<Value, MeError> {
+    let prompt = args.prompt.as_deref().unwrap_or("Start ME");
+    let resolved = resolve_start_workspace(cli, args)?;
+    let ws = Workspace::open(&resolved.path)?;
+    let before = ws.status()?;
+    ws.fsck().map_err(|err| match err {
+        MeError::Integrity { .. } => MeError::Integrity {
+            code: "INTEGRITY_FAILURE",
+            message:
+                "ME could not start because the workspace failed integrity checks.\n\nRun:\n  me fsck\n\nNo canonical state was changed."
+                    .to_string(),
+            details: json!({ "workspace": resolved.path }),
+        },
+        other => other,
+    })?;
+    ws.doctor(true)?;
+    let after = ws.status()?;
+    if before["currentSnapshot"] != after["currentSnapshot"] {
+        return Err(MeError::Integrity {
+            code: "INTEGRITY_FAILURE",
+            message: "ME start preflight changed the canonical Snapshot".to_string(),
+            details: json!({ "workspace": resolved.path }),
+        });
+    }
+    let deep_link = codex_deep_link(&resolved.path, prompt);
+    let no_open = args.no_open || args.print_url;
+    let mut attempted_open = false;
+    let mut warnings = resolved.warnings;
+    if !no_open {
+        if cfg!(target_os = "macos") {
+            match Command::new("/usr/bin/open")
+                .args(["-Ra", "Codex"])
+                .status()
+            {
+                Ok(status) if status.success() => {
+                    attempted_open = true;
+                    match Command::new("/usr/bin/open").arg(&deep_link).status() {
+                        Ok(status) if status.success() => {}
+                        Ok(status) => warnings
+                            .push(format!("Codex deep link open exited with status {status}")),
+                        Err(err) => warnings.push(format!("Codex deep link open failed: {err}")),
+                    }
+                }
+                _ => warnings.push("Codex App was not found.".to_string()),
+            }
+        } else {
+            warnings
+                .push("Codex App deep links are supported only on macOS in ME v0.x.".to_string());
+        }
+    }
+    Ok(json!({
+        "workspacePath": resolved.path,
+        "workspaceCreated": resolved.created,
+        "preflight": {
+            "canonicalIntegrity": "ok",
+            "derivedState": "ok"
+        },
+        "codex": {
+            "attemptedOpen": attempted_open,
+            "deepLink": deep_link,
+            "prompt": prompt,
+            "promptSubmitted": false
+        },
+        "printUrlOnly": args.print_url,
+        "warnings": warnings
+    }))
+}
+
+#[derive(Debug)]
+struct ResolvedWorkspace {
+    path: PathBuf,
+    created: bool,
+    warnings: Vec<String>,
+}
+
+fn resolve_start_workspace(cli: &Cli, args: &StartArgs) -> Result<ResolvedWorkspace, MeError> {
+    if let Some(path) = args.workspace.as_ref().or(cli.workspace.as_ref()) {
+        return ensure_workspace(path);
+    }
+    let cwd = env::current_dir().map_err(|err| MeError::Internal(err.into()))?;
+    if Workspace::open(&cwd).is_ok() {
+        return Ok(ResolvedWorkspace {
+            path: absolutize(&cwd)?,
+            created: false,
+            warnings: Vec::new(),
+        });
+    }
+    if let Some(default) = read_default_workspace()? {
+        if Workspace::open(&default).is_ok() {
+            return Ok(ResolvedWorkspace {
+                path: absolutize(&default)?,
+                created: false,
+                warnings: Vec::new(),
+            });
+        }
+    }
+    let home_me = home_dir()?.join("ME");
+    if Workspace::open(&home_me).is_ok() {
+        return Ok(ResolvedWorkspace {
+            path: absolutize(&home_me)?,
+            created: false,
+            warnings: Vec::new(),
+        });
+    }
+    let resolved = ensure_workspace(&home_me)?;
+    write_default_workspace(&resolved.path)?;
+    Ok(resolved)
+}
+
+fn ensure_workspace(path: &Path) -> Result<ResolvedWorkspace, MeError> {
+    let path = absolutize(path)?;
+    if Workspace::open(&path).is_ok() {
+        return Ok(ResolvedWorkspace {
+            path,
+            created: false,
+            warnings: Vec::new(),
+        });
+    }
+    Workspace::new_workspace(&path, false)?;
+    Ok(ResolvedWorkspace {
+        path,
+        created: true,
+        warnings: Vec::new(),
+    })
+}
+
+fn workspace_command(args: &WorkspaceArgs) -> Result<Value, MeError> {
+    match &args.command {
+        WorkspaceCommand::Default => {
+            let default = read_default_workspace()?;
+            Ok(json!({ "defaultWorkspace": default }))
+        }
+        WorkspaceCommand::SetDefault(inner) => {
+            let path = absolutize(&inner.path)?;
+            Workspace::open(&path)?;
+            write_default_workspace(&path)?;
+            Ok(json!({ "defaultWorkspace": path }))
+        }
+        WorkspaceCommand::List => {
+            let default = read_default_workspace()?;
+            let workspaces = default
+                .as_ref()
+                .map(|path| vec![json!({ "path": path, "default": true })])
+                .unwrap_or_default();
+            Ok(json!({ "workspaces": workspaces }))
+        }
+    }
+}
+
+fn config_path() -> Result<PathBuf, MeError> {
+    if let Some(config_home) = env::var_os("XDG_CONFIG_HOME") {
+        Ok(PathBuf::from(config_home).join("me/config.toml"))
+    } else {
+        Ok(home_dir()?.join(".config/me/config.toml"))
+    }
+}
+
+fn read_default_workspace() -> Result<Option<PathBuf>, MeError> {
+    let path = config_path()?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(&path).map_err(|err| MeError::Internal(err.into()))?;
+    let value: toml::Value = toml::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?;
+    Ok(value
+        .get("default_workspace")
+        .and_then(toml::Value::as_str)
+        .map(PathBuf::from))
+}
+
+fn write_default_workspace(path: &Path) -> Result<(), MeError> {
+    let config = config_path()?;
+    if let Some(parent) = config.parent() {
+        fs::create_dir_all(parent).map_err(|err| MeError::Internal(err.into()))?;
+    }
+    let body = format!(
+        "schema_version = 1\ndefault_workspace = \"{}\"\n",
+        path.display()
+            .to_string()
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+    );
+    fs::write(config, body).map_err(|err| MeError::Internal(err.into()))
+}
+
+fn home_dir() -> Result<PathBuf, MeError> {
+    env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or_else(|| invalid_cli("HOME is not set"))
+}
+
+fn absolutize(path: &Path) -> Result<PathBuf, MeError> {
+    if path.is_absolute() {
+        Ok(path.to_path_buf())
+    } else {
+        Ok(env::current_dir()
+            .map_err(|err| MeError::Internal(err.into()))?
+            .join(path))
+    }
+}
+
+fn codex_deep_link(path: &Path, prompt: &str) -> String {
+    format!(
+        "codex://new?path={}&prompt={}",
+        percent_encode(&path.display().to_string()),
+        percent_encode(prompt)
+    )
+}
+
+fn percent_encode(input: &str) -> String {
+    let mut out = String::new();
+    for byte in input.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            out.push(byte as char);
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
+}
+
 fn print_success(command: &str, data: &Value, structured_output: bool) {
     if structured_output {
         println!(
             "{}",
-            serde_json::to_string_pretty(&json!({
-                "ok": true,
-                "command": command,
-                "data": data,
-                "warnings": []
-            }))
-            .expect("json")
+            serde_json::to_string_pretty(&structured_success_value(command, data)).expect("json")
         );
         return;
     }
 
-    if let Some(markdown) = data.get("markdown").and_then(Value::as_str) {
+    if matches!(command, "new" | "init") {
+        print!("{}", workspace_created_text(data));
+    } else if command == "start" {
+        if data
+            .get("printUrlOnly")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            println!("{}", data["codex"]["deepLink"].as_str().unwrap_or(""));
+        } else {
+            print!("{}", start_text(data));
+        }
+    } else if let Some(markdown) = data.get("markdown").and_then(Value::as_str) {
+        print!("{markdown}");
+    } else if let Some(markdown) = data.get("renderedMarkdown").and_then(Value::as_str) {
         print!("{markdown}");
     } else if let Some(review) = data.get("review").and_then(Value::as_str) {
         print!("{review}");
@@ -778,6 +1111,91 @@ fn print_success(command: &str, data: &Value, structured_output: bool) {
     } else {
         println!("{}", serde_json::to_string_pretty(data).expect("json"));
     }
+}
+
+fn structured_success_value(command: &str, data: &Value) -> Value {
+    if matches!(command, "home" | "guide" | "welcome") {
+        data.clone()
+    } else if command == "start" {
+        let mut data = data.clone();
+        let warnings = data.get("warnings").cloned().unwrap_or_else(|| json!([]));
+        if let Some(map) = data.as_object_mut() {
+            map.remove("warnings");
+            map.remove("printUrlOnly");
+        }
+        json!({
+            "ok": true,
+            "command": command,
+            "data": data,
+            "warnings": warnings
+        })
+    } else {
+        json!({
+            "ok": true,
+            "command": command,
+            "data": data,
+            "warnings": []
+        })
+    }
+}
+
+fn start_text(data: &Value) -> String {
+    let workspace = data["workspacePath"].as_str().unwrap_or("");
+    let warnings = data["warnings"].as_array().cloned().unwrap_or_default();
+    if warnings
+        .iter()
+        .any(|warning| warning.as_str() == Some("Codex App was not found."))
+    {
+        return format!(
+            r#"Codex App was not found.
+
+ME is designed to be used through Codex App.
+
+Install or open Codex App, then run:
+
+  me start
+
+Workspace:
+  {workspace}
+"#
+        );
+    }
+    if data["codex"]["attemptedOpen"].as_bool().unwrap_or(false) {
+        r#"Opened ME in Codex App.
+
+Press Enter on:
+
+  Start ME
+"#
+        .to_string()
+    } else {
+        format!(
+            r#"ME is ready.
+
+Workspace:
+  {workspace}
+
+Open Codex App and press Enter on:
+
+  Start ME
+"#
+        )
+    }
+}
+
+fn workspace_created_text(data: &Value) -> String {
+    let path = data
+        .get("workspacePath")
+        .and_then(Value::as_str)
+        .unwrap_or("ME workspace");
+    format!(
+        r#"ME workspace created at {path}
+
+Open it now:
+
+  me start --workspace {path}
+"#
+    )
 }
 
 fn print_error(command: &str, err: &MeError, json_output: bool) {
@@ -797,5 +1215,130 @@ fn print_error(command: &str, err: &MeError, json_output: bool) {
         );
     } else {
         eprintln!("error[{}]: {}", err.code(), err);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn workspace_created_text_points_to_start_command() {
+        let data = json!({
+            "workspacePath": "/Users/name/ME"
+        });
+        let text = workspace_created_text(&data);
+        assert!(text.starts_with("ME workspace created at /Users/name/ME"));
+        assert!(text.contains("Open it now:"));
+        assert!(text.contains("me start --workspace /Users/name/ME"));
+        assert!(!text.contains("--json"));
+        assert!(!text.contains("fsck"));
+    }
+
+    #[test]
+    fn home_and_guide_json_are_contract_objects() {
+        let home = json!({
+            "schemaVersion": 1,
+            "kind": "me.home"
+        });
+        let output = structured_success_value("home", &home);
+        assert_eq!(output["schemaVersion"], 1);
+        assert_eq!(output["kind"], "me.home");
+        assert!(output.get("ok").is_none());
+        assert!(output.get("data").is_none());
+
+        let welcome = json!({
+            "schemaVersion": 1,
+            "kind": "me.welcome"
+        });
+        let output = structured_success_value("welcome", &welcome);
+        assert_eq!(output["schemaVersion"], 1);
+        assert_eq!(output["kind"], "me.welcome");
+        assert!(output.get("ok").is_none());
+
+        let created = json!({
+            "workspacePath": "/Users/name/ME",
+            "next": {
+                "host": "Codex App",
+                "mode": "Local",
+                "starterPrompt": "Start ME"
+            }
+        });
+        let output = structured_success_value("new", &created);
+        assert_eq!(output["ok"], true);
+        assert_eq!(output["command"], "new");
+        assert_eq!(output["data"], created);
+    }
+
+    #[test]
+    fn start_no_open_creates_workspace_and_deep_link() {
+        let dir = tempdir().unwrap();
+        let workspace = dir.path().join("ME Lab");
+        let cli = Cli {
+            workspace: None,
+            json: false,
+            markdown: false,
+            stdin_max_bytes: 1_048_576,
+            command: Commands::Version,
+        };
+        let args = StartArgs {
+            workspace: Some(workspace.clone()),
+            no_open: true,
+            print_url: false,
+            prompt: None,
+        };
+        let result = start_me(&cli, &args).unwrap();
+        assert_eq!(result["workspaceCreated"], true);
+        assert_eq!(result["preflight"]["canonicalIntegrity"], "ok");
+        assert_eq!(result["preflight"]["derivedState"], "ok");
+        assert_eq!(result["codex"]["attemptedOpen"], false);
+        assert_eq!(result["codex"]["prompt"], "Start ME");
+        assert_eq!(result["codex"]["promptSubmitted"], false);
+        assert!(
+            result["codex"]["deepLink"]
+                .as_str()
+                .unwrap()
+                .contains("path=")
+        );
+        assert!(
+            result["codex"]["deepLink"]
+                .as_str()
+                .unwrap()
+                .contains("ME%20Lab")
+        );
+        assert!(
+            result["codex"]["deepLink"]
+                .as_str()
+                .unwrap()
+                .contains("prompt=Start%20ME")
+        );
+        assert!(workspace.join("views/welcome.md").exists());
+
+        let result = start_me(&cli, &args).unwrap();
+        assert_eq!(result["workspaceCreated"], false);
+        assert_eq!(result["codex"]["attemptedOpen"], false);
+    }
+
+    #[test]
+    fn start_print_url_outputs_only_deep_link_value() {
+        let data = json!({
+            "workspacePath": "/tmp/ME",
+            "workspaceCreated": false,
+            "preflight": { "canonicalIntegrity": "ok", "derivedState": "ok" },
+            "codex": {
+                "attemptedOpen": false,
+                "deepLink": "codex://new?path=%2Ftmp%2FME&prompt=Start%20ME",
+                "prompt": "Start ME",
+                "promptSubmitted": false
+            },
+            "printUrlOnly": true,
+            "warnings": []
+        });
+        let output = structured_success_value("start", &data);
+        assert_eq!(output["ok"], true);
+        assert_eq!(output["command"], "start");
+        assert_eq!(output["warnings"].as_array().unwrap().len(), 0);
+        assert!(output["data"].get("printUrlOnly").is_none());
     }
 }

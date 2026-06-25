@@ -56,9 +56,8 @@ for key, value in expected.items():
 PY
 
 grep -qx "# ME" README.md
-grep -q "ME is a local meaning environment." README.md
-grep -q "brew install inshell-art/tap/me" README.md
-grep -q "brew install inshell-art/tap/me" docs/install.md
+grep -q "ME is a local meaning environment designed to be used through Codex App." README.md
+scripts/verify-install-channel.sh >/dev/null
 grep -q 'desc "Local meaning environment"' packaging/homebrew/me.rb.template
 grep -q 'class Me < Formula' packaging/homebrew/me.rb.template
 grep -q 'std_cargo_args(path: "crates/me-cli")' packaging/homebrew/me.rb.template

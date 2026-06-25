@@ -133,6 +133,14 @@ fn integrity(message: impl Into<String>) -> MeError {
     }
 }
 
+fn parse_decision_value(raw: &str) -> Result<Value> {
+    if raw.trim().is_empty() {
+        Ok(json!({}))
+    } else {
+        serde_json::from_str(raw).map_err(|err| MeError::Internal(err.into()))
+    }
+}
+
 fn now_rfc3339() -> Result<String> {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
@@ -180,12 +188,12 @@ impl Workspace {
         ws.sync_workspace_docs()?;
         ws.write_initial_snapshot()?;
         ws.rebuild_index()?;
+        let mut result = workspace_created_result(&ws.root);
         if demo {
             let demo_result = ws.seed_demo()?;
-            Ok(json!({ "workspace": ws.root, "demo": demo_result }))
-        } else {
-            Ok(json!({ "workspace": ws.root, "currentSnapshot": ws.current_ref()? }))
+            result["demo"] = demo_result;
         }
+        Ok(result)
     }
 
     pub fn new_workspace(path: impl AsRef<Path>, demo: bool) -> Result<Value> {
@@ -225,35 +233,58 @@ impl Workspace {
             .values()
             .filter(|state| state.as_str() == "pending")
             .count();
-        let data = json!({
-            "workspace": {
-                "name": self.config()?.name,
-                "path": self.root,
-                "currentSnapshot": current.snapshot_hash
-            },
+        let workspace_state = if current.tree.thoughts.is_empty()
+            && current.tree.cognitions.is_empty()
+            && current.tree.decisions.is_empty()
+        {
+            "empty"
+        } else {
+            "established"
+        };
+        let mut data = json!({
+            "schemaVersion": 1,
+            "kind": "me.home",
+            "workspaceState": workspace_state,
             "product": {
                 "name": "ME",
                 "descriptor": "a local meaning environment",
-                "line": "ME stores what you chose to keep."
+                "primarySurface": "Codex App"
             },
-            "cognitionLibrary": {
-                "activeCount": active_count,
-                "retiredCount": retired_count
+            "examples": {
+                "add": "Add this Thought to ME:",
+                "inspect": if workspace_state == "empty" {
+                    "What do I have in ME about authorship?"
+                } else {
+                    "What do I have in ME about generative art?"
+                },
+                "compose": if workspace_state == "empty" {
+                    "Draft a reply using ME."
+                } else {
+                    "Draft an artist statement using ME."
+                },
+                "compare": "Find tension in ME about authorship.",
+                "return": "This is my Thought. Add it to ME."
             },
-            "waiting": {
-                "pendingThoughtCount": pending_thoughts
-            },
-            "localMaterial": {
-                "referencesDirectory": self.root.join("references"),
-                "proceduresDirectory": self.root.join("procedures")
-            },
-            "starterActions": [
-                { "label": "Add Thought", "prompt": "Add this Thought:" },
-                { "label": "Use ME", "prompt": "What do I have in ME about ..." },
-                { "label": "Draft With ME", "prompt": "Draft a reply using ME." }
-            ],
-            "health": { "status": "ok", "message": Value::Null }
+            "health": {
+                "status": "ok",
+                "userMessage": Value::Null
+            }
         });
+        if workspace_state == "empty" {
+            data["summary"] = json!({
+                "cognitionCount": 0,
+                "pendingThoughtCount": 0
+            });
+            data["mentalModel"] = json!(mental_model_steps());
+            data["starterPrompt"] = json!("Add this Thought to ME:");
+        } else {
+            data["summary"] = json!({
+                "activeCognitionCount": active_count,
+                "retiredCognitionCount": retired_count,
+                "pendingThoughtCount": pending_thoughts
+            });
+            data["recent"] = json!(self.recent_home_events(&current.tree)?);
+        }
         if format == "markdown" {
             Ok(json!({ "markdown": home_markdown(&data), "home": data }))
         } else {
@@ -261,28 +292,58 @@ impl Workspace {
         }
     }
 
-    pub fn guide(&self) -> Result<Value> {
+    pub fn welcome(&self) -> Result<Value> {
+        let current = self.load_current()?;
+        let active_count = current
+            .tree
+            .cognition_states
+            .values()
+            .filter(|state| state.as_str() == "active")
+            .count();
+        let pending_thoughts = current
+            .tree
+            .thought_states
+            .values()
+            .filter(|state| state.as_str() == "pending")
+            .count();
+        let state = if active_count == 0 && current.tree.decisions.is_empty() {
+            "empty"
+        } else {
+            "established"
+        };
         Ok(json!({
-            "markdown": r#"# ME Guide
+            "schemaVersion": 1,
+            "kind": "me.welcome",
+            "state": state,
+            "renderedMarkdown": welcome_markdown(state),
+            "starterPrompt": "Add this Thought to ME:",
+            "technical": {
+                "activeCognitionCount": active_count,
+                "pendingThoughtCount": pending_thoughts
+            }
+        }))
+    }
 
-THOUGHT
-  "The rules and possibility space are part of the artwork."
-
-SUGGESTED EFFECT
-  Add this Thought to ME as its own Cognition.
-
-STATUS
-  PENDING -- NOT IN ME
-
-OPTIONAL SIMILAR COGNITIONS
-  ME may show derived similarity hints if asked.
-
-WHAT WILL CHANGE
-  1 Cognition added.
-  0 existing Cognitions changed.
-
-Ask Codex any task using ME. Codex reads bounded ME context; it does not change ME unless you bring output back as a new Thought.
-"#
+    pub fn guide(&self) -> Result<Value> {
+        let scenarios = json!([
+            {
+                "title": "A Thought occurs",
+                "body": "You are walking, writing, coding, or talking and something occurs to you: Designing a generative system is part of authorship. Tell Codex: Add this Thought to ME: Designing a generative system is part of authorship. Codex shows the exact Thought and intended operation. After you approve it, ME stores it as a Cognition. No existing Cognition is rewritten."
+            },
+            {
+                "title": "Use the Cognition Library",
+                "body": "Ask: What do I have in ME about artistic authorship? Codex retrieves relevant Cognitions and explains them. Or ask: Draft a short reply using ME. Codex composes from your Cognitions. Reading and composing do not change ME."
+            },
+            {
+                "title": "Keep useful output",
+                "body": "Codex drafts: Delegating execution does not necessarily delegate artistic judgment. You decide the sentence is worth retaining. Say: This is my Thought. Add it to ME. It follows the same Thought -> approval -> Cognition flow."
+            }
+        ]);
+        Ok(json!({
+            "schemaVersion": 1,
+            "kind": "me.guide",
+            "scenarios": scenarios,
+            "markdown": guide_markdown()
         }))
     }
 
@@ -409,6 +470,16 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
         }
         let body =
             fs::read_to_string(file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
+        self.thought_capture_body(body, kind)
+    }
+
+    pub fn thought_capture_body(&self, body: String, kind: &str) -> Result<Value> {
+        if !thought_kind_allowed(kind) {
+            return Err(invalid(format!(
+                "Unsupported Thought kind '{kind}'. Supported kinds: {}",
+                THOUGHT_KINDS.join(", ")
+            )));
+        }
         self.with_lock(|| {
             let current = self.load_current()?;
             let duplicate_of = self.find_exact_thought_duplicate(&current.tree, kind, &body)?;
@@ -684,11 +755,11 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
     ) -> Result<Value> {
         let raw = fs::read_to_string(decision_file.as_ref())
             .map_err(|err| MeError::Internal(err.into()))?;
-        let value: Value = if raw.trim().is_empty() {
-            json!({})
-        } else {
-            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?
-        };
+        let value = parse_decision_value(&raw)?;
+        self.cognition_add_value(thought_id_or_hash, value)
+    }
+
+    pub fn cognition_add_value(&self, thought_id_or_hash: &str, value: Value) -> Result<Value> {
         let action = value
             .get("action")
             .and_then(Value::as_str)
@@ -701,6 +772,7 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
         }
         self.with_lock(|| {
             let current = self.load_current()?;
+            let first_cognition = current.tree.cognitions.is_empty();
             validate_base_snapshot(&value, &current.snapshot_hash)?;
             let (thought_id, thought_hash, thought) =
                 self.resolve_thought(&current.tree, thought_id_or_hash)?;
@@ -778,17 +850,34 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
                 &actor,
                 "Add Thought as Cognition".to_string(),
             )?;
-            Ok(json!({
+            let mut result = json!({
                 "statusLabel": "ADDED TO ME",
                 "decisionId": decision.decision_id,
                 "decision": decision_hash,
                 "cognitionId": cognition.cognition_id,
                 "cognition": cognition_hash,
                 "snapshot": snapshot,
+                "cognitionAdded": true,
                 "cognitionsAdded": 1,
-                "existingCognitionsChanged": 0
-            }))
+                "existingCognitionsChanged": 0,
+                "firstCognition": first_cognition
+            });
+            if first_cognition {
+                result["next"] = json!({
+                    "message": "This Thought is now a Cognition. Codex can use it without changing it.",
+                    "examples": [
+                        "What do I have in ME about <topic>?",
+                        "Draft a short reply using ME.",
+                        "Add this Thought to ME:"
+                    ]
+                });
+            }
+            Ok(result)
         })
+    }
+
+    pub fn parse_decision_input(raw: &str) -> Result<Value> {
+        parse_decision_value(raw)
     }
 
     pub fn cognition_retire(
@@ -885,6 +974,10 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
     pub fn context(&self, task_file: impl AsRef<Path>, limit: usize) -> Result<Value> {
         let task =
             fs::read_to_string(task_file.as_ref()).map_err(|err| MeError::Internal(err.into()))?;
+        self.context_body(task, limit)
+    }
+
+    pub fn context_body(&self, task: String, limit: usize) -> Result<Value> {
         let current = self.load_current()?;
         let matches = self.match_cognitions(&current.tree, &task, limit, Some("active"))?;
         let mut selected = Vec::new();
@@ -2366,11 +2459,11 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
     fn seed_demo(&self) -> Result<Value> {
         let seeds = [
             (
-                "Generative art is produced by a generative system.",
-                "Definition",
+                "Designing a generative system is part of authorship.",
+                "Authorship",
             ),
             (
-                "The system's rules and possibility space are part of the artwork.",
+                "The possibility space is part of the artwork.",
                 "Possibility Space",
             ),
             (
@@ -2431,6 +2524,28 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
                     "cognition": cognition_hash
                 }));
             }
+            let pending = ThoughtPayload {
+                thought_id: new_id("thought"),
+                kind: "idea".to_string(),
+                body_markdown:
+                    "Delegating execution does not necessarily delegate artistic judgment."
+                        .to_string(),
+                body_text: "Delegating execution does not necessarily delegate artistic judgment."
+                    .to_string(),
+                origin: Origin::local_input(),
+                captured_at: now_rfc3339()?,
+                captured_by: "local-user".to_string(),
+            };
+            let pending_hash = self.write_object("thought", &pending)?;
+            tree.thoughts
+                .insert(pending.thought_id.clone(), pending_hash.clone());
+            tree.thought_states
+                .insert(pending.thought_id.clone(), "pending".to_string());
+            records.push(json!({
+                "thoughtId": pending.thought_id,
+                "thought": pending_hash,
+                "state": "pending"
+            }));
             let snapshot = self.commit_tree(
                 &current,
                 tree,
@@ -3152,6 +3267,48 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
         Ok(out)
     }
 
+    fn recent_home_events(&self, tree: &MeTreePayload) -> Result<Vec<Value>> {
+        let mut added = Vec::new();
+        let mut retired = Vec::new();
+        for (cognition_id, hash) in &tree.cognitions {
+            let cognition = self.read_object::<CognitionPayload>(hash, "cognition")?;
+            let event = json!({
+                "kind": "cognition-added",
+                "preview": preview_text(&cognition.payload.body_markdown),
+                "cognitionId": cognition_id,
+            });
+            if tree
+                .cognition_states
+                .get(cognition_id)
+                .is_some_and(|state| state == "retired")
+            {
+                retired.push(json!({
+                    "kind": "cognition-retired",
+                    "preview": preview_text(&cognition.payload.body_markdown),
+                    "cognitionId": cognition_id,
+                }));
+            } else {
+                added.push(event);
+            }
+        }
+        added.sort_by(|a, b| {
+            a["preview"]
+                .as_str()
+                .unwrap_or("")
+                .cmp(b["preview"].as_str().unwrap_or(""))
+        });
+        retired.sort_by(|a, b| {
+            a["preview"]
+                .as_str()
+                .unwrap_or("")
+                .cmp(b["preview"].as_str().unwrap_or(""))
+        });
+        let mut out = Vec::new();
+        out.extend(added.into_iter().take(2));
+        out.extend(retired.into_iter().take(1));
+        Ok(out)
+    }
+
     fn app_summaries(&self, tree: &MeTreePayload) -> Result<Vec<Value>> {
         let mut out = Vec::new();
         for (app_id, hash) in &tree.apps {
@@ -3186,6 +3343,13 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
         atomic_write(
             &views.join("home.md"),
             home_markdown(&self.home("json")?).as_bytes(),
+        )?;
+        atomic_write(
+            &views.join("welcome.md"),
+            self.welcome()?["renderedMarkdown"]
+                .as_str()
+                .unwrap_or("")
+                .as_bytes(),
         )?;
         for (thought_id, hash) in &current.tree.thoughts {
             let thought = self.read_object::<ThoughtPayload>(hash, "thought")?;
@@ -3248,6 +3412,14 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
         let conn = Connection::open(&index_path).map_err(|err| MeError::Internal(err.into()))?;
         conn.execute_batch(
             r#"
+            DROP TABLE IF EXISTS cognition_fts;
+            DROP TABLE IF EXISTS thought_fts;
+            DROP TABLE IF EXISTS snapshots;
+            DROP TABLE IF EXISTS decisions;
+            DROP TABLE IF EXISTS retrieval_neighbors;
+            DROP TABLE IF EXISTS cognitions;
+            DROP TABLE IF EXISTS thoughts;
+            DROP TABLE IF EXISTS meta;
             CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE TABLE thoughts (thought_id TEXT PRIMARY KEY, object TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL, body_markdown TEXT NOT NULL, body_text TEXT NOT NULL);
             CREATE TABLE cognitions (cognition_id TEXT PRIMARY KEY, object TEXT NOT NULL, state TEXT NOT NULL, display_title TEXT, body_markdown TEXT NOT NULL, body_text TEXT NOT NULL);
@@ -3346,20 +3518,23 @@ Ask Codex any task using ME. Codex reads bounded ME context; it does not change 
     fn sync_workspace_docs(&self) -> Result<()> {
         let readme = r#"# ME
 
-ME is a local meaning environment.
+ME is a local meaning environment designed to be used through Codex App.
 
-ME stores what you chose to keep.
+When a thought occurs, tell Codex:
 
-A Thought is an immutable input occurrence. A Cognition is a Thought
-you explicitly chose to keep. ME commits canonical state only through
-validated Decisions.
+> Add this Thought to ME: ...
 
-Use ME through Codex by retrieving bounded Cognition context with
-`me context` or `me search`. References and Procedures are ordinary
-local files. They are not Cognitions.
+ME captures the exact words. Once you approve keeping them, the Thought
+becomes a Cognition in your local library.
 
-ME stores its Cognition Library and history locally. The `me` engine
-itself does not use the network.
+Later, Codex can inspect, compare, and compose from your Cognitions
+without changing them.
+
+Start in Codex by running:
+
+```bash
+me start
+```
 "#;
         atomic_write_preserving_user_section(&self.root.join("README.md"), readme.as_bytes())?;
         atomic_write_preserving_user_section(
@@ -3651,7 +3826,7 @@ itself does not use the network.
             ),
             (
                 "speak-from-me.md",
-                "# Speak From ME\n\n1. Put the task in a temporary UTF-8 Markdown file.\n2. Run `me context --task <file> --json`.\n3. Draft with the selected Cognitions as user-authorized context.\n4. Clearly separate ME Cognitions from Codex inference.\n5. Do not save the draft into ME unless the user brings an exact excerpt back as a Thought and approves a Decision.\n",
+                "# Speak From ME\n\n1. Pass the transient task through standard input.\n2. Run `me context --stdin --json`.\n3. Draft with the selected Cognitions as user-authorized context.\n4. Clearly separate ME Cognitions from Codex inference.\n5. Do not save the draft into ME unless the user brings an exact excerpt back as a Thought and approves a Decision.\n",
             ),
         ];
         for (name, body) in procedures {
@@ -3766,45 +3941,202 @@ itself does not use the network.
 }
 
 fn home_markdown(data: &Value) -> String {
-    let active = data["cognitionLibrary"]["activeCount"]
+    if data["workspaceState"].as_str() == Some("empty") {
+        return welcome_markdown("empty").to_string();
+    }
+
+    let active = data["summary"]["activeCognitionCount"]
         .as_u64()
         .unwrap_or(0);
-    let retired = data["cognitionLibrary"]["retiredCount"]
+    let retired = data["summary"]["retiredCognitionCount"]
         .as_u64()
         .unwrap_or(0);
-    let pending = data["waiting"]["pendingThoughtCount"].as_u64().unwrap_or(0);
+    let total = active + retired;
+    let pending = data["summary"]["pendingThoughtCount"].as_u64().unwrap_or(0);
+    let mut recent_added = Vec::new();
+    let mut recent_retired = Vec::new();
+    if let Some(items) = data["recent"].as_array() {
+        for item in items {
+            let preview = item["preview"].as_str().unwrap_or("");
+            match item["kind"].as_str() {
+                Some("cognition-retired") => recent_retired.push(format!("    \"{preview}\"")),
+                _ => recent_added.push(format!("    \"{preview}\"")),
+            }
+        }
+    }
+    let added = if recent_added.is_empty() {
+        "    None yet.".to_string()
+    } else {
+        recent_added.join("\n")
+    };
+    let cognition_word = if total == 1 {
+        "Cognition"
+    } else {
+        "Cognitions"
+    };
+    let pending_line = if pending == 1 {
+        "1 Thought is waiting for a decision.".to_string()
+    } else {
+        format!("{pending} Thoughts are waiting for a decision.")
+    };
+    let retired_text = if recent_retired.is_empty() {
+        String::new()
+    } else {
+        format!("\n  Retired:\n{}\n", recent_retired.join("\n"))
+    };
     format!(
-        r#"# ME
+        r#"ME
 
-A local meaning environment.
+{total} {cognition_word} in your local library.
+{pending_line}
 
-Tell ME a Thought. Keep it as a Cognition. Use ME through Codex.
+ADD
 
-## Cognition Library
+  Add this Thought to ME:
+  <your thought>
 
-  {active} active Cognitions
-  {retired} retired Cognitions
+USE
 
-## Waiting
+  What do I have in ME about generative art?
 
-  {pending} Thoughts in Inbox
+  Draft an artist statement using ME.
 
-## Use ME Through Codex
+  Find tension in ME about authorship.
 
-  "What do I have in ME about authorship?"
-  "Draft a reply using ME."
-  "Compare this decision with ME."
+RECENT
 
-## Change ME
-
-  Add this Thought to ME: ...
-
-## Local Material
-
-  References and Procedures are available to Codex.
-  They are not Cognitions.
-"#
+  Added:
+{added}
+{retired_text}"#
     )
+}
+
+fn welcome_markdown(state: &str) -> &'static str {
+    if state == "empty" {
+        r#"ME
+
+ME keeps Thoughts you choose.
+
+A Thought is something you tell ME.
+A Cognition is a Thought you approved keeping.
+
+Start with one:
+
+  Add this Thought to ME:
+  <your thought>
+"#
+    } else {
+        r#"ME
+
+ME is ready.
+
+Add a Thought:
+
+  Add this Thought to ME:
+
+Or use what you have kept:
+
+  What do I have in ME about <topic>?
+
+  Draft <something> using ME.
+"#
+    }
+}
+
+fn workspace_created_result(root: &Path) -> Value {
+    json!({
+        "workspacePath": root,
+        "next": {
+            "command": format!("me start --workspace {}", root.display()),
+            "host": "Codex App",
+            "mode": "Local",
+            "starterPrompt": "Start ME"
+        }
+    })
+}
+
+fn mental_model_steps() -> Vec<Value> {
+    vec![
+        json!({
+            "step": "collect",
+            "title": "When a Thought occurs",
+            "description": "Tell Codex and choose whether to keep it as a Cognition."
+        }),
+        json!({
+            "step": "use",
+            "title": "Use what you have kept",
+            "description": "Ask Codex to inspect, compare, or compose from your Cognitions."
+        }),
+        json!({
+            "step": "return",
+            "title": "Keep something from an Output",
+            "description": "Bring it back as a new Thought."
+        }),
+    ]
+}
+
+fn guide_markdown() -> &'static str {
+    r#"ME GUIDE
+
+SCENARIO 1: A THOUGHT OCCURS
+
+You are walking, writing, coding, or talking and something occurs to you:
+
+  Designing a generative system is part of authorship.
+
+Tell Codex:
+
+  Add this Thought to ME:
+  Designing a generative system is part of authorship.
+
+Codex shows the exact Thought and intended operation.
+
+After you approve it, ME stores it as a Cognition.
+
+No existing Cognition is rewritten.
+
+SCENARIO 2: USE THE COGNITION LIBRARY
+
+Ask:
+
+  What do I have in ME about artistic authorship?
+
+Codex retrieves relevant Cognitions and explains them.
+
+Or ask:
+
+  Draft a short reply using ME.
+
+Codex composes from your Cognitions.
+
+Reading and composing do not change ME.
+
+SCENARIO 3: KEEP USEFUL OUTPUT
+
+Codex drafts:
+
+  Delegating execution does not necessarily delegate artistic judgment.
+
+You decide the sentence is worth retaining.
+
+Say:
+
+  This is my Thought. Add it to ME.
+
+It follows the same Thought -> approval -> Cognition flow.
+"#
+}
+
+fn preview_text(markdown: &str) -> String {
+    let mut preview = markdown_to_text(markdown)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if preview.chars().count() > 80 {
+        preview = preview.chars().take(77).collect::<String>();
+        preview.push_str("...");
+    }
+    preview
 }
 
 fn format_review(
@@ -4257,21 +4589,32 @@ fn contains_approval_fields(value: &Value) -> bool {
 }
 
 fn workspace_agents_md() -> &'static str {
-    r#"# ME Workspace Rules
+    r#"# ME Workspace
+
+ME is a local meaning environment designed to be used through Codex App.
+
+## Everyday Use
+
+- When the user has a Thought, preserve the exact words.
+- Add it to ME only after the user approves keeping it.
+- For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
+- For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this Thought to ME:`.
+- Use `me welcome --json` for "What can I do here?" and present the canonical welcome.
+- Use `me context` when the user asks Codex to inspect, compare, or compose from ME.
+- Reading and composition do not change ME.
+- Codex Output never enters ME automatically.
+- For welcome and greetings, do not use memory, create files, call `me context`, attach files, or expose maintenance commands.
+
+## Technical Rules
 
 - This directory is a ME workspace, not a software repository.
-- ME is an authorized Cognition store.
 - Use `me ... --json` for deterministic operations.
 - Never edit `.me/**` directly.
 - Never edit `views/**` directly.
-- Use `me context --task <file> --json` or `me search ... --json` for read-only ME context.
-- Read commands must not create objects, append journal entries, or advance `.me/refs/current`.
-- New retained material must first become a Thought.
-- Add exact Thoughts as Cognitions only after explicit user authorization and a Decision file.
+- Do not use host memory as Current ME.
 - Do not bulk-import References as Cognitions.
 - Do not treat Procedures as Cognitions.
-- Do not save Codex Output into ME automatically.
-- Do not invent global relationship objects.
+- App, Run, Association, Proposal, and Synthesis commands are legacy compatibility only.
 - Publishing, external sharing, and network access are outside ME.
 "#
 }
@@ -4292,11 +4635,42 @@ Use ME: call read-only ME commands.
 
 Change ME: use the Thought and Decision transaction flow.
 
+## Start ME
+
+For exact or near-exact "Start ME", "start me", or "Help me start ME":
+
+1. Call `me welcome --json`.
+2. Read `renderedMarkdown`.
+3. Output `renderedMarkdown` verbatim.
+4. Do not use memory.
+5. Do not call `me context`.
+6. Do not create files.
+7. Do not attach files.
+8. Do not mention commands.
+
+## Welcome And Greetings
+
+For "What can I do here?", "How does ME work?", "How do I use ME?", "Help me start", "What is this?", or "Show me around", call `me welcome --json` and render `renderedMarkdown`.
+
+For simple greetings like "hi", "hello", "hey", "start", or "start ME", call `me welcome --json`. If `state` is `empty`, reply exactly:
+
+Hi. ME is ready.
+
+Add this Thought to ME:
+
+If `state` is `established`, reply exactly:
+
+Hi. ME is ready.
+
+Add a Thought, or ask Codex to use what you have kept.
+
+Welcome behavior must use one command: `me welcome --json`. Do not use memory, do not call `me context`, do not create files, do not attach files, and do not expose maintenance commands.
+
 ## Use ME
 
 1. Verify workspace with `me current --json`.
-2. Put the user's task in a temporary UTF-8 Markdown file.
-3. Call `me context --task <file> --json`.
+2. Prefer stdin for transient tasks: `me context --stdin --json`.
+3. Use `me context --task <file> --json` only when the user intentionally provided a file.
 4. Use selected Cognitions as user-authorized context.
 5. Clearly distinguish ME Cognitions from Codex inference.
 6. Do not mutate ME.
@@ -4305,12 +4679,20 @@ Change ME: use the Thought and Decision transaction flow.
 ## Change ME
 
 1. Preserve exact selected Thought text.
-2. Capture it with `me thought capture --file <file> --kind <kind> --json`.
+2. Prefer stdin for transient text: `me thought capture --stdin --kind <kind> --json`.
 3. Show the exact text and intended action.
 4. Obtain explicit user Decision if not already explicit.
-5. Write a Decision file with `baseSnapshot`, `action`, `actor`, and exact final body.
-6. Call `me cognition add --thought <thought-id> --decision <file> --json`.
+5. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body.
+6. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
 7. Report Cognitions added, existing Cognitions changed, and the new Snapshot.
+
+## Feedback
+
+When the user says "This sentence is my Thought", "Add this part to ME", or "Keep this from the draft", re-enter the normal Thought flow. Codex Output never enters ME automatically.
+
+## Technical
+
+Only expose CLI and integrity details when asked for technical status, integrity, snapshots, backup, or CLI help.
 
 ## Forbidden
 
@@ -4321,6 +4703,7 @@ Do not treat Procedures as Cognitions.
 Do not save Codex Output into ME automatically.
 Do not invent relationship objects.
 Do not force synthesis.
+Do not show snapshots, fsck, bundle, index, or other maintenance details unless the user asks for technical status.
 "#
 }
 
@@ -4333,7 +4716,7 @@ fn workspace_mutation_boundary_md() -> &'static str {
 }
 
 fn workspace_read_context_md() -> &'static str {
-    "Use `me context --task <file> --json` to retrieve bounded Cognitions for an arbitrary task. Search and context are read-only and must not advance the current Snapshot.\n"
+    "Use `me context --stdin --json` for transient tasks, or `me context --task <file> --json` when the user intentionally provided a file. Search and context are read-only and must not advance the current Snapshot.\n"
 }
 
 fn workspace_references_and_procedures_md() -> &'static str {
@@ -4347,10 +4730,10 @@ Use `--json` for agent operations.
 
 ```bash
 me home --json
-me thought capture --file inbox/input.md --kind idea --json
-me cognition add --thought <thought-id> --decision drafts/decisions/add.json --json
+me thought capture --stdin --kind idea --json
+me cognition add --thought <thought-id> --decision-stdin --json
 me search "authorship" --limit 20 --json
-me context --task /tmp/me-task.md --limit 20 --json
+me context --stdin --limit 20 --json
 me cognition history <cognition-id> --json
 ```
 "#
@@ -4541,6 +4924,31 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    fn value_text(value: &Value) -> String {
+        serde_json::to_string(value).unwrap()
+    }
+
+    fn assert_no_home_internals(text: &str) {
+        let lower = text.to_ascii_lowercase();
+        for needle in [
+            "currentsnapshot",
+            "sha256",
+            "--json",
+            "temporary task",
+            "fsck",
+            "doctor",
+            "bundle",
+            "index rebuild",
+            "procedure",
+            "reference",
+        ] {
+            assert!(
+                !lower.contains(needle),
+                "home output leaked technical term {needle}: {text}"
+            );
+        }
+    }
+
     fn write_schema4_object(root: &Path, object_type: &str, payload: Value) -> String {
         let object = json!({
             "schemaVersion": 4,
@@ -4700,10 +5108,255 @@ rebuild_on_integrity_failure = true
         Workspace::init(dir.path(), false).unwrap();
         let ws = Workspace::open(dir.path()).unwrap();
         let home = ws.home("json").unwrap();
+        assert_eq!(home["schemaVersion"], 1);
+        assert_eq!(home["kind"], "me.home");
+        assert_eq!(home["workspaceState"], "empty");
         assert_eq!(home["product"]["name"], "ME");
+        assert_eq!(home["product"]["descriptor"], "a local meaning environment");
+        assert_eq!(home["product"]["primarySurface"], "Codex App");
+        assert_eq!(home["summary"]["cognitionCount"], 0);
+        assert_eq!(home["summary"]["pendingThoughtCount"], 0);
+        assert_eq!(home["mentalModel"].as_array().unwrap().len(), 3);
+        assert_eq!(home["starterPrompt"], "Add this Thought to ME:");
+        assert!(home.get("currentSnapshot").is_none());
+        assert_no_home_internals(&value_text(&home));
+
+        let markdown = ws.home("markdown").unwrap();
+        let markdown = markdown["markdown"].as_str().unwrap();
+        assert!(markdown.starts_with("ME\n\nME keeps Thoughts you choose."));
+        assert!(markdown.contains("A Thought is something you tell ME."));
+        assert!(markdown.contains("A Cognition is a Thought you approved keeping."));
+        assert!(markdown.contains("  Add this Thought to ME:"));
+        assert!(markdown.contains("  <your thought>"));
+        assert_no_home_internals(markdown);
+
+        let home_view = fs::read_to_string(dir.path().join("views/home.md")).unwrap();
+        assert!(home_view.starts_with("ME\n\nME keeps Thoughts you choose."));
+        assert_no_home_internals(&home_view);
+        let welcome_view = fs::read_to_string(dir.path().join("views/welcome.md")).unwrap();
+        assert_eq!(welcome_view, markdown);
         assert!(dir.path().join(".me/refs/current").exists());
         assert!(dir.path().join("me.toml").exists());
         ws.fsck().unwrap();
+    }
+
+    #[test]
+    fn welcome_empty_is_short_and_canonical() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), false).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let welcome = ws.welcome().unwrap();
+        assert_eq!(welcome["schemaVersion"], 1);
+        assert_eq!(welcome["kind"], "me.welcome");
+        assert_eq!(welcome["state"], "empty");
+        assert_eq!(welcome["starterPrompt"], "Add this Thought to ME:");
+        assert_eq!(welcome["technical"]["activeCognitionCount"], 0);
+        assert_eq!(welcome["technical"]["pendingThoughtCount"], 0);
+        let markdown = welcome["renderedMarkdown"].as_str().unwrap();
+        assert!(markdown.starts_with("ME\n\nME keeps Thoughts you choose."));
+        assert!(markdown.contains("A Thought is something you tell ME."));
+        assert!(markdown.contains("A Cognition is a Thought you approved keeping."));
+        assert!(markdown.contains("  Add this Thought to ME:"));
+        for forbidden in [
+            "0 Cognitions",
+            "0 pending Thoughts",
+            "authorship",
+            "Draft",
+            "Snapshot",
+            "sha256",
+            "fsck",
+            "memory",
+            "Procedure",
+            "Reference",
+        ] {
+            assert!(!markdown.contains(forbidden), "found {forbidden}");
+        }
+    }
+
+    #[test]
+    fn demo_workspace_home_is_established() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), true).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let home = ws.home("json").unwrap();
+        assert_eq!(home["workspaceState"], "established");
+        assert_eq!(home["summary"]["activeCognitionCount"], 3);
+        assert_eq!(home["summary"]["retiredCognitionCount"], 0);
+        assert_eq!(home["summary"]["pendingThoughtCount"], 1);
+        assert_eq!(home["examples"]["add"], "Add this Thought to ME:");
+        assert_eq!(
+            home["examples"]["inspect"],
+            "What do I have in ME about generative art?"
+        );
+        assert!(!home["recent"].as_array().unwrap().is_empty());
+        assert!(home.get("currentSnapshot").is_none());
+        assert_no_home_internals(&value_text(&home));
+
+        let markdown = ws.home("markdown").unwrap();
+        let markdown = markdown["markdown"].as_str().unwrap();
+        assert!(markdown.contains("3 Cognitions in your local library."));
+        assert!(markdown.contains("1 Thought is waiting for a decision."));
+        assert!(markdown.contains("ADD"));
+        assert!(markdown.contains("USE"));
+        assert!(markdown.contains("RECENT"));
+        assert!(markdown.contains("Add this Thought to ME:"));
+        assert!(markdown.contains("Draft an artist statement using ME."));
+        assert!(!markdown.contains("WORKSPACE NEEDS ATTENTION"));
+        assert_no_home_internals(markdown);
+
+        let home_view = fs::read_to_string(dir.path().join("views/home.md")).unwrap();
+        assert!(home_view.contains("RECENT"));
+        assert_no_home_internals(&home_view);
+        let welcome = ws.welcome().unwrap();
+        assert_eq!(welcome["state"], "established");
+        assert!(
+            welcome["renderedMarkdown"]
+                .as_str()
+                .unwrap()
+                .contains("ME is ready.")
+        );
+        assert_eq!(welcome["technical"]["activeCognitionCount"], 3);
+    }
+
+    #[test]
+    fn guide_is_scenario_tutorial_not_cli_reference() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), false).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let guide = ws.guide().unwrap();
+        assert_eq!(guide["schemaVersion"], 1);
+        assert_eq!(guide["kind"], "me.guide");
+        assert_eq!(guide["scenarios"].as_array().unwrap().len(), 3);
+        let markdown = guide["markdown"].as_str().unwrap();
+        assert!(markdown.contains("SCENARIO 1: A THOUGHT OCCURS"));
+        assert!(markdown.contains("SCENARIO 2: USE THE COGNITION LIBRARY"));
+        assert!(markdown.contains("SCENARIO 3: KEEP USEFUL OUTPUT"));
+        assert!(markdown.contains("Reading and composing do not change ME."));
+        let lower = markdown.to_ascii_lowercase();
+        assert!(!lower.contains("fsck"));
+        assert!(!lower.contains("bundle"));
+        assert!(!lower.contains("status --json"));
+    }
+
+    #[test]
+    fn new_workspace_result_points_to_codex() {
+        let dir = tempdir().unwrap();
+        let workspace = dir.path().join("ME");
+        let result = Workspace::new_workspace(&workspace, false).unwrap();
+        assert_eq!(
+            result["workspacePath"].as_str().unwrap(),
+            workspace.to_string_lossy().as_ref()
+        );
+        assert_eq!(result["next"]["host"], "Codex App");
+        assert_eq!(result["next"]["mode"], "Local");
+        assert_eq!(result["next"]["starterPrompt"], "Start ME");
+        assert!(
+            result["next"]["command"]
+                .as_str()
+                .unwrap()
+                .starts_with("me start --workspace ")
+        );
+    }
+
+    #[test]
+    fn codex_skill_start_intent_is_welcome_only() {
+        let skill = workspace_skill_md();
+        let welcome = skill.split("## Use ME").next().unwrap();
+        assert!(welcome.contains("## Start ME"));
+        assert!(welcome.contains("Call `me welcome --json`"));
+        assert!(welcome.contains("Output `renderedMarkdown` verbatim."));
+        assert!(welcome.contains("Do not use memory."));
+        assert!(welcome.contains("Do not call `me context`."));
+        assert!(welcome.contains("Do not create files."));
+        assert!(welcome.contains("Do not attach files."));
+        assert!(welcome.contains("Do not mention commands."));
+        assert!(welcome.contains("\"What can I do here?\""));
+        assert!(welcome.contains("Hi. ME is ready."));
+    }
+
+    #[test]
+    fn workspace_agents_are_product_first() {
+        let agents = workspace_agents_md();
+        assert!(agents.starts_with(
+            "# ME Workspace\n\nME is a local meaning environment designed to be used through Codex App."
+        ));
+        assert!(
+            agents.find("## Everyday Use").unwrap() < agents.find("## Technical Rules").unwrap()
+        );
+        assert!(agents.contains("Start ME"));
+        assert!(agents.contains("canonical welcome"));
+        assert!(agents.contains("Reading and composition do not change ME."));
+        assert!(agents.contains("Codex Output never enters ME automatically."));
+    }
+
+    #[test]
+    fn readme_is_scenario_first() {
+        let readme = include_str!("../../../README.md");
+        assert!(readme.starts_with(
+            "# ME\n\n## What ME is\n\nME is a local meaning environment designed to be used through Codex App."
+        ));
+        let sections = [
+            "## What ME is",
+            "## Install ME and open it in Codex",
+            "## A Thought occurs",
+            "## Use what you have kept",
+            "## Keep something Codex produced",
+            "## The mental model",
+            "## Cognitions, References, and Procedures",
+            "## Privacy and local storage",
+            "## Advanced CLI",
+            "## Development",
+        ];
+        let mut previous = 0;
+        for section in sections {
+            let index = readme
+                .find(section)
+                .unwrap_or_else(|| panic!("missing {section}"));
+            assert!(index >= previous, "{section} is out of order");
+            previous = index;
+        }
+        assert!(readme.contains("brew install inshell-art/tap/me"));
+        assert!(readme.contains("me start"));
+        assert!(readme.contains("Press Enter on:"));
+        assert!(readme.contains("Start ME"));
+        assert!(readme.contains("Designing a generative system is part of authorship."));
+        assert!(readme.contains("Reading and composing do not change ME."));
+        assert!(readme.contains("This is my Thought. Add it to ME."));
+        assert!(readme.contains("COLLECT"));
+        assert!(readme.contains("USE"));
+        assert!(readme.contains("KEEP"));
+        assert!(
+            readme.find("## Advanced CLI").unwrap()
+                > readme.find("## Keep something Codex produced").unwrap()
+        );
+    }
+
+    #[test]
+    fn technical_state_is_separate_from_home() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), true).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let home = ws.home("json").unwrap();
+        assert!(home.get("currentSnapshot").is_none());
+        assert!(!value_text(&home).contains("sha256:"));
+
+        let status = ws.status().unwrap();
+        assert!(
+            status["currentSnapshot"]
+                .as_str()
+                .unwrap()
+                .starts_with("sha256:")
+        );
+        assert_eq!(status["schemaVersion"], SCHEMA_VERSION);
+
+        let fsck = ws.fsck().unwrap();
+        assert_eq!(fsck["ok"], true);
+        assert!(
+            fsck["currentSnapshot"]
+                .as_str()
+                .unwrap()
+                .starts_with("sha256:")
+        );
     }
 
     #[test]
@@ -4720,11 +5373,20 @@ rebuild_on_integrity_failure = true
         let captured = ws.thought_capture(&input, "idea").unwrap();
         let thought_id = captured["thoughtId"].as_str().unwrap();
         let before = ws.current().unwrap();
+        let before_ref = ws.current_ref().unwrap();
         let decision_path = dir.path().join("decision.json");
         fs::write(&decision_path, r#"{"action":"add-cognition"}"#).unwrap();
         let result = ws.cognition_add(thought_id, &decision_path).unwrap();
         assert_eq!(result["cognitionsAdded"], 1);
         assert_eq!(result["existingCognitionsChanged"], 0);
+        assert_ne!(ws.current_ref().unwrap(), before_ref);
+        let added = ws
+            .cognition_show(result["cognitionId"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(
+            added["bodyMarkdown"],
+            "The rules and possibility space are part of the artwork, not just the final object."
+        );
         let after = ws.current().unwrap();
         assert_eq!(
             after["cognitions"].as_array().unwrap().len(),
@@ -4736,6 +5398,37 @@ rebuild_on_integrity_failure = true
         assert!(tree_value.get("apps").is_none());
         assert!(tree_value.get("appPolicies").is_none());
         assert!(tree_value.get("appRuns").is_none());
+    }
+
+    #[test]
+    fn stdin_equivalent_operations_do_not_require_temp_files() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), false).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let captured = ws
+            .thought_capture_body(
+                "Designing a generative system is part of authorship.".to_string(),
+                "idea",
+            )
+            .unwrap();
+        let thought_id = captured["thoughtId"].as_str().unwrap();
+        let added = ws
+            .cognition_add_value(thought_id, json!({ "action": "add-cognition" }))
+            .unwrap();
+        assert_eq!(added["cognitionAdded"], true);
+        assert_eq!(added["firstCognition"], true);
+        assert_eq!(
+            added["next"]["message"],
+            "This Thought is now a Cognition. Codex can use it without changing it."
+        );
+        let before = ws.current_ref().unwrap();
+        let context = ws
+            .context_body("Draft a reply about authorship.".to_string(), 20)
+            .unwrap();
+        assert_eq!(context["cognitionLibraryChanged"], false);
+        assert_eq!(ws.current_ref().unwrap(), before);
+        let parsed = Workspace::parse_decision_input(r#"{"action":"add-cognition"}"#).unwrap();
+        assert_eq!(parsed["action"], "add-cognition");
     }
 
     #[test]

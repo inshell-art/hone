@@ -1,0 +1,2 @@
+channel = "tap"
+install_command = "brew install inshell-art/tap/me"
