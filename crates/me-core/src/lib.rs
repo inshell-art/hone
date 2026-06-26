@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const SCHEMA_VERSION: u32 = 5;
-pub const WORKSPACE_VERSION: &str = "0.7.0";
+pub const WORKSPACE_VERSION: &str = "0.8.0";
 
 pub const THOUGHT_KINDS: &[&str] = &[
     "idea",

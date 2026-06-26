@@ -1,39 +1,39 @@
 # ME Mental Model
 
-ME is a local meaning environment designed to be used through Codex App.
+ME is a local application operated through Codex App.
 
 ## Thought
 
-A Thought is something that occurred to you and was captured exactly.
+A thought is something you tell ME.
 
-A captured Thought is not yet part of the Cognition Library.
+ME captures the exact words first. A captured thought is not in ME yet.
 
 ## Decision
 
-A Decision is your explicit approval to change ME.
+A decision is your explicit approval to change ME.
 
-The normal collection Decision says: keep this exact Thought as a
-Cognition.
+The normal collection decision says: keep this exact thought as a
+cognition.
 
 ## Cognition
 
-A Cognition is a Thought you chose to keep.
+A cognition is a thought you chose to keep.
 
-ME does not rewrite existing Cognitions when a new one is added.
-Repeated, unfinished, conditional, or contradictory Cognitions can
-coexist.
+ME does not rewrite existing cognitions when a new one is added.
+Questions, uncertainties, contradictions, conditional thoughts, and
+unfinished ideas can coexist.
 
 ## Use Through Codex
 
-Codex is the interface. It can retrieve relevant Cognitions, reason with
+Codex is the interface. It can retrieve relevant cognitions, reason with
 them, compare them, and compose from them.
 
 Reading and composing do not change ME.
 
 ## Output Feedback
 
-Codex Output does not enter ME automatically.
+Codex output does not enter ME automatically.
 
 When output contains something worth keeping, bring the exact sentence
-back as a new Thought and approve it through the same Thought ->
-Decision -> Cognition flow.
+back as a new thought and approve it through the same thought ->
+decision -> cognition flow.

@@ -1,15 +1,17 @@
 # ME
 
-ME is a local meaning environment designed to be used through Codex App.
+ME is a local application operated through Codex App.
 
 When a thought occurs, tell Codex:
 
-> Add this Thought to ME: ...
+> Add this thought to ME:
+> ...
 
-ME captures the exact words. Once you approve keeping them, the Thought
-becomes a Cognition in your local library.
+ME captures the exact words. You choose whether to keep them.
 
-Later, Codex can inspect, compare, and compose from your Cognitions
+A thought you keep in ME is called a cognition.
+
+Codex can inspect, compare, and compose from your cognitions
 without changing them.
 
 Start in Codex by running:

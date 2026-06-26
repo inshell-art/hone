@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Tighten first-use terminology so empty onboarding starts with thoughts and introduces cognition only after the first keep action.
+- Add noncanonical `.me/derived/guidance.json` for once-per-workspace progressive guidance.
+- Hide Snapshot hashes and transaction internals from ordinary capture and keep success messages.
+- Add first-read and multi-cognition milestone guidance without advancing canonical snapshots.
+- Rewrite README, guide, workspace AGENTS, and ME skill copy around scenario-first Codex App usage.
+
 ## 0.7.0
 
 - Add `me start` for one-command workspace resolution, derived preflight repair, and Codex App deep-link launch.

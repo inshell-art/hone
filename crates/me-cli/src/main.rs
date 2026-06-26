@@ -1149,7 +1149,7 @@ fn start_text(data: &Value) -> String {
         return format!(
             r#"Codex App was not found.
 
-ME is designed to be used through Codex App.
+ME is a local application operated through Codex App.
 
 Install or open Codex App, then run:
 

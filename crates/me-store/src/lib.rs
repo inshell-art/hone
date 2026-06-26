@@ -16,8 +16,8 @@ use me_core::{
 use me_index::{CognitionDoc, MatchResult, rank_cognitions};
 use me_markdown::markdown_to_text;
 use rusqlite::{Connection, params};
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tar::{Archive, Builder, Header};
@@ -164,6 +164,35 @@ pub struct CurrentState {
     pub tree: MeTreePayload,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GuidanceState {
+    schema_version: u32,
+    #[serde(default)]
+    first_cognition_guide_shown: bool,
+    #[serde(default)]
+    first_read_guide_shown: bool,
+    #[serde(default)]
+    feedback_loop_guide_shown: bool,
+    #[serde(default)]
+    two_cognition_guide_shown: bool,
+    #[serde(default)]
+    five_cognition_guide_shown: bool,
+}
+
+impl Default for GuidanceState {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            first_cognition_guide_shown: false,
+            first_read_guide_shown: false,
+            feedback_loop_guide_shown: false,
+            two_cognition_guide_shown: false,
+            five_cognition_guide_shown: false,
+        }
+    }
+}
+
 impl Workspace {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let root = path.as_ref().to_path_buf();
@@ -251,7 +280,7 @@ impl Workspace {
                 "primarySurface": "Codex App"
             },
             "examples": {
-                "add": "Add this Thought to ME:",
+                "add": "Add this thought to ME:",
                 "inspect": if workspace_state == "empty" {
                     "What do I have in ME about authorship?"
                 } else {
@@ -263,7 +292,7 @@ impl Workspace {
                     "Draft an artist statement using ME."
                 },
                 "compare": "Find tension in ME about authorship.",
-                "return": "This is my Thought. Add it to ME."
+                "return": "This is my thought. Add it to ME."
             },
             "health": {
                 "status": "ok",
@@ -275,8 +304,7 @@ impl Workspace {
                 "cognitionCount": 0,
                 "pendingThoughtCount": 0
             });
-            data["mentalModel"] = json!(mental_model_steps());
-            data["starterPrompt"] = json!("Add this Thought to ME:");
+            data["starterPrompt"] = json!("Add this thought to ME:");
         } else {
             data["summary"] = json!({
                 "activeCognitionCount": active_count,
@@ -312,11 +340,11 @@ impl Workspace {
             "established"
         };
         Ok(json!({
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "kind": "me.welcome",
             "state": state,
             "renderedMarkdown": welcome_markdown(state),
-            "starterPrompt": "Add this Thought to ME:",
+            "starterPrompt": "Add this thought to ME:",
             "technical": {
                 "activeCognitionCount": active_count,
                 "pendingThoughtCount": pending_thoughts
@@ -327,16 +355,20 @@ impl Workspace {
     pub fn guide(&self) -> Result<Value> {
         let scenarios = json!([
             {
-                "title": "A Thought occurs",
-                "body": "You are walking, writing, coding, or talking and something occurs to you: Designing a generative system is part of authorship. Tell Codex: Add this Thought to ME: Designing a generative system is part of authorship. Codex shows the exact Thought and intended operation. After you approve it, ME stores it as a Cognition. No existing Cognition is rewritten."
+                "title": "A thought occurs",
+                "body": "Suppose you think: Designing a generative system is part of authorship. Tell Codex: Add this thought to ME: Designing a generative system is part of authorship. ME captures the exact text first. It is not in ME yet."
             },
             {
-                "title": "Use the Cognition Library",
-                "body": "Ask: What do I have in ME about artistic authorship? Codex retrieves relevant Cognitions and explains them. Or ask: Draft a short reply using ME. Codex composes from your Cognitions. Reading and composing do not change ME."
+                "title": "Keep the thought",
+                "body": "Codex asks whether to keep it. After you approve, ME adds it to the local Cognition Library. In ME, a thought you choose to keep is called a cognition."
             },
             {
-                "title": "Keep useful output",
-                "body": "Codex drafts: Delegating execution does not necessarily delegate artistic judgment. You decide the sentence is worth retaining. Say: This is my Thought. Add it to ME. It follows the same Thought -> approval -> Cognition flow."
+                "title": "Use a cognition",
+                "body": "Ask: What do I have in ME about authorship? Or ask: Draft a short statement using ME. Codex may read and compose from your cognitions. Reading and composing do not change ME."
+            },
+            {
+                "title": "Keep something Codex produced",
+                "body": "If Codex writes a sentence worth retaining, say: This is my thought. Add it to ME. The sentence returns through the same capture and keep flow."
             }
         ]);
         Ok(json!({
@@ -387,9 +419,11 @@ impl Workspace {
             self.regenerate_views()?;
             self.rebuild_index()?;
             self.sync_workspace_docs()?;
+            self.ensure_guidance_state()?;
             repaired.push("derived-views");
             repaired.push("sqlite-index");
             repaired.push("codex-instructions");
+            repaired.push("guidance-state");
         }
         Ok(json!({ "workspace": self.root, "ok": true, "repair": repair, "repaired": repaired }))
     }
@@ -513,8 +547,21 @@ impl Workspace {
                 "statusLabel": "THOUGHT CAPTURED -- PENDING, NOT IN ME",
                 "thoughtId": payload.thought_id,
                 "thought": thought_hash,
+                "bodyMarkdown": payload.body_markdown,
                 "state": "pending",
-                "snapshot": snapshot_hash,
+                "snapshot": snapshot_hash.clone(),
+                "renderedMarkdown": thought_capture_markdown(&payload.body_markdown),
+                "next": {
+                    "question": "Keep it in ME?",
+                    "choices": [
+                        "Keep in ME",
+                        "Keep as thought only",
+                        "Dismiss"
+                    ]
+                },
+                "technical": {
+                    "currentSnapshot": snapshot_hash
+                },
                 "warnings": warnings
             }))
         })
@@ -773,6 +820,13 @@ impl Workspace {
         self.with_lock(|| {
             let current = self.load_current()?;
             let first_cognition = current.tree.cognitions.is_empty();
+            let active_after_count = current
+                .tree
+                .cognition_states
+                .values()
+                .filter(|state| state.as_str() == "active")
+                .count()
+                + 1;
             validate_base_snapshot(&value, &current.snapshot_hash)?;
             let (thought_id, thought_hash, thought) =
                 self.resolve_thought(&current.tree, thought_id_or_hash)?;
@@ -850,25 +904,92 @@ impl Workspace {
                 &actor,
                 "Add Thought as Cognition".to_string(),
             )?;
+            let topic = infer_topic_phrase(&final_body).unwrap_or_else(|| "this topic".to_string());
+            let mut guidance_state = self.read_guidance_state()?;
+            let mut next_guidance = if first_cognition {
+                guidance_state.first_cognition_guide_shown = true;
+                json!({
+                    "kind": "first-cognition",
+                    "mentalModel": "In ME, a thought you choose to keep is called a cognition.",
+                    "useExamples": [
+                        format!("What do I have in ME about {topic}?"),
+                        "Draft a short statement using ME."
+                    ],
+                    "addExample": "Add this thought to ME:"
+                })
+            } else {
+                json!({
+                    "kind": "later-cognition",
+                    "message": "Add another thought, or ask Codex to use what you have kept."
+                })
+            };
+            let mut rendered_markdown = if first_cognition {
+                first_cognition_markdown(&final_body, &topic)
+            } else {
+                later_cognition_markdown(&final_body)
+            };
+            if !first_cognition
+                && active_after_count == 2
+                && !guidance_state.two_cognition_guide_shown
+            {
+                guidance_state.two_cognition_guide_shown = true;
+                let rendered = two_cognition_guidance_markdown(&topic);
+                next_guidance = json!({
+                    "kind": "two-cognitions",
+                    "message": "ME now contains more than one cognition.",
+                    "useExamples": [
+                        format!("Compare what I have in ME about {topic}."),
+                        format!("Find tension in ME about {topic}.")
+                    ],
+                    "renderedMarkdown": rendered
+                });
+                rendered_markdown.push_str("\n\n");
+                rendered_markdown.push_str(&rendered);
+            } else if !first_cognition
+                && active_after_count == 5
+                && !guidance_state.five_cognition_guide_shown
+            {
+                guidance_state.five_cognition_guide_shown = true;
+                let rendered = five_cognition_guidance_markdown();
+                next_guidance = json!({
+                    "kind": "five-cognitions",
+                    "message": "ME now has enough material to explore broader patterns.",
+                    "useExamples": [
+                        "What themes recur in ME?",
+                        "Draft a longer piece using ME."
+                    ],
+                    "renderedMarkdown": rendered
+                });
+                rendered_markdown.push_str("\n\n");
+                rendered_markdown.push_str(rendered);
+            }
+            self.write_guidance_state(&guidance_state)?;
             let mut result = json!({
-                "statusLabel": "ADDED TO ME",
+                "statusLabel": "KEPT IN ME",
                 "decisionId": decision.decision_id,
                 "decision": decision_hash,
                 "cognitionId": cognition.cognition_id,
                 "cognition": cognition_hash,
-                "snapshot": snapshot,
+                "bodyMarkdown": final_body,
+                "snapshot": snapshot.clone(),
                 "cognitionAdded": true,
                 "cognitionsAdded": 1,
                 "existingCognitionsChanged": 0,
-                "firstCognition": first_cognition
+                "firstCognition": first_cognition,
+                "renderedMarkdown": rendered_markdown,
+                "nextGuidance": next_guidance,
+                "technical": {
+                    "existingCognitionsChanged": 0,
+                    "currentSnapshot": snapshot
+                }
             });
             if first_cognition {
                 result["next"] = json!({
-                    "message": "This Thought is now a Cognition. Codex can use it without changing it.",
+                    "message": "In ME, a thought you choose to keep is called a cognition.",
                     "examples": [
-                        "What do I have in ME about <topic>?",
-                        "Draft a short reply using ME.",
-                        "Add this Thought to ME:"
+                        format!("What do I have in ME about {topic}?"),
+                        "Draft a short statement using ME.",
+                        "Add this thought to ME:"
                     ]
                 });
             }
@@ -997,6 +1118,20 @@ impl Workspace {
                 }
             }));
         }
+        let mut guidance_state = self.read_guidance_state()?;
+        let guidance = if !guidance_state.first_read_guide_shown {
+            guidance_state.first_read_guide_shown = true;
+            guidance_state.feedback_loop_guide_shown = true;
+            self.write_guidance_state(&guidance_state)?;
+            json!({
+                "kind": "first-read",
+                "renderedMarkdown": first_read_guidance_markdown(),
+                "message": "ME was read, not changed.",
+                "feedbackPrompt": "This is my thought. Add it to ME."
+            })
+        } else {
+            Value::Null
+        };
         Ok(json!({
             "baseSnapshot": current.snapshot_hash,
             "taskMarkdown": task,
@@ -1005,7 +1140,8 @@ impl Workspace {
                 "selectedCount": selected.len(),
                 "limit": limit
             },
-            "cognitionLibraryChanged": false
+            "cognitionLibraryChanged": false,
+            "guidance": guidance
         }))
     }
 
@@ -2404,6 +2540,7 @@ impl Workspace {
             ".me/objects",
             ".me/refs",
             ".me/journal",
+            ".me/derived",
             ".me/migrations",
             ".me/tmp",
             ".agents/skills/me/references",
@@ -2419,6 +2556,7 @@ impl Workspace {
             File::create(self.root.join(".me/lock"))
                 .map_err(|err| MeError::Internal(err.into()))?;
         }
+        self.ensure_guidance_state()?;
         self.write_builtin_procedures()?;
         Ok(())
     }
@@ -2752,6 +2890,42 @@ impl Workspace {
             tree_hash,
             tree: tree.payload,
         })
+    }
+
+    fn guidance_state_path(&self) -> PathBuf {
+        self.root.join(".me/derived/guidance.json")
+    }
+
+    fn ensure_guidance_state(&self) -> Result<()> {
+        let path = self.guidance_state_path();
+        if !path.exists() {
+            self.write_guidance_state(&GuidanceState::default())?;
+        }
+        Ok(())
+    }
+
+    fn read_guidance_state(&self) -> Result<GuidanceState> {
+        let path = self.guidance_state_path();
+        if !path.exists() {
+            return Ok(GuidanceState::default());
+        }
+        let raw = fs::read_to_string(&path).map_err(|err| MeError::Internal(err.into()))?;
+        if raw.trim().is_empty() {
+            return Ok(GuidanceState::default());
+        }
+        let mut state: GuidanceState =
+            serde_json::from_str(&raw).map_err(|err| MeError::Internal(err.into()))?;
+        if state.schema_version == 0 {
+            state.schema_version = 1;
+        }
+        Ok(state)
+    }
+
+    fn write_guidance_state(&self, state: &GuidanceState) -> Result<()> {
+        atomic_write(
+            &self.guidance_state_path(),
+            &serde_json::to_vec_pretty(state).map_err(|err| MeError::Internal(err.into()))?,
+        )
     }
 
     fn snapshot_tree(&self, snapshot_hash: &str) -> Result<MeTreePayload> {
@@ -3518,16 +3692,18 @@ impl Workspace {
     fn sync_workspace_docs(&self) -> Result<()> {
         let readme = r#"# ME
 
-ME is a local meaning environment designed to be used through Codex App.
+ME is a local application operated through Codex App.
 
 When a thought occurs, tell Codex:
 
-> Add this Thought to ME: ...
+> Add this thought to ME:
+> ...
 
-ME captures the exact words. Once you approve keeping them, the Thought
-becomes a Cognition in your local library.
+ME captures the exact words. You choose whether to keep them.
 
-Later, Codex can inspect, compare, and compose from your Cognitions
+A thought you keep in ME is called a cognition.
+
+Codex can inspect, compare, and compose from your cognitions
 without changing them.
 
 Start in Codex by running:
@@ -3584,7 +3760,7 @@ me start
         }
         atomic_write(
             &skill_dir.join("agents/openai.yaml"),
-            b"interface:\n  display_name: \"ME\"\n  short_description: \"Capture Thoughts and add Cognitions.\"\n  default_prompt: \"Add this Thought to ME.\"\n\npolicy:\n  allow_implicit_invocation: true\n",
+            b"interface:\n  display_name: \"ME\"\n  short_description: \"Capture thoughts and add cognitions.\"\n  default_prompt: \"Add this thought to ME.\"\n\npolicy:\n  allow_implicit_invocation: true\n",
         )?;
         Ok(())
     }
@@ -3805,14 +3981,14 @@ me start
             &self.root.join("apps/inspect-me"),
             "inspect-me",
             "Inspect ME",
-            "Retrieve and present Cognitions relevant to a question.",
+            "Retrieve and present cognitions relevant to a question.",
             "reading",
         )?;
         write_builtin_app(
             &self.root.join("apps/speak-for-me"),
             "speak-for-me",
             "Speak for Me",
-            "Draft communication grounded in selected Cognitions.",
+            "Draft communication grounded in selected cognitions.",
             "draft",
         )?;
         Ok(())
@@ -3822,11 +3998,11 @@ me start
         let procedures = [
             (
                 "inspect-me.md",
-                "# Inspect ME\n\nUse `me search`, `me context`, and `me cognition list/show/history` to inspect authorized Cognitions. Treat retrieval as bounded context, not a complete model of the user.\n",
+                "# Inspect ME\n\nUse `me search`, `me context`, and `me cognition list/show/history` to inspect authorized cognitions. Treat retrieval as bounded context, not a complete model of the user.\n",
             ),
             (
                 "speak-from-me.md",
-                "# Speak From ME\n\n1. Pass the transient task through standard input.\n2. Run `me context --stdin --json`.\n3. Draft with the selected Cognitions as user-authorized context.\n4. Clearly separate ME Cognitions from Codex inference.\n5. Do not save the draft into ME unless the user brings an exact excerpt back as a Thought and approves a Decision.\n",
+                "# Speak From ME\n\n1. Pass the transient task through standard input.\n2. Run `me context --stdin --json`.\n3. Draft with the selected cognitions as user-authorized context.\n4. Clearly separate ME cognitions from Codex inference.\n5. Do not save the draft into ME unless the user brings an exact excerpt back as a thought and approves a Decision.\n",
             ),
         ];
         for (name, body) in procedures {
@@ -3948,66 +4124,34 @@ fn home_markdown(data: &Value) -> String {
     let active = data["summary"]["activeCognitionCount"]
         .as_u64()
         .unwrap_or(0);
-    let retired = data["summary"]["retiredCognitionCount"]
-        .as_u64()
-        .unwrap_or(0);
-    let total = active + retired;
     let pending = data["summary"]["pendingThoughtCount"].as_u64().unwrap_or(0);
-    let mut recent_added = Vec::new();
-    let mut recent_retired = Vec::new();
-    if let Some(items) = data["recent"].as_array() {
-        for item in items {
-            let preview = item["preview"].as_str().unwrap_or("");
-            match item["kind"].as_str() {
-                Some("cognition-retired") => recent_retired.push(format!("    \"{preview}\"")),
-                _ => recent_added.push(format!("    \"{preview}\"")),
-            }
-        }
-    }
-    let added = if recent_added.is_empty() {
-        "    None yet.".to_string()
+    let cognition_word = if active == 1 {
+        "cognition"
     } else {
-        recent_added.join("\n")
+        "cognitions"
     };
-    let cognition_word = if total == 1 {
-        "Cognition"
-    } else {
-        "Cognitions"
-    };
-    let pending_line = if pending == 1 {
-        "1 Thought is waiting for a decision.".to_string()
-    } else {
-        format!("{pending} Thoughts are waiting for a decision.")
-    };
-    let retired_text = if recent_retired.is_empty() {
+    let pending_line = if pending == 0 {
         String::new()
+    } else if pending == 1 {
+        "A thought is waiting for your decision.\n\n".to_string()
     } else {
-        format!("\n  Retired:\n{}\n", recent_retired.join("\n"))
+        format!("{pending} thoughts are waiting for your decision.\n\n")
     };
     format!(
         r#"ME
 
-{total} {cognition_word} in your local library.
-{pending_line}
+{pending_line}You have {active} {cognition_word}.
 
-ADD
+Add another:
 
-  Add this Thought to ME:
-  <your thought>
+  Add this thought to ME:
 
-USE
+Use what you have kept:
 
-  What do I have in ME about generative art?
+  What do I have in ME about <topic>?
 
-  Draft an artist statement using ME.
-
-  Find tension in ME about authorship.
-
-RECENT
-
-  Added:
-{added}
-{retired_text}"#
+  Draft <something> using ME.
+"#
     )
 }
 
@@ -4015,24 +4159,20 @@ fn welcome_markdown(state: &str) -> &'static str {
     if state == "empty" {
         r#"ME
 
-ME keeps Thoughts you choose.
-
-A Thought is something you tell ME.
-A Cognition is a Thought you approved keeping.
+ME keeps thoughts you choose.
 
 Start with one:
 
-  Add this Thought to ME:
-  <your thought>
+  Add this thought to ME:
 "#
     } else {
         r#"ME
 
 ME is ready.
 
-Add a Thought:
+Add another:
 
-  Add this Thought to ME:
+  Add this thought to ME:
 
 Or use what you have kept:
 
@@ -4059,18 +4199,18 @@ fn mental_model_steps() -> Vec<Value> {
     vec![
         json!({
             "step": "collect",
-            "title": "When a Thought occurs",
-            "description": "Tell Codex and choose whether to keep it as a Cognition."
+            "title": "When a thought occurs",
+            "description": "Tell Codex and choose whether to keep it as a cognition."
         }),
         json!({
             "step": "use",
             "title": "Use what you have kept",
-            "description": "Ask Codex to inspect, compare, or compose from your Cognitions."
+            "description": "Ask Codex to inspect, compare, or compose from your cognitions."
         }),
         json!({
             "step": "return",
-            "title": "Keep something from an Output",
-            "description": "Bring it back as a new Thought."
+            "title": "Keep something from output",
+            "description": "Bring it back as a new thought."
         }),
     ]
 }
@@ -4080,51 +4220,111 @@ fn guide_markdown() -> &'static str {
 
 SCENARIO 1: A THOUGHT OCCURS
 
-You are walking, writing, coding, or talking and something occurs to you:
+Suppose you think:
 
   Designing a generative system is part of authorship.
 
 Tell Codex:
 
-  Add this Thought to ME:
+  Add this thought to ME:
   Designing a generative system is part of authorship.
 
-Codex shows the exact Thought and intended operation.
+ME captures the exact text first. It is not in ME yet.
 
-After you approve it, ME stores it as a Cognition.
+SCENARIO 2: KEEP THE THOUGHT
 
-No existing Cognition is rewritten.
+Codex asks whether to keep it.
 
-SCENARIO 2: USE THE COGNITION LIBRARY
+After you approve, ME adds it to the local Cognition Library.
+
+In ME, a thought you choose to keep is called a cognition.
+
+SCENARIO 3: USE A COGNITION
 
 Ask:
 
-  What do I have in ME about artistic authorship?
+  What do I have in ME about authorship?
 
-Codex retrieves relevant Cognitions and explains them.
+or:
 
-Or ask:
+  Draft a short statement using ME.
 
-  Draft a short reply using ME.
-
-Codex composes from your Cognitions.
+Codex may read and compose from the cognition.
 
 Reading and composing do not change ME.
 
-SCENARIO 3: KEEP USEFUL OUTPUT
+SCENARIO 4: KEEP SOMETHING CODEX PRODUCED
 
-Codex drafts:
+If Codex writes a sentence worth retaining, say:
 
-  Delegating execution does not necessarily delegate artistic judgment.
+  This is my thought. Add it to ME.
 
-You decide the sentence is worth retaining.
-
-Say:
-
-  This is my Thought. Add it to ME.
-
-It follows the same Thought -> approval -> Cognition flow.
+The sentence returns through the same capture and keep flow.
 "#
+}
+
+fn thought_capture_markdown(body: &str) -> String {
+    format!(
+        "THOUGHT\n\n{}\n\nThis thought is captured, but it is not in ME yet.\n\nKeep it?\n",
+        quote_exact(body)
+    )
+}
+
+fn first_cognition_markdown(body: &str, topic: &str) -> String {
+    format!(
+        "KEPT IN ME\n\n{}\n\nIn ME, a thought you choose to keep is called a cognition.\n\nCodex can now use it without changing ME.\n\nTry:\n\n  What do I have in ME about {topic}?\n\n  Draft a short statement using ME.\n\nOr add another thought:\n\n  Add this thought to ME:\n",
+        quote_exact(body)
+    )
+}
+
+fn later_cognition_markdown(body: &str) -> String {
+    format!(
+        "KEPT IN ME\n\n{}\n\nME now has this as another cognition.\n\nAdd another thought, or ask Codex to use what you have kept.\n",
+        quote_exact(body)
+    )
+}
+
+fn first_read_guidance_markdown() -> &'static str {
+    "ME was read, not changed.\n\nIf this output contains something worth keeping, say:\n\n  This is my thought. Add it to ME.\n"
+}
+
+fn two_cognition_guidance_markdown(topic: &str) -> String {
+    format!(
+        "ME now contains more than one cognition.\n\nCodex can compare them without changing ME.\n\nTry:\n\n  Compare what I have in ME about {topic}.\n\n  Find tension in ME about {topic}.\n"
+    )
+}
+
+fn five_cognition_guidance_markdown() -> &'static str {
+    "ME now has enough material to explore broader patterns.\n\nTry:\n\n  What themes recur in ME?\n\n  Draft a longer piece using ME.\n"
+}
+
+fn quote_exact(body: &str) -> String {
+    format!("“{}”", body.trim_end_matches('\n'))
+}
+
+fn infer_topic_phrase(markdown: &str) -> Option<String> {
+    let text = markdown_to_text(markdown);
+    let mut run = Vec::new();
+    for raw in text.split_whitespace() {
+        let word = raw.trim_matches(|ch: char| !ch.is_alphanumeric());
+        if word.is_empty() {
+            continue;
+        }
+        let starts_upper = word.chars().next().is_some_and(|ch| ch.is_uppercase());
+        let skip = matches!(
+            word,
+            "A" | "An" | "The" | "This" | "That" | "I" | "ME" | "Codex"
+        );
+        if starts_upper && !skip {
+            run.push(word.to_string());
+            if run.len() >= 2 {
+                return Some(run.join(" "));
+            }
+        } else {
+            run.clear();
+        }
+    }
+    None
 }
 
 fn preview_text(markdown: &str) -> String {
@@ -4176,14 +4376,14 @@ OPTIONAL SIMILAR COGNITIONS
 {related}
 
 SUGGESTED EFFECT
-Add this Thought to ME as its own Cognition.
+Add this thought to ME as its own cognition.
 
 DERIVED ONLY
 Similarity hints are not authorized facts and create no global relationship.
 
 WHAT WILL CHANGE
-1 Cognition added.
-0 existing Cognitions changed.
+1 cognition added.
+0 existing cognitions changed.
 "#,
         proposal.proposal_id,
         thought_body.trim()
@@ -4591,18 +4791,18 @@ fn contains_approval_fields(value: &Value) -> bool {
 fn workspace_agents_md() -> &'static str {
     r#"# ME Workspace
 
-ME is a local meaning environment designed to be used through Codex App.
+ME is a local application operated through Codex App.
 
 ## Everyday Use
 
-- When the user has a Thought, preserve the exact words.
+- When the user has a thought, preserve the exact words.
 - Add it to ME only after the user approves keeping it.
 - For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
-- For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this Thought to ME:`.
+- For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this thought to ME:`.
 - Use `me welcome --json` for "What can I do here?" and present the canonical welcome.
 - Use `me context` when the user asks Codex to inspect, compare, or compose from ME.
 - Reading and composition do not change ME.
-- Codex Output never enters ME automatically.
+- Codex output never enters ME automatically.
 - For welcome and greetings, do not use memory, create files, call `me context`, attach files, or expose maintenance commands.
 
 ## Technical Rules
@@ -4612,8 +4812,8 @@ ME is a local meaning environment designed to be used through Codex App.
 - Never edit `.me/**` directly.
 - Never edit `views/**` directly.
 - Do not use host memory as Current ME.
-- Do not bulk-import References as Cognitions.
-- Do not treat Procedures as Cognitions.
+- Do not bulk-import References as cognitions.
+- Do not treat Procedures as cognitions.
 - App, Run, Association, Proposal, and Synthesis commands are legacy compatibility only.
 - Publishing, external sharing, and network access are outside ME.
 "#
@@ -4622,7 +4822,7 @@ ME is a local meaning environment designed to be used through Codex App.
 fn workspace_skill_md() -> &'static str {
     r#"---
 name: me
-description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit Thought-to-Cognition flow. Use when the user says "add this to ME," asks what ME contains, or wants a task grounded in their retained Cognitions.
+description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit thought-to-cognition flow. Use when the user says "add this to ME," asks what ME contains, or wants a task grounded in their retained cognitions.
 ---
 
 # ME Skill
@@ -4633,7 +4833,7 @@ General task: do not use ME unless requested or clearly relevant.
 
 Use ME: call read-only ME commands.
 
-Change ME: use the Thought and Decision transaction flow.
+Change ME: use the thought, explicit decision, and cognition transaction flow.
 
 ## Start ME
 
@@ -4647,6 +4847,7 @@ For exact or near-exact "Start ME", "start me", or "Help me start ME":
 6. Do not create files.
 7. Do not attach files.
 8. Do not mention commands.
+9. Do not explain cognition yet when `state` is `empty`.
 
 ## Welcome And Greetings
 
@@ -4656,13 +4857,13 @@ For simple greetings like "hi", "hello", "hey", "start", or "start ME", call `me
 
 Hi. ME is ready.
 
-Add this Thought to ME:
+Add this thought to ME:
 
 If `state` is `established`, reply exactly:
 
 Hi. ME is ready.
 
-Add a Thought, or ask Codex to use what you have kept.
+Add another thought, or ask Codex to use what you have kept.
 
 Welcome behavior must use one command: `me welcome --json`. Do not use memory, do not call `me context`, do not create files, do not attach files, and do not expose maintenance commands.
 
@@ -4671,24 +4872,30 @@ Welcome behavior must use one command: `me welcome --json`. Do not use memory, d
 1. Verify workspace with `me current --json`.
 2. Prefer stdin for transient tasks: `me context --stdin --json`.
 3. Use `me context --task <file> --json` only when the user intentionally provided a file.
-4. Use selected Cognitions as user-authorized context.
-5. Clearly distinguish ME Cognitions from Codex inference.
+4. Use selected cognitions as user-authorized context.
+5. Clearly distinguish ME cognitions from Codex inference.
 6. Do not mutate ME.
 7. Do not claim the context is a complete representation of the user.
+8. If `guidance.kind` is `first-read`, append `guidance.renderedMarkdown` once after the answer.
 
 ## Change ME
 
-1. Preserve exact selected Thought text.
+1. Preserve exact selected thought text.
 2. Prefer stdin for transient text: `me thought capture --stdin --kind <kind> --json`.
-3. Show the exact text and intended action.
-4. Obtain explicit user Decision if not already explicit.
-5. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body.
-6. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
-7. Report Cognitions added, existing Cognitions changed, and the new Snapshot.
+3. Show the exact text, say it is not in ME yet, and ask whether to keep it.
+4. Do not mention Decision files, canonical mutation, transaction internals, snapshots, or hashes.
+5. Obtain explicit user decision if not already explicit.
+6. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body.
+7. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
+8. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
+9. State that Codex can use it without changing ME.
+10. Suggest up to two use prompts and one add prompt from `nextGuidance`.
+11. For later additions, use the brief `renderedMarkdown` success copy.
+12. Hide technical fields unless the user asks for technical status.
 
 ## Feedback
 
-When the user says "This sentence is my Thought", "Add this part to ME", or "Keep this from the draft", re-enter the normal Thought flow. Codex Output never enters ME automatically.
+When the user says "This sentence is my thought", "Add this part to ME", or "Keep this from the draft", re-enter the normal thought flow. Codex output never enters ME automatically.
 
 ## Technical
 
@@ -4698,9 +4905,10 @@ Only expose CLI and integrity details when asked for technical status, integrity
 
 Do not edit `.me/**` directly.
 Do not use Codex memory as Current ME.
-Do not bulk-import References as Cognitions.
-Do not treat Procedures as Cognitions.
-Do not save Codex Output into ME automatically.
+Do not use Codex memory to determine workspace counts, whether this is the first cognition, whether guidance was shown, or canonical state.
+Do not bulk-import References as cognitions.
+Do not treat Procedures as cognitions.
+Do not save Codex output into ME automatically.
 Do not invent relationship objects.
 Do not force synthesis.
 Do not show snapshots, fsck, bundle, index, or other maintenance details unless the user asks for technical status.
@@ -4708,7 +4916,7 @@ Do not show snapshots, fsck, bundle, index, or other maintenance details unless 
 }
 
 fn workspace_mental_model_md() -> &'static str {
-    "A Thought is something I tell ME.\n\nA Cognition is a Thought I choose to keep.\n\nME stores what I chose to keep. Codex can use it for anything.\n"
+    "A thought is something I tell ME.\n\nA cognition is a thought I choose to keep.\n\nME stores what I chose to keep. Codex can use my cognitions without changing ME.\n"
 }
 
 fn workspace_mutation_boundary_md() -> &'static str {
@@ -4924,8 +5132,18 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    const EMPTY_WELCOME: &str =
+        "ME\n\nME keeps thoughts you choose.\n\nStart with one:\n\n  Add this thought to ME:\n";
+
     fn value_text(value: &Value) -> String {
         serde_json::to_string(value).unwrap()
+    }
+
+    fn capture_and_add(ws: &Workspace, body: &str) -> Value {
+        let captured = ws.thought_capture_body(body.to_string(), "idea").unwrap();
+        let thought_id = captured["thoughtId"].as_str().unwrap();
+        ws.cognition_add_value(thought_id, json!({ "action": "add-cognition" }))
+            .unwrap()
     }
 
     fn assert_no_home_internals(text: &str) {
@@ -5116,26 +5334,23 @@ rebuild_on_integrity_failure = true
         assert_eq!(home["product"]["primarySurface"], "Codex App");
         assert_eq!(home["summary"]["cognitionCount"], 0);
         assert_eq!(home["summary"]["pendingThoughtCount"], 0);
-        assert_eq!(home["mentalModel"].as_array().unwrap().len(), 3);
-        assert_eq!(home["starterPrompt"], "Add this Thought to ME:");
+        assert!(home.get("mentalModel").is_none());
+        assert_eq!(home["starterPrompt"], "Add this thought to ME:");
         assert!(home.get("currentSnapshot").is_none());
         assert_no_home_internals(&value_text(&home));
 
         let markdown = ws.home("markdown").unwrap();
         let markdown = markdown["markdown"].as_str().unwrap();
-        assert!(markdown.starts_with("ME\n\nME keeps Thoughts you choose."));
-        assert!(markdown.contains("A Thought is something you tell ME."));
-        assert!(markdown.contains("A Cognition is a Thought you approved keeping."));
-        assert!(markdown.contains("  Add this Thought to ME:"));
-        assert!(markdown.contains("  <your thought>"));
+        assert_eq!(markdown, EMPTY_WELCOME);
         assert_no_home_internals(markdown);
 
         let home_view = fs::read_to_string(dir.path().join("views/home.md")).unwrap();
-        assert!(home_view.starts_with("ME\n\nME keeps Thoughts you choose."));
+        assert_eq!(home_view, EMPTY_WELCOME);
         assert_no_home_internals(&home_view);
         let welcome_view = fs::read_to_string(dir.path().join("views/welcome.md")).unwrap();
-        assert_eq!(welcome_view, markdown);
+        assert_eq!(welcome_view, EMPTY_WELCOME);
         assert!(dir.path().join(".me/refs/current").exists());
+        assert!(dir.path().join(".me/derived/guidance.json").exists());
         assert!(dir.path().join("me.toml").exists());
         ws.fsck().unwrap();
     }
@@ -5146,24 +5361,26 @@ rebuild_on_integrity_failure = true
         Workspace::init(dir.path(), false).unwrap();
         let ws = Workspace::open(dir.path()).unwrap();
         let welcome = ws.welcome().unwrap();
-        assert_eq!(welcome["schemaVersion"], 1);
+        assert_eq!(welcome["schemaVersion"], 2);
         assert_eq!(welcome["kind"], "me.welcome");
         assert_eq!(welcome["state"], "empty");
-        assert_eq!(welcome["starterPrompt"], "Add this Thought to ME:");
+        assert_eq!(welcome["starterPrompt"], "Add this thought to ME:");
         assert_eq!(welcome["technical"]["activeCognitionCount"], 0);
         assert_eq!(welcome["technical"]["pendingThoughtCount"], 0);
         let markdown = welcome["renderedMarkdown"].as_str().unwrap();
-        assert!(markdown.starts_with("ME\n\nME keeps Thoughts you choose."));
-        assert!(markdown.contains("A Thought is something you tell ME."));
-        assert!(markdown.contains("A Cognition is a Thought you approved keeping."));
-        assert!(markdown.contains("  Add this Thought to ME:"));
+        assert_eq!(markdown, EMPTY_WELCOME);
         for forbidden in [
             "0 Cognitions",
             "0 pending Thoughts",
+            "cognition",
+            "Cognition",
+            "count",
             "authorship",
             "Draft",
             "Snapshot",
             "sha256",
+            "hash",
+            "command",
             "fsck",
             "memory",
             "Procedure",
@@ -5183,7 +5400,7 @@ rebuild_on_integrity_failure = true
         assert_eq!(home["summary"]["activeCognitionCount"], 3);
         assert_eq!(home["summary"]["retiredCognitionCount"], 0);
         assert_eq!(home["summary"]["pendingThoughtCount"], 1);
-        assert_eq!(home["examples"]["add"], "Add this Thought to ME:");
+        assert_eq!(home["examples"]["add"], "Add this thought to ME:");
         assert_eq!(
             home["examples"]["inspect"],
             "What do I have in ME about generative art?"
@@ -5194,18 +5411,17 @@ rebuild_on_integrity_failure = true
 
         let markdown = ws.home("markdown").unwrap();
         let markdown = markdown["markdown"].as_str().unwrap();
-        assert!(markdown.contains("3 Cognitions in your local library."));
-        assert!(markdown.contains("1 Thought is waiting for a decision."));
-        assert!(markdown.contains("ADD"));
-        assert!(markdown.contains("USE"));
-        assert!(markdown.contains("RECENT"));
-        assert!(markdown.contains("Add this Thought to ME:"));
-        assert!(markdown.contains("Draft an artist statement using ME."));
+        assert!(markdown.contains("A thought is waiting for your decision."));
+        assert!(markdown.contains("You have 3 cognitions."));
+        assert!(markdown.contains("Add this thought to ME:"));
+        assert!(markdown.contains("What do I have in ME about <topic>?"));
+        assert!(markdown.contains("Draft <something> using ME."));
+        assert!(!markdown.contains("RECENT"));
         assert!(!markdown.contains("WORKSPACE NEEDS ATTENTION"));
         assert_no_home_internals(markdown);
 
         let home_view = fs::read_to_string(dir.path().join("views/home.md")).unwrap();
-        assert!(home_view.contains("RECENT"));
+        assert!(home_view.contains("You have 3 cognitions."));
         assert_no_home_internals(&home_view);
         let welcome = ws.welcome().unwrap();
         assert_eq!(welcome["state"], "established");
@@ -5226,11 +5442,13 @@ rebuild_on_integrity_failure = true
         let guide = ws.guide().unwrap();
         assert_eq!(guide["schemaVersion"], 1);
         assert_eq!(guide["kind"], "me.guide");
-        assert_eq!(guide["scenarios"].as_array().unwrap().len(), 3);
+        assert_eq!(guide["scenarios"].as_array().unwrap().len(), 4);
         let markdown = guide["markdown"].as_str().unwrap();
         assert!(markdown.contains("SCENARIO 1: A THOUGHT OCCURS"));
-        assert!(markdown.contains("SCENARIO 2: USE THE COGNITION LIBRARY"));
-        assert!(markdown.contains("SCENARIO 3: KEEP USEFUL OUTPUT"));
+        assert!(markdown.contains("SCENARIO 2: KEEP THE THOUGHT"));
+        assert!(markdown.contains("SCENARIO 3: USE A COGNITION"));
+        assert!(markdown.contains("SCENARIO 4: KEEP SOMETHING CODEX PRODUCED"));
+        assert!(markdown.find("SCENARIO 1").unwrap() < markdown.find("cognition").unwrap());
         assert!(markdown.contains("Reading and composing do not change ME."));
         let lower = markdown.to_ascii_lowercase();
         assert!(!lower.contains("fsck"));
@@ -5270,6 +5488,7 @@ rebuild_on_integrity_failure = true
         assert!(welcome.contains("Do not create files."));
         assert!(welcome.contains("Do not attach files."));
         assert!(welcome.contains("Do not mention commands."));
+        assert!(welcome.contains("Do not explain cognition yet"));
         assert!(welcome.contains("\"What can I do here?\""));
         assert!(welcome.contains("Hi. ME is ready."));
     }
@@ -5278,7 +5497,7 @@ rebuild_on_integrity_failure = true
     fn workspace_agents_are_product_first() {
         let agents = workspace_agents_md();
         assert!(agents.starts_with(
-            "# ME Workspace\n\nME is a local meaning environment designed to be used through Codex App."
+            "# ME Workspace\n\nME is a local application operated through Codex App."
         ));
         assert!(
             agents.find("## Everyday Use").unwrap() < agents.find("## Technical Rules").unwrap()
@@ -5286,25 +5505,27 @@ rebuild_on_integrity_failure = true
         assert!(agents.contains("Start ME"));
         assert!(agents.contains("canonical welcome"));
         assert!(agents.contains("Reading and composition do not change ME."));
-        assert!(agents.contains("Codex Output never enters ME automatically."));
+        assert!(agents.contains("Codex output never enters ME automatically."));
     }
 
     #[test]
     fn readme_is_scenario_first() {
         let readme = include_str!("../../../README.md");
-        assert!(readme.starts_with(
-            "# ME\n\n## What ME is\n\nME is a local meaning environment designed to be used through Codex App."
-        ));
+        assert!(
+            readme.starts_with(
+                "# ME\n\nME is a local meaning environment operated through Codex App."
+            )
+        );
         let sections = [
-            "## What ME is",
-            "## Install ME and open it in Codex",
-            "## A Thought occurs",
-            "## Use what you have kept",
+            "## Install and Start ME",
+            "## A thought occurs",
+            "## Keep the thought",
+            "## Use a cognition",
             "## Keep something Codex produced",
             "## The mental model",
-            "## Cognitions, References, and Procedures",
-            "## Privacy and local storage",
-            "## Advanced CLI",
+            "## Advanced: References and Procedures",
+            "## Advanced: backup, export, and CLI",
+            "## Privacy",
             "## Development",
         ];
         let mut previous = 0;
@@ -5321,12 +5542,18 @@ rebuild_on_integrity_failure = true
         assert!(readme.contains("Start ME"));
         assert!(readme.contains("Designing a generative system is part of authorship."));
         assert!(readme.contains("Reading and composing do not change ME."));
-        assert!(readme.contains("This is my Thought. Add it to ME."));
+        assert!(readme.contains("This is my thought. Add it to ME."));
+        assert!(readme.contains("ME is the complete product."));
+        assert!(readme.contains("ME skill"));
+        assert!(readme.contains("me executable"));
+        assert!(!readme.contains("Codex App integration"));
+        assert!(!readme.contains("Codex plugin"));
+        assert!(!readme.contains("CLI product"));
         assert!(readme.contains("COLLECT"));
         assert!(readme.contains("USE"));
-        assert!(readme.contains("KEEP"));
+        assert!(readme.contains("KEEP FROM OUTPUT"));
         assert!(
-            readme.find("## Advanced CLI").unwrap()
+            readme.find("## Advanced: backup, export, and CLI").unwrap()
                 > readme.find("## Keep something Codex produced").unwrap()
         );
     }
@@ -5356,6 +5583,98 @@ rebuild_on_integrity_failure = true
                 .as_str()
                 .unwrap()
                 .starts_with("sha256:")
+        );
+    }
+
+    #[test]
+    fn thought_capture_response_is_plain_and_nontechnical() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), false).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let captured = ws
+            .thought_capture_body(
+                "I trust Agent Art will be the next generation for Art.".to_string(),
+                "idea",
+            )
+            .unwrap();
+        let rendered = captured["renderedMarkdown"].as_str().unwrap();
+        assert!(rendered.contains("THOUGHT"));
+        assert!(rendered.contains("“I trust Agent Art will be the next generation for Art.”"));
+        assert!(rendered.contains("This thought is captured, but it is not in ME yet."));
+        assert!(rendered.contains("Keep it?"));
+        for forbidden in [
+            "Decision file",
+            "canonical",
+            "transaction",
+            "Cognition ID",
+            "Snapshot",
+            "sha256",
+        ] {
+            assert!(!rendered.contains(forbidden), "found {forbidden}");
+        }
+    }
+
+    #[test]
+    fn cognition_success_guidance_is_progressive() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), false).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+
+        let first = capture_and_add(
+            &ws,
+            "I trust Agent Art will be the next generation for Art.",
+        );
+        let first_rendered = first["renderedMarkdown"].as_str().unwrap();
+        assert!(first["firstCognition"].as_bool().unwrap());
+        assert!(first_rendered.contains("KEPT IN ME"));
+        assert!(
+            first_rendered.contains("“I trust Agent Art will be the next generation for Art.”")
+        );
+        assert!(
+            first_rendered.contains("In ME, a thought you choose to keep is called a cognition.")
+        );
+        assert!(first_rendered.contains("Codex can now use it without changing ME."));
+        assert!(first_rendered.contains("What do I have in ME about Agent Art?"));
+        assert!(first_rendered.contains("Add this thought to ME:"));
+        assert_eq!(first["nextGuidance"]["kind"], "first-cognition");
+        assert_eq!(first["technical"]["existingCognitionsChanged"], 0);
+        assert!(
+            first["technical"]["currentSnapshot"]
+                .as_str()
+                .unwrap()
+                .starts_with("sha256:")
+        );
+        assert!(!first_rendered.contains("Snapshot"));
+        assert!(!first_rendered.contains("sha256"));
+        assert!(!first_rendered.contains("existing Cognitions changed"));
+
+        let guidance = ws.read_guidance_state().unwrap();
+        assert!(guidance.first_cognition_guide_shown);
+
+        let later = capture_and_add(&ws, "A second thought belongs in ME.");
+        let later_rendered = later["renderedMarkdown"].as_str().unwrap();
+        assert!(!later["firstCognition"].as_bool().unwrap());
+        assert!(later_rendered.contains("ME now has this as another cognition."));
+        assert!(
+            !later_rendered.contains("In ME, a thought you choose to keep is called a cognition.")
+        );
+        assert!(later_rendered.contains("ME now contains more than one cognition."));
+        assert_eq!(later["nextGuidance"]["kind"], "two-cognitions");
+
+        let third = capture_and_add(&ws, "A third thought belongs in ME.");
+        assert_eq!(third["nextGuidance"]["kind"], "later-cognition");
+        let third_rendered = third["renderedMarkdown"].as_str().unwrap();
+        assert!(!third_rendered.contains("more than one cognition"));
+        assert!(third_rendered.len() < first_rendered.len());
+
+        capture_and_add(&ws, "A fourth thought belongs in ME.");
+        let fifth = capture_and_add(&ws, "A fifth thought belongs in ME.");
+        assert_eq!(fifth["nextGuidance"]["kind"], "five-cognitions");
+        assert!(
+            fifth["renderedMarkdown"]
+                .as_str()
+                .unwrap()
+                .contains("broader patterns")
         );
     }
 
@@ -5418,14 +5737,35 @@ rebuild_on_integrity_failure = true
         assert_eq!(added["cognitionAdded"], true);
         assert_eq!(added["firstCognition"], true);
         assert_eq!(
-            added["next"]["message"],
-            "This Thought is now a Cognition. Codex can use it without changing it."
+            added["nextGuidance"]["mentalModel"],
+            "In ME, a thought you choose to keep is called a cognition."
         );
         let before = ws.current_ref().unwrap();
         let context = ws
             .context_body("Draft a reply about authorship.".to_string(), 20)
             .unwrap();
         assert_eq!(context["cognitionLibraryChanged"], false);
+        assert_eq!(context["guidance"]["kind"], "first-read");
+        assert!(
+            context["guidance"]["renderedMarkdown"]
+                .as_str()
+                .unwrap()
+                .contains("ME was read, not changed.")
+        );
+        assert!(
+            context["guidance"]["renderedMarkdown"]
+                .as_str()
+                .unwrap()
+                .contains("This is my thought. Add it to ME.")
+        );
+        assert_eq!(ws.current_ref().unwrap(), before);
+        let guidance = ws.read_guidance_state().unwrap();
+        assert!(guidance.first_read_guide_shown);
+        assert!(guidance.feedback_loop_guide_shown);
+        let second_context = ws
+            .context_body("Draft another reply about authorship.".to_string(), 20)
+            .unwrap();
+        assert!(second_context["guidance"].is_null());
         assert_eq!(ws.current_ref().unwrap(), before);
         let parsed = Workspace::parse_decision_input(r#"{"action":"add-cognition"}"#).unwrap();
         assert_eq!(parsed["action"], "add-cognition");
@@ -5511,12 +5851,31 @@ rebuild_on_integrity_failure = true
         let dir = tempdir().unwrap();
         Workspace::init(dir.path(), true).unwrap();
         let ws = Workspace::open(dir.path()).unwrap();
+        let before_ref = ws.current_ref().unwrap();
+        let task = dir.path().join("task.md");
+        fs::write(&task, "Draft a reply about generative art and authorship.").unwrap();
+        ws.context(&task, 2).unwrap();
+        assert_eq!(ws.current_ref().unwrap(), before_ref);
+        let guidance_path = dir.path().join(".me/derived/guidance.json");
+        assert!(guidance_path.exists());
+        let tree_value = serde_json::to_value(ws.load_current().unwrap().tree).unwrap();
+        assert!(!value_text(&tree_value).contains("guidance"));
+
         let bundle = dir.path().join("bundle.tar");
         ws.bundle_create(&bundle).unwrap();
         ws.bundle_verify(&bundle).unwrap();
+        let mut archive = Archive::new(File::open(&bundle).unwrap());
+        for entry in archive.entries().unwrap() {
+            let path = entry.unwrap().path().unwrap().to_string_lossy().to_string();
+            assert!(!path.contains("derived"));
+            assert!(!path.contains("guidance.json"));
+        }
+
         let restored = tempdir().unwrap();
         let target = restored.path().join("restored");
         Workspace::bundle_restore(&bundle, &target).unwrap();
-        Workspace::open(&target).unwrap().fsck().unwrap();
+        let restored_ws = Workspace::open(&target).unwrap();
+        restored_ws.fsck().unwrap();
+        assert!(target.join(".me/derived/guidance.json").exists());
     }
 }

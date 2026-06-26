@@ -1,29 +1,20 @@
 # ME
 
-## What ME is
-
-ME is a local meaning environment designed to be used through Codex App.
+ME is a local meaning environment operated through Codex App.
 
 When a thought occurs, tell Codex:
 
-> Add this Thought to ME: ...
+> Add this thought to ME:
+> ...
 
-ME captures the exact words. Once you approve keeping them, the Thought
-becomes a Cognition in your local library.
+ME captures the exact words. You choose whether to keep them.
 
-Later, Codex can use your Cognitions for any task:
+A thought you keep in ME is called a cognition.
 
-> What do I have in ME about authorship?
+Codex can inspect, compare, and compose from your cognitions
+without changing them.
 
-> Draft a reply using ME.
-
-> Compare this decision with what I have in ME.
-
-Codex may read, analyze, and compose from your Cognitions. Only the
-`me` engine changes the canonical Cognition Library, and it does so only
-from your explicit Decision.
-
-## Install ME and open it in Codex
+## Install and Start ME
 
 Install the local ME engine:
 
@@ -45,52 +36,48 @@ Press Enter on:
 Start ME
 ```
 
-## A Thought occurs
+## A thought occurs
 
-You are walking, writing, coding, or talking and something occurs to you:
+Suppose you think:
 
 > Designing a generative system is part of authorship.
 
-Open your ME workspace in Codex and say:
+Tell Codex:
 
-> Add this Thought to ME:
+> Add this thought to ME:
 > Designing a generative system is part of authorship.
 
-Codex shows the exact text and intended operation.
+ME captures the exact text first. It is not in ME yet.
 
-After you approve it, ME stores it as a Cognition.
+## Keep the thought
 
-No existing Cognition is rewritten.
+Codex asks whether to keep it.
 
-## Use what you have kept
+After you approve, ME adds it to the local Cognition Library.
+
+In ME, a thought you choose to keep is called a cognition.
+
+## Use a cognition
 
 Ask:
 
-> What do I have in ME about artistic authorship?
+> What do I have in ME about authorship?
 
-Codex retrieves relevant Cognitions and explains them.
+or:
 
-Or ask:
+> Draft a short statement using ME.
 
-> Draft a short reply using ME.
-
-Codex composes from the Cognition Library.
+Codex may read and compose from the cognition.
 
 Reading and composing do not change ME.
 
 ## Keep something Codex produced
 
-Codex drafts:
+If Codex writes a sentence worth retaining, say:
 
-> Delegating execution does not necessarily delegate artistic judgment.
+> This is my thought. Add it to ME.
 
-You decide that this sentence expresses something worth retaining.
-
-Say:
-
-> This is my Thought. Add it to ME.
-
-It enters the same Thought -> approval -> Cognition flow.
+The sentence returns through the same capture and keep flow.
 
 ## The mental model
 
@@ -100,83 +87,99 @@ COLLECT
 Something occurs to you
         |
         v
-      Thought
+      thought
         |
-        | you approve keeping it
+        | you choose to keep it
         v
-     Cognition
+     cognition
 ```
 
 ```text
 USE
 
-Your task
+your task
   + Codex
-  + relevant Cognitions
+  + relevant cognitions
         |
         v
-      Output
+      output
 ```
 
 ```text
-KEEP
+KEEP FROM OUTPUT
 
-Useful Output
+useful output
         |
-        | "This is my Thought"
+        | "This is my thought"
         v
-      Thought
+      thought
         |
         v
-     Cognition
+     cognition
 ```
 
-## Cognitions, References, and Procedures
+ME is the complete product.
 
-Cognition:
-Something you explicitly chose to keep in ME.
+```text
+Codex App
+  host and conversational interface
 
-Reference:
-Local material Codex may consult for a task.
+ME skill
+  instructions teaching Codex how to operate ME
 
-Procedure:
-Optional instructions for a repeated workflow.
+me executable
+  deterministic local engine
 
-References and Procedures are not Cognitions. Neither enters ME
+ME workspace
+  durable Cognition Library
+
+ME
+  complete product
+```
+
+Technical documentation may describe ME as a Codex-native local domain
+application. That is a descriptive architecture phrase, not an official
+OpenAI platform category.
+
+## Advanced: References and Procedures
+
+Cognitions are thoughts you explicitly chose to keep in ME.
+
+References are local materials Codex may consult for a task.
+
+Procedures are optional instructions for repeated workflows.
+
+References and Procedures are not cognitions. Neither enters ME
 automatically.
 
 See [docs/references-and-procedures.md](docs/references-and-procedures.md).
 
-## Privacy and local storage
+## Advanced: backup, export, and CLI
+
+Operational commands are available when you ask for technical help,
+backup, export, restore, or integrity checks.
+
+```bash
+me status --json
+me fsck --json
+me export /tmp/me-export.json
+me bundle create /tmp/me.bundle.tar
+me bundle verify /tmp/me.bundle.tar
+me bundle restore /tmp/me.bundle.tar /tmp/restored-me
+```
+
+See [docs/cli.md](docs/cli.md).
+
+## Privacy
 
 ME stores canonical Cognition data locally.
 
 The `me` engine does not use the network.
 
-Codex's model may run remotely and receives the Cognitions that are
-selected for the task you ask it to perform.
+Codex's model may run remotely and receives the cognitions selected for
+the task you ask it to perform.
 
 See [docs/privacy.md](docs/privacy.md).
-
-## Advanced CLI
-
-The intended v0.x product experience is ME with Codex App in Local mode.
-The CLI is the local engine, administrative interface, and automation
-contract.
-
-Common technical commands:
-
-```bash
-me start --no-open --json
-me welcome --json
-me home --json
-me status --json
-me fsck --json
-me context --stdin --json
-me bundle create /tmp/me.bundle.tar
-```
-
-See [docs/cli.md](docs/cli.md).
 
 ## Development
 
@@ -194,6 +197,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo run -p me-cli -- --help
 scripts/naming-contract-check.sh
+scripts/verify-install-channel.sh
 ```
 
 Naming and installation notes:
