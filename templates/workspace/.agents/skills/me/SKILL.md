@@ -1,6 +1,6 @@
 ---
 name: me
-description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit thought-to-cognition flow. Use when the user says "add this to ME," asks what ME contains, or wants a task grounded in their retained cognitions.
+description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit thought capture and keep flow. Use when the user asks what ME contains, wants a task grounded in retained cognitions, or asks to capture a thought.
 ---
 
 # ME Skill
@@ -11,7 +11,7 @@ General task: do not use ME unless requested or clearly relevant.
 
 Use ME: call read-only ME commands.
 
-Change ME: use the thought, explicit decision, and cognition transaction flow.
+Change ME: capture the thought first, then require a separate keep decision before creating a cognition.
 
 ## Start ME
 
@@ -62,14 +62,16 @@ Welcome behavior must use one command: `me welcome --json`. Do not use memory, d
 2. Prefer stdin for transient text: `me thought capture --stdin --kind <kind> --json`.
 3. Show the exact text, say it is not in ME yet, and ask whether to keep it.
 4. Do not mention Decision files, canonical mutation, transaction internals, snapshots, or hashes.
-5. Obtain explicit user decision if not already explicit.
-6. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body.
-7. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
-8. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
-9. State that Codex can use it without changing ME.
-10. Suggest up to two use prompts and one add prompt from `nextGuidance`.
-11. For later additions, use the brief `renderedMarkdown` success copy.
-12. Hide technical fields unless the user asks for technical status.
+5. Treat `Add this thought to ME:` as capture intent only. It is not approval to keep the thought as a cognition.
+6. Obtain a separate explicit keep decision, such as "yes", "keep it", or "keep in ME".
+7. If the user only supplied the thought, stop after capture and wait for the keep decision.
+8. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body only after that keep decision.
+9. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
+10. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
+11. State that Codex can use it without changing ME.
+12. Suggest up to two use prompts and one add prompt from `nextGuidance`.
+13. For later additions, use the brief `renderedMarkdown` success copy.
+14. Hide technical fields unless the user asks for technical status.
 
 ## Feedback
 

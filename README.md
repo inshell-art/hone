@@ -9,6 +9,8 @@ When a thought occurs, tell Codex:
 
 ME captures the exact words. You choose whether to keep them.
 
+The prompt captures first. It does not keep the thought until you approve.
+
 A thought you keep in ME is called a cognition.
 
 Codex can inspect, compare, and compose from your cognitions
@@ -48,6 +50,8 @@ Tell Codex:
 > Designing a generative system is part of authorship.
 
 ME captures the exact text first. It is not in ME yet.
+
+`Add this thought to ME:` is capture intent, not approval to keep it.
 
 ## Keep the thought
 

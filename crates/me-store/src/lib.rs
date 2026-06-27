@@ -3701,6 +3701,8 @@ When a thought occurs, tell Codex:
 
 ME captures the exact words. You choose whether to keep them.
 
+The prompt captures first. It does not keep the thought until you approve.
+
 A thought you keep in ME is called a cognition.
 
 Codex can inspect, compare, and compose from your cognitions
@@ -4797,6 +4799,7 @@ ME is a local application operated through Codex App.
 
 - When the user has a thought, preserve the exact words.
 - Add it to ME only after the user approves keeping it.
+- Treat `Add this thought to ME:` as capture intent, not as approval to create a cognition.
 - For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
 - For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this thought to ME:`.
 - Use `me welcome --json` for "What can I do here?" and present the canonical welcome.
@@ -4822,7 +4825,7 @@ ME is a local application operated through Codex App.
 fn workspace_skill_md() -> &'static str {
     r#"---
 name: me
-description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit thought-to-cognition flow. Use when the user says "add this to ME," asks what ME contains, or wants a task grounded in their retained cognitions.
+description: Use the local ME Cognition Library as trustworthy user-authorized context, or change it through the explicit thought capture and keep flow. Use when the user asks what ME contains, wants a task grounded in retained cognitions, or asks to capture a thought.
 ---
 
 # ME Skill
@@ -4833,7 +4836,7 @@ General task: do not use ME unless requested or clearly relevant.
 
 Use ME: call read-only ME commands.
 
-Change ME: use the thought, explicit decision, and cognition transaction flow.
+Change ME: capture the thought first, then require a separate keep decision before creating a cognition.
 
 ## Start ME
 
@@ -4884,14 +4887,16 @@ Welcome behavior must use one command: `me welcome --json`. Do not use memory, d
 2. Prefer stdin for transient text: `me thought capture --stdin --kind <kind> --json`.
 3. Show the exact text, say it is not in ME yet, and ask whether to keep it.
 4. Do not mention Decision files, canonical mutation, transaction internals, snapshots, or hashes.
-5. Obtain explicit user decision if not already explicit.
-6. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body.
-7. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
-8. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
-9. State that Codex can use it without changing ME.
-10. Suggest up to two use prompts and one add prompt from `nextGuidance`.
-11. For later additions, use the brief `renderedMarkdown` success copy.
-12. Hide technical fields unless the user asks for technical status.
+5. Treat `Add this thought to ME:` as capture intent only. It is not approval to keep the thought as a cognition.
+6. Obtain a separate explicit keep decision, such as "yes", "keep it", or "keep in ME".
+7. If the user only supplied the thought, stop after capture and wait for the keep decision.
+8. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body only after that keep decision.
+9. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
+10. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
+11. State that Codex can use it without changing ME.
+12. Suggest up to two use prompts and one add prompt from `nextGuidance`.
+13. For later additions, use the brief `renderedMarkdown` success copy.
+14. Hide technical fields unless the user asks for technical status.
 
 ## Feedback
 
@@ -5491,6 +5496,10 @@ rebuild_on_integrity_failure = true
         assert!(welcome.contains("Do not explain cognition yet"));
         assert!(welcome.contains("\"What can I do here?\""));
         assert!(welcome.contains("Hi. ME is ready."));
+        assert!(skill.contains("Treat `Add this thought to ME:` as capture intent only."));
+        assert!(skill.contains("It is not approval to keep the thought as a cognition."));
+        assert!(skill.contains("stop after capture and wait for the keep decision"));
+        assert!(!skill.contains("if not already explicit"));
     }
 
     #[test]
@@ -5504,6 +5513,7 @@ rebuild_on_integrity_failure = true
         );
         assert!(agents.contains("Start ME"));
         assert!(agents.contains("canonical welcome"));
+        assert!(agents.contains("capture intent, not as approval to create a cognition"));
         assert!(agents.contains("Reading and composition do not change ME."));
         assert!(agents.contains("Codex output never enters ME automatically."));
     }
@@ -5541,6 +5551,13 @@ rebuild_on_integrity_failure = true
         assert!(readme.contains("Press Enter on:"));
         assert!(readme.contains("Start ME"));
         assert!(readme.contains("Designing a generative system is part of authorship."));
+        assert!(readme.contains(
+            "The prompt captures first. It does not keep the thought until you approve."
+        ));
+        assert!(
+            readme
+                .contains("`Add this thought to ME:` is capture intent, not approval to keep it.")
+        );
         assert!(readme.contains("Reading and composing do not change ME."));
         assert!(readme.contains("This is my thought. Add it to ME."));
         assert!(readme.contains("ME is the complete product."));

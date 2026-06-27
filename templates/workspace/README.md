@@ -9,6 +9,8 @@ When a thought occurs, tell Codex:
 
 ME captures the exact words. You choose whether to keep them.
 
+The prompt captures first. It does not keep the thought until you approve.
+
 A thought you keep in ME is called a cognition.
 
 Codex can inspect, compare, and compose from your cognitions

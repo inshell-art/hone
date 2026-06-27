@@ -41,6 +41,9 @@ distinguish those Cognitions from its own inference.
 
 ## Changing
 
-When you ask to keep something in ME, Codex preserves the exact text,
-captures it as a Thought, shows the intended change, and waits for
-approval before creating a Cognition.
+When you ask to capture something in ME, Codex preserves the exact text,
+captures it as a thought, says it is not in ME yet, and waits for a
+separate keep decision before creating a cognition.
+
+`Add this thought to ME:` is capture intent. It is not approval to keep
+the thought as a cognition.

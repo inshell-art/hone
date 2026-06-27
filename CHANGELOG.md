@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+- Clarify the Codex skill contract so `Add this thought to ME:` captures a thought but does not approve creating a cognition.
+- Require a separate explicit keep decision before Codex runs `me cognition add`.
+
 ## 0.8.0
 
 - Tighten first-use terminology so empty onboarding starts with thoughts and introduces cognition only after the first keep action.
