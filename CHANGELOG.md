@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2
+
+- Enforce the thought-to-cognition boundary in the engine: `me cognition add` now requires `approved: true`.
+- Generalize the Codex skill policy so casual add, capture, save, note, remember, or put-in-ME wording captures a thought only.
+- Require a separate explicit keep decision before any captured thought can become a cognition.
+
 ## 0.8.1
 
 - Clarify the Codex skill contract so `Add this thought to ME:` captures a thought but does not approve creating a cognition.

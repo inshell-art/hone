@@ -6,7 +6,8 @@ ME is a local application operated through Codex App.
 
 - When the user has a thought, preserve the exact words.
 - Add it to ME only after the user approves keeping it.
-- Treat `Add this thought to ME:` as capture intent, not as approval to create a cognition.
+- Treat casual add, capture, save, note, remember, or put-in-ME wording as thought capture only.
+- Create a cognition only after a separate explicit keep decision for the captured thought.
 - For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
 - For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this thought to ME:`.
 - Use `me welcome --json` for "What can I do here?" and present the canonical welcome.

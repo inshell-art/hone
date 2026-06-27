@@ -37,8 +37,12 @@ or advance `.me/refs/current`.
 
 ```bash
 printf 'A Thought.\n' | me --workspace ~/ME thought capture --stdin --kind idea --json
-printf '{"action":"add-cognition"}' | me --workspace ~/ME cognition add --thought <thought-id> --decision-stdin --json
+printf '{"action":"add-cognition","approved":true}' | me --workspace ~/ME cognition add --thought <thought-id> --decision-stdin --json
 ```
+
+Thought capture is casual. Cognition creation is not: `me cognition add`
+requires `approved: true` in the Decision and should run only after the
+user explicitly approves keeping the captured thought.
 
 Use `--file`, `--task`, or `--decision` when a real file is part of the workflow.
 

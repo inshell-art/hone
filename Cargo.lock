@@ -406,7 +406,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "me-cli"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "me-core"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -430,14 +430,14 @@ dependencies = [
 
 [[package]]
 name = "me-index"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "me-markdown"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "pulldown-cmark",
  "thiserror",
@@ -445,7 +445,7 @@ dependencies = [
 
 [[package]]
 name = "me-store"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "fs2",

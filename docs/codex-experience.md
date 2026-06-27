@@ -45,5 +45,10 @@ When you ask to capture something in ME, Codex preserves the exact text,
 captures it as a thought, says it is not in ME yet, and waits for a
 separate keep decision before creating a cognition.
 
-`Add this thought to ME:` is capture intent. It is not approval to keep
-the thought as a cognition.
+Casual add, capture, save, note, remember, or put-in-ME wording is
+thought capture only. Codex must not infer approval from the same message
+that supplied the thought text.
+
+Codex may create a cognition only after a separate explicit keep decision
+for the captured thought. The Decision passed to `me cognition add` must
+include `approved: true`; the engine rejects conversion without it.

@@ -141,6 +141,10 @@ fn parse_decision_value(raw: &str) -> Result<Value> {
     }
 }
 
+fn has_explicit_keep_approval(value: &Value) -> bool {
+    value.get("approved").and_then(Value::as_bool) == Some(true)
+}
+
 fn now_rfc3339() -> Result<String> {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
@@ -652,7 +656,8 @@ impl Workspace {
             "directCommand": {
                 "command": "me cognition add",
                 "thought": thought_id,
-                "decision": { "action": "add-cognition" }
+                "decisionTemplate": { "action": "add-cognition", "approved": true },
+                "approvalRequired": "Set approved=true only after the user explicitly approves keeping the captured thought."
             },
             "note": "Similarity is derived retrieval only. ME Core will not create a global relationship."
         }))
@@ -816,6 +821,11 @@ impl Workspace {
             return Err(invalid(format!(
                 "cognition add requires add-cognition Decision, got {action}"
             )));
+        }
+        if !has_explicit_keep_approval(&value) {
+            return Err(invalid(
+                "cognition add requires explicit keep approval: capture the thought first, show it as THOUGHT, ask whether to keep it, then pass a Decision with approved=true only after the user approves",
+            ));
         }
         self.with_lock(|| {
             let current = self.load_current()?;
@@ -3702,6 +3712,8 @@ When a thought occurs, tell Codex:
 ME captures the exact words. You choose whether to keep them.
 
 The prompt captures first. It does not keep the thought until you approve.
+Casual add, capture, save, note, or remember wording is still only
+thought capture.
 
 A thought you keep in ME is called a cognition.
 
@@ -4799,7 +4811,8 @@ ME is a local application operated through Codex App.
 
 - When the user has a thought, preserve the exact words.
 - Add it to ME only after the user approves keeping it.
-- Treat `Add this thought to ME:` as capture intent, not as approval to create a cognition.
+- Treat casual add, capture, save, note, remember, or put-in-ME wording as thought capture only.
+- Create a cognition only after a separate explicit keep decision for the captured thought.
 - For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
 - For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this thought to ME:`.
 - Use `me welcome --json` for "What can I do here?" and present the canonical welcome.
@@ -4887,16 +4900,20 @@ Welcome behavior must use one command: `me welcome --json`. Do not use memory, d
 2. Prefer stdin for transient text: `me thought capture --stdin --kind <kind> --json`.
 3. Show the exact text, say it is not in ME yet, and ask whether to keep it.
 4. Do not mention Decision files, canonical mutation, transaction internals, snapshots, or hashes.
-5. Treat `Add this thought to ME:` as capture intent only. It is not approval to keep the thought as a cognition.
-6. Obtain a separate explicit keep decision, such as "yes", "keep it", or "keep in ME".
-7. If the user only supplied the thought, stop after capture and wait for the keep decision.
-8. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, and exact final body only after that keep decision.
-9. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
-10. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
-11. State that Codex can use it without changing ME.
-12. Suggest up to two use prompts and one add prompt from `nextGuidance`.
-13. For later additions, use the brief `renderedMarkdown` success copy.
-14. Hide technical fields unless the user asks for technical status.
+5. Treat casual add, capture, save, note, remember, or put-in-ME wording as thought capture only.
+6. A captured thought is not a cognition and is not in ME yet.
+7. A cognition can be created only after the user explicitly approves keeping that captured thought.
+8. Approval must be a separate keep decision after Codex has shown the captured THOUGHT and asked whether to keep it.
+9. Do not infer approval from the same message that supplied the thought text.
+10. If the user only supplied the thought, stop after capture and wait for the keep decision.
+11. Prepare a Decision JSON with `baseSnapshot`, `action`, `actor`, `approved: true`, and exact final body only after that keep decision.
+12. The engine rejects `me cognition add` unless the Decision includes `approved: true`.
+13. Prefer stdin for transient Decisions: `me cognition add --thought <thought-id> --decision-stdin --json`.
+14. After the first successful add, teach: "In ME, a thought you choose to keep is called a cognition."
+15. State that Codex can use it without changing ME.
+16. Suggest up to two use prompts and one add prompt from `nextGuidance`.
+17. For later additions, use the brief `renderedMarkdown` success copy.
+18. Hide technical fields unless the user asks for technical status.
 
 ## Feedback
 
@@ -4949,6 +4966,10 @@ me search "authorship" --limit 20 --json
 me context --stdin --limit 20 --json
 me cognition history <cognition-id> --json
 ```
+
+`me cognition add` requires `approved: true` in the Decision JSON and
+should run only after the user explicitly approves keeping the captured
+thought.
 "#
 }
 
@@ -5147,8 +5168,11 @@ mod tests {
     fn capture_and_add(ws: &Workspace, body: &str) -> Value {
         let captured = ws.thought_capture_body(body.to_string(), "idea").unwrap();
         let thought_id = captured["thoughtId"].as_str().unwrap();
-        ws.cognition_add_value(thought_id, json!({ "action": "add-cognition" }))
-            .unwrap()
+        ws.cognition_add_value(
+            thought_id,
+            json!({ "action": "add-cognition", "approved": true }),
+        )
+        .unwrap()
     }
 
     fn assert_no_home_internals(text: &str) {
@@ -5496,9 +5520,15 @@ rebuild_on_integrity_failure = true
         assert!(welcome.contains("Do not explain cognition yet"));
         assert!(welcome.contains("\"What can I do here?\""));
         assert!(welcome.contains("Hi. ME is ready."));
-        assert!(skill.contains("Treat `Add this thought to ME:` as capture intent only."));
-        assert!(skill.contains("It is not approval to keep the thought as a cognition."));
-        assert!(skill.contains("stop after capture and wait for the keep decision"));
+        assert!(skill.contains(
+            "Treat casual add, capture, save, note, remember, or put-in-ME wording as thought capture only."
+        ));
+        assert!(skill.contains(
+            "Do not infer approval from the same message that supplied the thought text."
+        ));
+        assert!(skill.contains(
+            "The engine rejects `me cognition add` unless the Decision includes `approved: true`."
+        ));
         assert!(!skill.contains("if not already explicit"));
     }
 
@@ -5513,7 +5543,8 @@ rebuild_on_integrity_failure = true
         );
         assert!(agents.contains("Start ME"));
         assert!(agents.contains("canonical welcome"));
-        assert!(agents.contains("capture intent, not as approval to create a cognition"));
+        assert!(agents.contains("thought capture only"));
+        assert!(agents.contains("separate explicit keep decision"));
         assert!(agents.contains("Reading and composition do not change ME."));
         assert!(agents.contains("Codex output never enters ME automatically."));
     }
@@ -5555,8 +5586,10 @@ rebuild_on_integrity_failure = true
             "The prompt captures first. It does not keep the thought until you approve."
         ));
         assert!(
-            readme
-                .contains("`Add this thought to ME:` is capture intent, not approval to keep it.")
+            readme.contains("Casual add, capture, save, note, or remember wording is still only")
+        );
+        assert!(
+            readme.contains("The local engine requires explicit keep approval before converting a")
         );
         assert!(readme.contains("Reading and composing do not change ME."));
         assert!(readme.contains("This is my thought. Add it to ME."));
@@ -5629,6 +5662,38 @@ rebuild_on_integrity_failure = true
         ] {
             assert!(!rendered.contains(forbidden), "found {forbidden}");
         }
+    }
+
+    #[test]
+    fn cognition_add_requires_explicit_keep_approval() {
+        let dir = tempdir().unwrap();
+        Workspace::init(dir.path(), false).unwrap();
+        let ws = Workspace::open(dir.path()).unwrap();
+        let captured = ws
+            .thought_capture_body(
+                "A casual thought can be captured any time.".to_string(),
+                "idea",
+            )
+            .unwrap();
+        let thought_id = captured["thoughtId"].as_str().unwrap();
+        let before = ws.current_ref().unwrap();
+
+        let err = ws
+            .cognition_add_value(thought_id, json!({ "action": "add-cognition" }))
+            .unwrap_err();
+        assert_eq!(err.code(), "INVALID_INPUT");
+        assert!(err.to_string().contains("requires explicit keep approval"));
+        assert_eq!(ws.current_ref().unwrap(), before);
+        assert_eq!(ws.current().unwrap()["counts"]["activeCognitions"], 0);
+
+        let added = ws
+            .cognition_add_value(
+                thought_id,
+                json!({ "action": "add-cognition", "approved": true }),
+            )
+            .unwrap();
+        assert_eq!(added["cognitionAdded"], true);
+        assert_ne!(ws.current_ref().unwrap(), before);
     }
 
     #[test]
@@ -5711,7 +5776,11 @@ rebuild_on_integrity_failure = true
         let before = ws.current().unwrap();
         let before_ref = ws.current_ref().unwrap();
         let decision_path = dir.path().join("decision.json");
-        fs::write(&decision_path, r#"{"action":"add-cognition"}"#).unwrap();
+        fs::write(
+            &decision_path,
+            r#"{"action":"add-cognition","approved":true}"#,
+        )
+        .unwrap();
         let result = ws.cognition_add(thought_id, &decision_path).unwrap();
         assert_eq!(result["cognitionsAdded"], 1);
         assert_eq!(result["existingCognitionsChanged"], 0);
@@ -5749,7 +5818,10 @@ rebuild_on_integrity_failure = true
             .unwrap();
         let thought_id = captured["thoughtId"].as_str().unwrap();
         let added = ws
-            .cognition_add_value(thought_id, json!({ "action": "add-cognition" }))
+            .cognition_add_value(
+                thought_id,
+                json!({ "action": "add-cognition", "approved": true }),
+            )
             .unwrap();
         assert_eq!(added["cognitionAdded"], true);
         assert_eq!(added["firstCognition"], true);
@@ -5784,8 +5856,11 @@ rebuild_on_integrity_failure = true
             .unwrap();
         assert!(second_context["guidance"].is_null());
         assert_eq!(ws.current_ref().unwrap(), before);
-        let parsed = Workspace::parse_decision_input(r#"{"action":"add-cognition"}"#).unwrap();
+        let parsed =
+            Workspace::parse_decision_input(r#"{"action":"add-cognition","approved":true}"#)
+                .unwrap();
         assert_eq!(parsed["action"], "add-cognition");
+        assert_eq!(parsed["approved"], true);
     }
 
     #[test]

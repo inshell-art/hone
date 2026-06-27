@@ -10,6 +10,8 @@ When a thought occurs, tell Codex:
 ME captures the exact words. You choose whether to keep them.
 
 The prompt captures first. It does not keep the thought until you approve.
+Casual add, capture, save, note, or remember wording is still only
+thought capture.
 
 A thought you keep in ME is called a cognition.
 
