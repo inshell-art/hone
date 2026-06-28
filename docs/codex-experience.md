@@ -8,6 +8,8 @@ ME is the trusted local Cognition Library.
 
 The `me` command is the engine that safely reads and changes ME.
 
+Prompts guide the model. Transactions govern the product.
+
 ## Local Mode
 
 Create a workspace with:
@@ -49,6 +51,30 @@ Casual add, capture, save, note, remember, or put-in-ME wording is
 thought capture only. Codex must not infer approval from the same message
 that supplied the thought text.
 
+A user utterance can supply a Thought. It cannot also serve as approval
+unless the user is responding to a specific Thought that has just been
+shown back.
+
 Codex may create a cognition only after a separate explicit keep decision
 for the captured thought. The Decision passed to `me cognition add` must
 include `approved: true`; the engine rejects conversion without it.
+
+## Read-Only Proof
+
+When Codex reads ME for a task, the ordinary response should make the
+state clear when relevant:
+
+```text
+USING ME
+
+ME was read, not changed.
+```
+
+## Output, References, And Procedures
+
+Codex Output remains Output. To keep something from Output, the user must
+bring it back as a Thought.
+
+References are material Codex may consult. Procedures tell Codex how to
+work. Neither becomes a Cognition by being imported, read, cited, or
+used.

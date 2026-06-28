@@ -15,6 +15,9 @@ thought capture.
 
 A thought you keep in ME is called a cognition.
 
+A casual phrase like "add this" captures a Thought. It does not approve
+keeping it as a Cognition.
+
 Codex can inspect, compare, and compose from your cognitions
 without changing them.
 

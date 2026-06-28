@@ -55,6 +55,14 @@ ME captures the exact text first. It is not in ME yet.
 
 That prompt is capture intent, not approval to keep it.
 
+## Why ME asks before keeping a Thought
+
+A casual phrase like "add this" captures a Thought.
+
+It does not approve keeping it as a Cognition.
+
+ME always shows the Thought back and asks whether to keep it.
+
 ## Keep the thought
 
 Codex asks whether to keep it.
@@ -89,6 +97,18 @@ If Codex writes a sentence worth retaining, say:
 The sentence returns through the same capture and keep flow.
 
 ## The mental model
+
+ME follows a semantic state machine:
+
+```text
+Utterance
+  -> interpreted intent
+  -> counted product meaning
+  -> legal transition
+  -> deterministic transaction
+  -> canonical state
+  -> rendered proof
+```
 
 ```text
 COLLECT
@@ -129,6 +149,8 @@ useful output
 
 ME is the complete product.
 
+Prompts guide the model. Transactions govern the product.
+
 ```text
 Codex App
   host and conversational interface
@@ -160,6 +182,9 @@ Procedures are optional instructions for repeated workflows.
 
 References and Procedures are not cognitions. Neither enters ME
 automatically.
+
+The product constitution is in [docs/constitution.md](docs/constitution.md).
+The product contracts are in [docs/contracts.md](docs/contracts.md).
 
 See [docs/references-and-procedures.md](docs/references-and-procedures.md).
 

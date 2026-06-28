@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Add the semantic state machine contract for ME's Thought -> Decision -> Cognition boundary.
+- Add `me contract show` and `me contract check` for contract inspection and release validation.
+- Add product-facing docs for the constitution, count design, contracts, harness boundary, and agent-tool testing.
+- Add render templates, simulated agent-harness fixtures, golden UX coverage, and import-boundary regressions.
+- Extend release checks to validate the semantic contract.
+
 ## 0.8.2
 
 - Enforce the thought-to-cognition boundary in the engine: `me cognition add` now requires `approved: true`.

@@ -4,6 +4,7 @@ set -euo pipefail
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo run -p me-cli -- contract check --json >/dev/null
 cargo run -p me-cli -- --help >/dev/null
 scripts/naming-contract-check.sh
 scripts/verify-install-channel.sh

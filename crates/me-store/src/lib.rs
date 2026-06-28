@@ -823,9 +823,13 @@ impl Workspace {
             )));
         }
         if !has_explicit_keep_approval(&value) {
-            return Err(invalid(
-                "cognition add requires explicit keep approval: capture the thought first, show it as THOUGHT, ask whether to keep it, then pass a Decision with approved=true only after the user approves",
-            ));
+            return Err(MeError::InvalidInput {
+                code: "INVALID_INPUT",
+                message: "cognition add requires explicit keep approval: capture the thought first, show it as THOUGHT, ask whether to keep it, then pass a Decision with approved=true only after the user approves".to_string(),
+                details: json!({
+                    "renderedMarkdown": invalid_missing_approval_markdown()
+                }),
+            });
         }
         self.with_lock(|| {
             let current = self.load_current()?;
@@ -3717,6 +3721,9 @@ thought capture.
 
 A thought you keep in ME is called a cognition.
 
+A casual phrase like "add this" captures a Thought. It does not approve
+keeping it as a Cognition.
+
 Codex can inspect, compare, and compose from your cognitions
 without changing them.
 
@@ -4286,20 +4293,24 @@ fn thought_capture_markdown(body: &str) -> String {
 
 fn first_cognition_markdown(body: &str, topic: &str) -> String {
     format!(
-        "KEPT IN ME\n\n{}\n\nIn ME, a thought you choose to keep is called a cognition.\n\nCodex can now use it without changing ME.\n\nTry:\n\n  What do I have in ME about {topic}?\n\n  Draft a short statement using ME.\n\nOr add another thought:\n\n  Add this thought to ME:\n",
+        "KEPT IN ME\n\n{}\n\nThis thought is now a cognition.\n\nIn ME, a thought you choose to keep is called a cognition.\n\nCodex can now use it without changing ME.\n\nTry:\n\n  What do I have in ME about {topic}?\n\n  Draft a short statement using ME.\n\nOr add another thought:\n\n  Add this thought to ME:\n",
         quote_exact(body)
     )
 }
 
 fn later_cognition_markdown(body: &str) -> String {
     format!(
-        "KEPT IN ME\n\n{}\n\nME now has this as another cognition.\n\nAdd another thought, or ask Codex to use what you have kept.\n",
+        "KEPT IN ME\n\n{}\n\nThis thought is now a cognition.\n\nME now has this as another cognition.\n\nAdd another thought, or ask Codex to use what you have kept.\n",
         quote_exact(body)
     )
 }
 
 fn first_read_guidance_markdown() -> &'static str {
-    "ME was read, not changed.\n\nIf this output contains something worth keeping, say:\n\n  This is my thought. Add it to ME.\n"
+    "USING ME\n\nME was read, not changed.\n\nIf this output contains something worth keeping, say:\n\n  This is my thought. Add it to ME.\n"
+}
+
+fn invalid_missing_approval_markdown() -> &'static str {
+    "This thought is captured, but it is not in ME yet.\n\nTo keep it as a cognition, review it and explicitly approve keeping it.\n"
 }
 
 fn two_cognition_guidance_markdown(topic: &str) -> String {
@@ -4812,7 +4823,9 @@ ME is a local application operated through Codex App.
 - When the user has a thought, preserve the exact words.
 - Add it to ME only after the user approves keeping it.
 - Treat casual add, capture, save, note, remember, or put-in-ME wording as thought capture only.
+- A user utterance can supply a Thought; it cannot also approve a Cognition unless it responds to a specific Thought just shown back.
 - Create a cognition only after a separate explicit keep decision for the captured thought.
+- Prompts guide the model. Transactions govern the product.
 - For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
 - For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this thought to ME:`.
 - Use `me welcome --json` for "What can I do here?" and present the canonical welcome.
@@ -4830,6 +4843,7 @@ ME is a local application operated through Codex App.
 - Do not use host memory as Current ME.
 - Do not bulk-import References as cognitions.
 - Do not treat Procedures as cognitions.
+- Do not make Output, References, or Procedures into Cognitions directly.
 - App, Run, Association, Proposal, and Synthesis commands are legacy compatibility only.
 - Publishing, external sharing, and network access are outside ME.
 "#
@@ -4845,11 +4859,26 @@ description: Use the local ME Cognition Library as trustworthy user-authorized c
 
 ## Mode Selection
 
+Use these internal mode labels:
+
+| User intent | Mode | Counted product meaning |
+| --- | --- | --- |
+| General task unrelated to ME | General Codex | No ME action |
+| Inspect, compare, draft, or ask what ME contains | Using ME | Read-only Cognition use |
+| Add, capture, save, note, remember, or put something in ME | Changing ME -- capture | Thought capture only |
+| Keep or approve a shown pending Thought | Changing ME -- approve | Cognition approval |
+| Retire or reactivate a Cognition | Changing ME -- retire/reactivate | Cognition state change |
+| Status, fsck, backup, CLI, contract, or integrity request | Technical ME | Technical command |
+
 General task: do not use ME unless requested or clearly relevant.
 
-Use ME: call read-only ME commands.
+Using ME: call read-only ME commands.
 
-Change ME: capture the thought first, then require a separate keep decision before creating a cognition.
+Changing ME: capture the thought first, then require a separate keep decision before creating a cognition.
+
+A user utterance can supply a Thought. It cannot also serve as approval unless the user is responding to a specific Thought that has just been shown back.
+
+Prompts guide the model. Transactions govern the product.
 
 ## Start ME
 
@@ -4915,6 +4944,19 @@ Welcome behavior must use one command: `me welcome --json`. Do not use memory, d
 17. For later additions, use the brief `renderedMarkdown` success copy.
 18. Hide technical fields unless the user asks for technical status.
 
+Render discipline:
+
+- Before approval, show `THOUGHT` and say the thought is not in ME yet.
+- After approval, show `KEPT IN ME`.
+- For read-only use, state that ME was read, not changed when relevant.
+
+Forbidden mutation shortcuts:
+
+- Never call `me cognition add` immediately after first seeing a Thought.
+- Never infer `approved: true` from the same message that supplied the Thought.
+- Never save Codex Output as a Cognition directly.
+- Never bulk-add a Reference file.
+
 ## Feedback
 
 When the user says "This sentence is my thought", "Add this part to ME", or "Keep this from the draft", re-enter the normal thought flow. Codex output never enters ME automatically.
@@ -4931,6 +4973,7 @@ Do not use Codex memory to determine workspace counts, whether this is the first
 Do not bulk-import References as cognitions.
 Do not treat Procedures as cognitions.
 Do not save Codex output into ME automatically.
+Do not make Output, References, or Procedures into Cognitions directly.
 Do not invent relationship objects.
 Do not force synthesis.
 Do not show snapshots, fsck, bundle, index, or other maintenance details unless the user asks for technical status.

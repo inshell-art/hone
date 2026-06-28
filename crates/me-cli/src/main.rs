@@ -67,6 +67,19 @@ enum Commands {
     Bundle(BundleArgs),
     Export(ExportArgs),
     Migrate(MigrateArgs),
+    Contract(ContractArgs),
+}
+
+#[derive(Debug, Args)]
+struct ContractArgs {
+    #[command(subcommand)]
+    command: ContractCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ContractCommand {
+    Show,
+    Check,
 }
 
 #[derive(Debug, Args)]
@@ -797,7 +810,280 @@ fn dispatch(cli: &Cli) -> (&'static str, Result<Value, MeError>) {
                 )
             }
         }
+        Commands::Contract(args) => match args.command {
+            ContractCommand::Show => ("contract show", contract_show()),
+            ContractCommand::Check => ("contract check", contract_check()),
+        },
     }
+}
+
+const SEMANTIC_CONTRACT_JSON: &str =
+    include_str!("../../../contracts/me-semantic-contract.v1.json");
+const WORKSPACE_SKILL_MD: &str =
+    include_str!("../../../templates/workspace/.agents/skills/me/SKILL.md");
+const README_MD: &str = include_str!("../../../README.md");
+const CONSTITUTION_MD: &str = include_str!("../../../docs/constitution.md");
+const PHILOSOPHY_MD: &str = include_str!("../../../docs/philosophy.md");
+const CONTRACTS_MD: &str = include_str!("../../../docs/contracts.md");
+const HARNESS_MD: &str = include_str!("../../../docs/harness.md");
+const TESTING_AGENT_TOOLS_MD: &str = include_str!("../../../docs/testing-agent-tools.md");
+const THOUGHT_CAPTURED_TEMPLATE: &str =
+    include_str!("../../../templates/render/thought-captured.md");
+const COGNITION_KEPT_TEMPLATE: &str = include_str!("../../../templates/render/cognition-kept.md");
+const USING_ME_TEMPLATE: &str = include_str!("../../../templates/render/using-me-read-only.md");
+const OUTPUT_FEEDBACK_TEMPLATE: &str = include_str!("../../../templates/render/output-feedback.md");
+const INVALID_MISSING_APPROVAL_TEMPLATE: &str =
+    include_str!("../../../templates/render/invalid-missing-approval.md");
+const AGENT_FIXTURES_JSON: &str =
+    include_str!("../../../tests/agent-fixtures/semantic-boundary-fixtures.json");
+
+fn contract_show() -> Result<Value, MeError> {
+    let contract: Value = serde_json::from_str(SEMANTIC_CONTRACT_JSON)
+        .map_err(|err| MeError::Internal(err.into()))?;
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "me.semantic-contract",
+        "contract": contract,
+        "markdown": contract_markdown(&contract)
+    }))
+}
+
+fn contract_check() -> Result<Value, MeError> {
+    let mut checks = Vec::new();
+    let mut failures = Vec::new();
+    let contract: Value = match serde_json::from_str(SEMANTIC_CONTRACT_JSON) {
+        Ok(value) => {
+            push_check(&mut checks, "semantic-contract-json-valid", true);
+            value
+        }
+        Err(err) => {
+            push_check(&mut checks, "semantic-contract-json-valid", false);
+            failures.push(format!("semantic contract JSON is invalid: {err}"));
+            Value::Null
+        }
+    };
+
+    if !contract.is_null() {
+        check_bool(
+            &mut checks,
+            &mut failures,
+            "principle-present",
+            contract["principle"].as_str()
+                == Some("Prompts guide the model. Transactions govern the product."),
+        );
+        check_bool(
+            &mut checks,
+            &mut failures,
+            "add-cognition-requires-approved",
+            contract["transitions"].as_array().is_some_and(|items| {
+                items.iter().any(|item| {
+                    item["id"] == "add-cognition"
+                        && item["requiresApproval"] == true
+                        && item["requiresDecisionField"]["approved"] == true
+                })
+            }),
+        );
+        check_bool(
+            &mut checks,
+            &mut failures,
+            "direct-boundaries-forbidden",
+            contract["boundaries"]["outputToCognitionDirect"] == "forbidden"
+                && contract["boundaries"]["referenceToCognitionDirect"] == "forbidden"
+                && contract["boundaries"]["procedureToCognitionDirect"] == "forbidden",
+        );
+    }
+
+    for phrase in [
+        "A user utterance can supply a Thought.",
+        "It cannot also serve as approval unless the user is responding to a specific Thought that has just been shown back.",
+        "Never call `me cognition add` immediately after first seeing a Thought.",
+        "Never infer `approved: true` from the same message that supplied the Thought.",
+        "Never save Codex Output as a Cognition directly.",
+        "Never bulk-add a Reference file.",
+        "A captured thought is not a cognition and is not in ME yet.",
+    ] {
+        check_bool(
+            &mut checks,
+            &mut failures,
+            format!("skill-contains-{phrase}"),
+            WORKSPACE_SKILL_MD.contains(phrase),
+        );
+    }
+
+    check_bool(
+        &mut checks,
+        &mut failures,
+        "readme-references-constitution",
+        README_MD.contains("docs/constitution.md")
+            && README_MD.contains("Why ME asks before keeping a Thought"),
+    );
+    check_bool(
+        &mut checks,
+        &mut failures,
+        "docs-present",
+        CONSTITUTION_MD.contains("Thought Is Not Cognition")
+            && PHILOSOPHY_MD.contains("Count design")
+            && CONTRACTS_MD.contains("Vocabulary Contract")
+            && HARNESS_MD.contains("Codex is the runtime harness.")
+            && TESTING_AGENT_TOOLS_MD.contains("Simulated Agent-Harness Tests"),
+    );
+    check_bool(
+        &mut checks,
+        &mut failures,
+        "render-templates-present",
+        THOUGHT_CAPTURED_TEMPLATE.contains("not in ME yet")
+            && COGNITION_KEPT_TEMPLATE.contains("This thought is now a cognition.")
+            && USING_ME_TEMPLATE.contains("ME was read, not changed.")
+            && OUTPUT_FEEDBACK_TEMPLATE.contains("This is my thought. Add it to ME.")
+            && INVALID_MISSING_APPROVAL_TEMPLATE.contains("explicitly approve keeping it"),
+    );
+
+    let fixtures: Value = match serde_json::from_str(AGENT_FIXTURES_JSON) {
+        Ok(value) => {
+            push_check(&mut checks, "agent-fixtures-json-valid", true);
+            value
+        }
+        Err(err) => {
+            push_check(&mut checks, "agent-fixtures-json-valid", false);
+            failures.push(format!("agent fixture JSON is invalid: {err}"));
+            Value::Null
+        }
+    };
+    if let Some(items) = fixtures.as_array() {
+        for required in [
+            "casual-add-captures-only",
+            "save-wording-captures-only",
+            "remember-wording-captures-only",
+            "note-wording-captures-only",
+            "put-this-in-me-captures-only",
+            "explicit-approval-promotes",
+            "ambiguous-yes-without-pending-thought-fails-safely",
+            "read-only-use-does-not-mutate",
+            "output-feedback-reenters-as-thought",
+            "reference-not-bulk-imported",
+            "procedure-not-cognition",
+        ] {
+            check_bool(
+                &mut checks,
+                &mut failures,
+                format!("fixture-{required}"),
+                items.iter().any(|item| item["name"] == required),
+            );
+        }
+    }
+
+    if failures.is_empty() {
+        Ok(json!({
+            "ok": true,
+            "checked": checks.len(),
+            "checks": checks,
+            "failures": []
+        }))
+    } else {
+        Err(MeError::InvalidInput {
+            code: "CONTRACT_CHECK_FAILED",
+            message: "ME semantic contract check failed".to_string(),
+            details: json!({
+                "checked": checks.len(),
+                "checks": checks,
+                "failures": failures
+            }),
+        })
+    }
+}
+
+fn push_check(checks: &mut Vec<Value>, name: impl Into<String>, ok: bool) {
+    checks.push(json!({
+        "name": name.into(),
+        "ok": ok
+    }));
+}
+
+fn check_bool(
+    checks: &mut Vec<Value>,
+    failures: &mut Vec<String>,
+    name: impl Into<String>,
+    ok: bool,
+) {
+    let name = name.into();
+    push_check(checks, name.clone(), ok);
+    if !ok {
+        failures.push(name);
+    }
+}
+
+fn contract_markdown(contract: &Value) -> String {
+    let thought_states = contract["states"]["thought"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default();
+    let cognition_states = contract["states"]["cognition"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default();
+    let transitions = contract["transitions"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item["id"].as_str())
+                .map(|id| format!("- {id}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default();
+    format!(
+        r#"# ME Semantic Contract v1
+
+{}
+
+## Semantic State Machine
+
+```text
+Utterance
+  -> interpreted intent
+  -> counted product meaning
+  -> legal transition
+  -> deterministic transaction
+  -> canonical state
+  -> rendered proof
+```
+
+## States
+
+Thought: {thought_states}
+
+Cognition: {cognition_states}
+
+## Transitions
+
+{transitions}
+
+## Count Design
+
+- Casual add, capture, save, note, remember, or put-in-ME wording counts as Thought capture only.
+- Approval phrases count only when a specific pending Thought was just shown back.
+- Read-only use must not advance the current Snapshot.
+- Output, Reference, and Procedure routes cannot create Cognitions directly.
+
+## Product Law
+
+Prompts guide the model. Transactions govern the product.
+"#,
+        contract["principle"].as_str().unwrap_or("")
+    )
 }
 
 fn version_info() -> Value {
@@ -1213,6 +1499,12 @@ fn print_error(command: &str, err: &MeError, json_output: bool) {
             }))
             .expect("json")
         );
+    } else if let Some(markdown) = err
+        .details()
+        .get("renderedMarkdown")
+        .and_then(Value::as_str)
+    {
+        eprint!("{markdown}");
     } else {
         eprintln!("error[{}]: {}", err.code(), err);
     }

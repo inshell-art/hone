@@ -53,10 +53,17 @@ me --workspace ~/ME status --json
 me --workspace ~/ME current --json
 me --workspace ~/ME fsck --json
 me --workspace ~/ME index rebuild --json
+me contract show --markdown
+me contract check --json
 ```
 
 Technical commands may show hashes and workspace internals. Product
 welcome commands should not.
+
+`me contract show` displays ME's semantic state-machine contract.
+`me contract check` validates the contract, skill policy, render
+templates, and simulated agent fixtures. It does not mutate canonical ME
+state.
 
 ## Backup
 

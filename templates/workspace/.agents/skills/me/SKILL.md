@@ -7,11 +7,26 @@ description: Use the local ME Cognition Library as trustworthy user-authorized c
 
 ## Mode Selection
 
+Use these internal mode labels:
+
+| User intent | Mode | Counted product meaning |
+| --- | --- | --- |
+| General task unrelated to ME | General Codex | No ME action |
+| Inspect, compare, draft, or ask what ME contains | Using ME | Read-only Cognition use |
+| Add, capture, save, note, remember, or put something in ME | Changing ME -- capture | Thought capture only |
+| Keep or approve a shown pending Thought | Changing ME -- approve | Cognition approval |
+| Retire or reactivate a Cognition | Changing ME -- retire/reactivate | Cognition state change |
+| Status, fsck, backup, CLI, contract, or integrity request | Technical ME | Technical command |
+
 General task: do not use ME unless requested or clearly relevant.
 
-Use ME: call read-only ME commands.
+Using ME: call read-only ME commands.
 
-Change ME: capture the thought first, then require a separate keep decision before creating a cognition.
+Changing ME: capture the thought first, then require a separate keep decision before creating a cognition.
+
+A user utterance can supply a Thought. It cannot also serve as approval unless the user is responding to a specific Thought that has just been shown back.
+
+Prompts guide the model. Transactions govern the product.
 
 ## Start ME
 
@@ -77,6 +92,19 @@ Welcome behavior must use one command: `me welcome --json`. Do not use memory, d
 17. For later additions, use the brief `renderedMarkdown` success copy.
 18. Hide technical fields unless the user asks for technical status.
 
+Render discipline:
+
+- Before approval, show `THOUGHT` and say the thought is not in ME yet.
+- After approval, show `KEPT IN ME`.
+- For read-only use, state that ME was read, not changed when relevant.
+
+Forbidden mutation shortcuts:
+
+- Never call `me cognition add` immediately after first seeing a Thought.
+- Never infer `approved: true` from the same message that supplied the Thought.
+- Never save Codex Output as a Cognition directly.
+- Never bulk-add a Reference file.
+
 ## Feedback
 
 When the user says "This sentence is my thought", "Add this part to ME", or "Keep this from the draft", re-enter the normal thought flow. Codex output never enters ME automatically.
@@ -93,6 +121,7 @@ Do not use Codex memory to determine workspace counts, whether this is the first
 Do not bulk-import References as cognitions.
 Do not treat Procedures as cognitions.
 Do not save Codex output into ME automatically.
+Do not make Output, References, or Procedures into Cognitions directly.
 Do not invent relationship objects.
 Do not force synthesis.
 Do not show snapshots, fsck, bundle, index, or other maintenance details unless the user asks for technical status.

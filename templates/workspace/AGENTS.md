@@ -7,7 +7,9 @@ ME is a local application operated through Codex App.
 - When the user has a thought, preserve the exact words.
 - Add it to ME only after the user approves keeping it.
 - Treat casual add, capture, save, note, remember, or put-in-ME wording as thought capture only.
+- A user utterance can supply a Thought; it cannot also approve a Cognition unless it responds to a specific Thought just shown back.
 - Create a cognition only after a separate explicit keep decision for the captured thought.
+- Prompts guide the model. Transactions govern the product.
 - For exact `Start ME`, call `me welcome --json` and output `renderedMarkdown` verbatim.
 - For a simple empty-workspace greeting, call `me welcome --json` and reply with `Hi. ME is ready.` plus `Add this thought to ME:`.
 - Use `me welcome --json` for "What can I do here?" and present the canonical welcome.
@@ -25,6 +27,7 @@ ME is a local application operated through Codex App.
 - Do not use host memory as Current ME.
 - Do not bulk-import References as cognitions.
 - Do not treat Procedures as cognitions.
+- Do not make Output, References, or Procedures into Cognitions directly.
 - App, Run, Association, Proposal, and Synthesis commands are legacy compatibility only.
 - Publishing, external sharing, and network access are outside ME.
 

@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "product": "ME",
+  "principle": "Prompts guide the model. Transactions govern the product.",
+  "vocabulary": [
+    "Thought",
+    "Decision",
+    "Cognition",
+    "Reference",
+    "Procedure",
+    "Output",
+    "Snapshot"
+  ],
+  "states": {
+    "thought": [
+      "pending",
+      "kept-only",
+      "dismissed",
+      "added"
+    ],
+    "cognition": [
+      "active",
+      "retired"
+    ]
+  },
+  "transitions": [
+    {
+      "id": "capture-thought",
+      "from": null,
+      "to": "thought.pending",
+      "requiresApproval": false
+    },
+    {
+      "id": "keep-thought-only",
+      "from": "thought.pending",
+      "to": "thought.kept-only",
+      "requiresApproval": true
+    },
+    {
+      "id": "dismiss-thought",
+      "from": "thought.pending",
+      "to": "thought.dismissed",
+      "requiresApproval": true
+    },
+    {
+      "id": "add-cognition",
+      "from": "thought.pending",
+      "to": [
+        "thought.added",
+        "cognition.active"
+      ],
+      "requiresApproval": true,
+      "requiresDecisionField": {
+        "approved": true
+      }
+    },
+    {
+      "id": "retire-cognition",
+      "from": "cognition.active",
+      "to": "cognition.retired",
+      "requiresApproval": true
+    },
+    {
+      "id": "reactivate-cognition",
+      "from": "cognition.retired",
+      "to": "cognition.active",
+      "requiresApproval": true
+    }
+  ],
+  "intentPolicy": {
+    "modes": [
+      "general-codex",
+      "using-me.read-only",
+      "changing-me.capture-thought",
+      "changing-me.approve-cognition",
+      "changing-me.retire-or-reactivate-cognition",
+      "technical-me"
+    ],
+    "captureOnlyPhrases": [
+      "add this",
+      "capture this",
+      "save this",
+      "note this",
+      "remember this",
+      "put this in ME"
+    ],
+    "approvalPhrasesRequirePendingThought": [
+      "keep it",
+      "yes keep it",
+      "approve keeping it"
+    ],
+    "readOnlyPhrases": [
+      "what do I have in ME about",
+      "draft using ME",
+      "draft a short statement using ME"
+    ]
+  },
+  "boundaries": {
+    "outputToCognitionDirect": "forbidden",
+    "referenceToCognitionDirect": "forbidden",
+    "procedureToCognitionDirect": "forbidden",
+    "readOnlySnapshotMutation": "forbidden"
+  },
+  "renderTemplates": {
+    "thoughtCaptured": "templates/render/thought-captured.md",
+    "cognitionKept": "templates/render/cognition-kept.md",
+    "usingMeReadOnly": "templates/render/using-me-read-only.md",
+    "outputFeedback": "templates/render/output-feedback.md",
+    "invalidMissingApproval": "templates/render/invalid-missing-approval.md"
+  }
+}

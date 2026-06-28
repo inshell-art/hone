@@ -1,7 +1,7 @@
 class Me < Formula
   desc "Local meaning environment"
   homepage "https://github.com/inshell-art/me"
-  url "https://github.com/inshell-art/me/archive/refs/tags/v0.8.2.tar.gz"
+  url "https://github.com/inshell-art/me/archive/refs/tags/v0.9.0.tar.gz"
   sha256 "<release-sha256>"
   license "MIT"
 

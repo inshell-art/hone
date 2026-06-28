@@ -1,0 +1,203 @@
+[
+  {
+    "name": "casual-add-captures-only",
+    "workspace": "empty",
+    "user": "Add this thought to ME:\nAgent Art will matter.",
+    "expectedMode": "changing-me.capture-thought",
+    "expectedToolCalls": [
+      "me thought capture"
+    ],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedResponseContains": [
+      "THOUGHT",
+      "not in ME yet",
+      "Keep it?"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 1,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "save-wording-captures-only",
+    "workspace": "empty",
+    "user": "Save this in ME: Agent Art will matter.",
+    "expectedMode": "changing-me.capture-thought",
+    "expectedToolCalls": [
+      "me thought capture"
+    ],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 1,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "remember-wording-captures-only",
+    "workspace": "empty",
+    "user": "Remember this: Agent Art will matter.",
+    "expectedMode": "changing-me.capture-thought",
+    "expectedToolCalls": [
+      "me thought capture"
+    ],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 1,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "note-wording-captures-only",
+    "workspace": "empty",
+    "user": "Note this: Agent Art will matter.",
+    "expectedMode": "changing-me.capture-thought",
+    "expectedToolCalls": [
+      "me thought capture"
+    ],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 1,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "put-this-in-me-captures-only",
+    "workspace": "empty",
+    "user": "Put this in ME: Agent Art will matter.",
+    "expectedMode": "changing-me.capture-thought",
+    "expectedToolCalls": [
+      "me thought capture"
+    ],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 1,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "explicit-approval-promotes",
+    "workspace": "pendingThought",
+    "pendingThought": "Agent Art will matter.",
+    "user": "yes, keep it",
+    "expectedMode": "changing-me.approve-cognition",
+    "expectedToolCalls": [
+      "me cognition add"
+    ],
+    "expectedDecisionFields": {
+      "approved": true
+    },
+    "expectedResponseContains": [
+      "KEPT IN ME"
+    ],
+    "expectedState": {
+      "activeCognitions": 1,
+      "pendingThoughts": 0,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "ambiguous-yes-without-pending-thought-fails-safely",
+    "workspace": "empty",
+    "user": "yes",
+    "expectedMode": "general-codex",
+    "expectedToolCalls": [],
+    "forbiddenToolCalls": [
+      "me cognition add",
+      "me thought capture"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 0,
+      "snapshotChanged": false
+    }
+  },
+  {
+    "name": "read-only-use-does-not-mutate",
+    "workspace": "seeded",
+    "user": "What do I have in ME about authorship?",
+    "expectedMode": "using-me.read-only",
+    "expectedToolCalls": [
+      "me context"
+    ],
+    "forbiddenToolCalls": [
+      "me thought capture",
+      "me cognition add"
+    ],
+    "expectedState": {
+      "snapshotChanged": false
+    }
+  },
+  {
+    "name": "output-feedback-reenters-as-thought",
+    "workspace": "empty",
+    "user": "This is my thought. Add it to ME.",
+    "expectedMode": "changing-me.capture-thought",
+    "expectedToolCalls": [
+      "me thought capture"
+    ],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 1,
+      "snapshotChanged": true
+    }
+  },
+  {
+    "name": "reference-not-bulk-imported",
+    "workspace": "empty",
+    "reference": "tests/import-boundary/ask.positioning.v1.md",
+    "user": "Import this document.",
+    "expectedMode": "using-reference.boundary",
+    "expectedToolCalls": [],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedResponseContains": [
+      "Reference",
+      "not Cognition",
+      "exact excerpt"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 0,
+      "snapshotChanged": false
+    }
+  },
+  {
+    "name": "procedure-not-cognition",
+    "workspace": "empty",
+    "procedure": "procedures/inspect-me.md",
+    "user": "Use this Procedure.",
+    "expectedMode": "using-procedure.boundary",
+    "expectedToolCalls": [],
+    "forbiddenToolCalls": [
+      "me cognition add"
+    ],
+    "expectedResponseContains": [
+      "Procedure",
+      "not Cognition"
+    ],
+    "expectedState": {
+      "activeCognitions": 0,
+      "pendingThoughts": 0,
+      "snapshotChanged": false
+    }
+  }
+]
