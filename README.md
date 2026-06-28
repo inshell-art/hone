@@ -40,6 +40,40 @@ Press Enter on:
 Start ME
 ```
 
+### Upgrade ME in place
+
+If you are already in a Codex session inside your ME directory, say:
+
+```text
+Upgrade ME
+```
+
+Codex should upgrade the local engine in place, repair the workspace
+instructions, verify the semantic contract, and keep using the same ME
+directory.
+
+For a specific release, say:
+
+```text
+Upgrade ME to 0.9
+```
+
+Codex should run the operational commands for you:
+
+```bash
+brew update
+brew upgrade inshell-art/tap/me
+me --version
+me doctor --repair --json
+me contract check --json
+```
+
+No workspace migration is needed from v0.8 to v0.9.
+
+You can keep the same Codex session. After `me doctor --repair`, Codex
+should reload the local ME instructions so the current session follows
+the upgraded policy.
+
 ## A thought occurs
 
 Suppose you think:

@@ -3732,6 +3732,16 @@ Start in Codex by running:
 ```bash
 me start
 ```
+
+To upgrade ME from this Codex session, say:
+
+```text
+Upgrade ME
+```
+
+Codex should upgrade the local engine in place, run
+`me doctor --repair --json`, run `me contract check --json`, and keep
+using this same ME directory.
 "#;
         atomic_write_preserving_user_section(&self.root.join("README.md"), readme.as_bytes())?;
         atomic_write_preserving_user_section(
@@ -5624,6 +5634,9 @@ rebuild_on_integrity_failure = true
         assert!(readme.contains("me start"));
         assert!(readme.contains("Press Enter on:"));
         assert!(readme.contains("Start ME"));
+        assert!(readme.contains("Upgrade ME in place"));
+        assert!(readme.contains("Upgrade ME to 0.9"));
+        assert!(readme.contains("me contract check --json"));
         assert!(readme.contains("Designing a generative system is part of authorship."));
         assert!(readme.contains(
             "The prompt captures first. It does not keep the thought until you approve."

@@ -27,6 +27,16 @@ Start in Codex by running:
 me start
 ```
 
+To upgrade ME from this Codex session, say:
+
+```text
+Upgrade ME
+```
+
+Codex should upgrade the local engine in place, run
+`me doctor --repair --json`, run `me contract check --json`, and keep
+using this same ME directory.
+
 Canonical state lives in `.me/objects/**` and `.me/refs/current`.
 Generated views under `views/**` are readable projections and may be
 overwritten.
